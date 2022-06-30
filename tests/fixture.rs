@@ -22,10 +22,10 @@ fn jsx_dom_expressions_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|t| {
+        &|_| {
             chain!(
                 resolver(Mark::new(), Mark::new(), false),
-                as_folder(TransformVisitor)
+                as_folder(TransformVisitor::new())
             )
         },
         &input,
