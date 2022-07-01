@@ -7,11 +7,11 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-serde = "*"
-swc_plugin = "*"
-swc_common = { version = "*", features = ["concurrent", "sourcemap"] }
+serde = "1"
+swc_plugin = "0.68"
+swc_common = { version = "0.20", features = ["concurrent", "sourcemap"] }
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "*"
-testing = "*"
-swc_ecmascript = { version = "*", features = ["parser", "minifier", "utils", "visit", "transforms"] }
+swc_ecma_transforms_testing = "0.95"
+testing = "0.22"
+swc_ecmascript = { version = "0.172", features = ["parser", "minifier", "utils", "visit", "transforms"] }
