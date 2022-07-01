@@ -150,7 +150,7 @@ impl VisitMut for TransformVisitor {
         let tIdent = Ident::new("_$template".into(), DUMMY_SP);
         let specifier = ImportSpecifier::Named(ImportNamedSpecifier {
             span: DUMMY_SP,
-            local: tIdent,
+            local: tIdent.clone(),
             imported: Some(ModuleExportName::Ident(Ident::new(
                 "template".into(),
                 DUMMY_SP,
@@ -165,14 +165,16 @@ impl VisitMut for TransformVisitor {
                 kind: VarDeclKind::Const,
                 declare: false,
                 decls: vec![VarDeclarator {
-                    name: Pat::Ident(BindingIdent::from(Ident::new("_$tpl".into(), DUMMY_SP))),
+                    name: Pat::Ident(BindingIdent::from(Ident::new("_$tmpl".into(), DUMMY_SP))),
                     definite: false,
                     span: DUMMY_SP,
                     init: Some(Box::new(Expr::Call(CallExpr {
                         span: DUMMY_SP,
-                        callee: tIdent,
+                        callee: Callee::Expr(Box::new(Expr::Ident(tIdent))),
                         type_args: None,
-                        args: vec![ExprOrSpread::Expr(Expr::Tpl(Tpl {
+                        args: vec![ExprOrSpread{
+                            spread: None,
+                            expr: Box::new(Expr::Tpl(Tpl {
                             span: DUMMY_SP,
                             exprs: vec![],
                             quasis: vec![TplElement {
@@ -181,7 +183,8 @@ impl VisitMut for TransformVisitor {
                                 tail: true,
                                 raw: self.templates[0].clone().into(),
                             }],
-                        }))],
+                        }))
+                    }],
                     }))),
                 }],
             }))),
