@@ -1,5 +1,12 @@
-use swc_common::DUMMY_SP;
-use swc_plugin::{ast::*, plugin_transform, utils::prepend_stmt, TransformPluginProgramMetadata};
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::{
+        ast::*,
+        utils::prepend_stmt,
+        visit::{as_folder, FoldWith, Visit, VisitMut, VisitMutWith, VisitWith},
+    },
+    plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
+};
 
 struct TemplateThing {
     template: String,
@@ -147,10 +154,10 @@ impl VisitMut for TransformVisitor {
     fn visit_mut_module(&mut self, module: &mut Module) {
         module.visit_mut_children_with(self);
 
-        let tIdent = Ident::new("_$template".into(), DUMMY_SP);
+        let t_ident = Ident::new("_$template".into(), DUMMY_SP);
         let specifier = ImportSpecifier::Named(ImportNamedSpecifier {
             span: DUMMY_SP,
-            local: tIdent.clone(),
+            local: t_ident.clone(),
             imported: Some(ModuleExportName::Ident(Ident::new(
                 "template".into(),
                 DUMMY_SP,
@@ -160,7 +167,7 @@ impl VisitMut for TransformVisitor {
 
         prepend_stmt(
             &mut module.body,
-            ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Const,
                 declare: false,
@@ -170,24 +177,24 @@ impl VisitMut for TransformVisitor {
                     span: DUMMY_SP,
                     init: Some(Box::new(Expr::Call(CallExpr {
                         span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(tIdent))),
+                        callee: Callee::Expr(Box::new(Expr::Ident(t_ident))),
                         type_args: None,
-                        args: vec![ExprOrSpread{
+                        args: vec![ExprOrSpread {
                             spread: None,
                             expr: Box::new(Expr::Tpl(Tpl {
-                            span: DUMMY_SP,
-                            exprs: vec![],
-                            quasis: vec![TplElement {
                                 span: DUMMY_SP,
-                                cooked: None,
-                                tail: true,
-                                raw: self.templates[0].clone().into(),
-                            }],
-                        }))
-                    }],
+                                exprs: vec![],
+                                quasis: vec![TplElement {
+                                    span: DUMMY_SP,
+                                    cooked: None,
+                                    tail: true,
+                                    raw: self.templates[0].clone().into(),
+                                }],
+                            })),
+                        }],
                     }))),
                 }],
-            }))),
+            })))),
         );
 
         prepend_stmt(
@@ -195,11 +202,11 @@ impl VisitMut for TransformVisitor {
             ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
                 specifiers: vec![specifier],
-                src: Str {
+                src: Box::new(Str {
                     span: DUMMY_SP,
                     raw: None,
                     value: "solid-js/web".into(),
-                },
+                }),
                 type_only: Default::default(),
                 asserts: Default::default(),
             })),

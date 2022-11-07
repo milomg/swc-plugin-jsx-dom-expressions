@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use jsx_dom_expressions::TransformVisitor;
-use swc_common::{chain, Mark};
-use swc_ecma_transforms_testing::test_fixture;
-use swc_ecmascript::{
-    parser::{EsConfig, Syntax},
-    transforms::resolver,
+use swc_core::common::{chain, Mark};
+use swc_core::{
+    ecma::parser::{EsConfig, Syntax},
+    ecma::transforms::base::resolver,
+    ecma::transforms::testing::test_fixture,
+    ecma::visit::as_folder,
 };
-use swc_plugin::ast::as_folder;
 use testing::fixture;
 
 fn syntax() -> Syntax {
@@ -30,5 +30,6 @@ fn jsx_dom_expressions_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
