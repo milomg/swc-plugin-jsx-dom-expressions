@@ -8,24 +8,26 @@ use swc_core::{
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
 
-struct TemplateThing {
+struct TemplateInstance {
     template: String,
     id: Ident,
     decl: Vec<Stmt>,
     exprs: Vec<Stmt>,
     dynamics: Vec<Stmt>,
+    tag_count: f64,
 }
 
-struct TemplateId {
+struct TemplateCreation {
     template: String,
     id: Ident,
+    tag_count: f64,
 }
 pub struct TransformVisitor<C>
 where
     C: Comments,
 {
-    templates: Vec<TemplateId>,
-    current_template: Option<TemplateThing>,
+    templates: Vec<TemplateCreation>,
+    current_template: Option<TemplateInstance>,
     comments: C,
 }
 
@@ -122,19 +124,20 @@ where
         buffer.push('>');
 
         if level {
-            self.current_template = Some(TemplateThing {
+            self.current_template = Some(TemplateInstance {
                 template: String::new(),
                 id: Ident::new(format!("_tmpl${}", self.templates.len()).into(), DUMMY_SP),
                 decl: vec![],
                 exprs: vec![],
                 dynamics: vec![],
+                tag_count: 0.0,
             });
         }
 
         {
             let tpl = self.current_template.as_mut().unwrap();
-
             tpl.template.push_str(&buffer);
+            tpl.tag_count += 1.0;
         }
 
         el.visit_children_with(self);
@@ -142,6 +145,7 @@ where
         {
             let tpl = self.current_template.as_mut().unwrap();
             tpl.template.push_str(&format!("</{}>", tag_name));
+            tpl.tag_count += 1.0;
         }
     }
 }
@@ -157,9 +161,10 @@ where
 
             let mut val = val.unwrap();
 
-            self.templates.push(TemplateId {
+            self.templates.push(TemplateCreation {
                 template: val.template,
                 id: val.id.clone(),
+                tag_count: val.tag_count
             });
 
             let el0 = Ident::new("_el$0".into(), DUMMY_SP);
@@ -263,6 +268,13 @@ where
                                     raw: self.templates[0].template.clone().into(),
                                 }],
                             })),
+                        }, ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Lit(Lit::Num(Number {
+                                span: DUMMY_SP,
+                                value: self.templates[0].tag_count,
+                                raw: None,
+                            }))),
                         }],
                     }))),
                 }],
