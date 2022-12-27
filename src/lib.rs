@@ -1,5 +1,5 @@
 use swc_core::{
-    common::DUMMY_SP,
+    common::{comments::Comments, Span, DUMMY_SP},
     ecma::{
         ast::*,
         utils::prepend_stmt,
@@ -10,21 +10,34 @@ use swc_core::{
 
 struct TemplateThing {
     template: String,
+    id: Ident,
     decl: Vec<Stmt>,
     exprs: Vec<Stmt>,
     dynamics: Vec<Stmt>,
 }
 
-pub struct TransformVisitor {
-    templates: Vec<String>,
+struct TemplateId {
+    template: String,
+    id: Ident,
+}
+pub struct TransformVisitor<C>
+where
+    C: Comments,
+{
+    templates: Vec<TemplateId>,
     current_template: Option<TemplateThing>,
+    comments: C,
 }
 
-impl TransformVisitor {
-    pub fn new() -> Self {
+impl<C> TransformVisitor<C>
+where
+    C: Comments,
+{
+    pub fn new(comments: C) -> Self {
         Self {
             current_template: None,
             templates: vec![],
+            comments,
         }
     }
 }
@@ -55,7 +68,10 @@ fn attr_name_to_str(x: &JSXAttrName) -> String {
     }
 }
 
-impl Visit for TransformVisitor {
+impl<C> Visit for TransformVisitor<C>
+where
+    C: Comments,
+{
     fn visit_jsx_element(&mut self, el: &JSXElement) {
         let level = self.current_template.is_none();
 
@@ -103,6 +119,7 @@ impl Visit for TransformVisitor {
         if level {
             self.current_template = Some(TemplateThing {
                 template: String::new(),
+                id: Ident::new(format!("_tmpl${}", self.templates.len()).into(), DUMMY_SP),
                 decl: vec![],
                 exprs: vec![],
                 dynamics: vec![],
@@ -124,31 +141,77 @@ impl Visit for TransformVisitor {
     }
 }
 
-impl VisitMut for TransformVisitor {
+impl<C> VisitMut for TransformVisitor<C>
+where
+    C: Comments,
+{
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
         if let Expr::JSXElement(el) = expr {
-            expr.visit_with(self);
-            let mut val = None;
-            std::mem::swap(&mut val, &mut self.current_template);
+            el.visit_with(self);
+            let val = std::mem::take(&mut self.current_template);
 
-            let val = val.unwrap();
-            self.templates.push(val.template);
+            let mut val = val.unwrap();
 
-            *expr = Expr::Arrow(ArrowExpr {
-                return_type: None,
-                type_params: None,
-                span: DUMMY_SP,
-                params: vec![],
-                is_async: false,
-                is_generator: false,
-                body: BlockStmtOrExpr::BlockStmt(BlockStmt {
-                    span: DUMMY_SP,
-                    stmts: val.decl,
-                }),
+            self.templates.push(TemplateId {
+                template: val.template,
+                id: val.id.clone(),
             });
-        }
 
-        expr.visit_mut_children_with(self);
+            let el0 = Ident::new("_el$0".into(), DUMMY_SP);
+            val.decl.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Const,
+                declare: false,
+                decls: vec![VarDeclarator {
+                    name: Pat::Ident(BindingIdent::from(el0.clone())),
+                    definite: false,
+                    span: DUMMY_SP,
+                    init: Some(Box::new(Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                            span: DUMMY_SP,
+                            obj: Box::new(Expr::Ident(val.id)),
+                            prop: MemberProp::Ident(Ident::new("cloneNode".into(), DUMMY_SP)),
+                        }))),
+                        args: vec![ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Lit(Lit::Bool(Bool {
+                                span: DUMMY_SP,
+                                value: true,
+                            }))),
+                        }],
+                        type_args: None,
+                    }))),
+                }],
+            }))));
+
+            expr.visit_mut_children_with(self);
+
+            val.decl.push(Stmt::Return(ReturnStmt {
+                span: DUMMY_SP,
+                arg: Some(Box::new(Expr::Ident(el0))),
+            }));
+
+            *expr = Expr::Call(CallExpr {
+                args: vec![],
+                span: DUMMY_SP,
+                type_args: None,
+                callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
+                    return_type: None,
+                    type_params: None,
+                    span: DUMMY_SP,
+                    params: vec![],
+                    is_async: false,
+                    is_generator: false,
+                    body: BlockStmtOrExpr::BlockStmt(BlockStmt {
+                        span: DUMMY_SP,
+                        stmts: val.decl,
+                    }),
+                }))),
+            });
+        } else {
+            expr.visit_mut_children_with(self);
+        }
     }
 
     fn visit_mut_module(&mut self, module: &mut Module) {
@@ -165,6 +228,10 @@ impl VisitMut for TransformVisitor {
             is_type_only: false,
         });
 
+        let span = Span::dummy_with_cmt();
+
+        self.comments.add_pure_comment(span.lo);
+
         prepend_stmt(
             &mut module.body,
             ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
@@ -172,11 +239,11 @@ impl VisitMut for TransformVisitor {
                 kind: VarDeclKind::Const,
                 declare: false,
                 decls: vec![VarDeclarator {
-                    name: Pat::Ident(BindingIdent::from(Ident::new("_$tmpl".into(), DUMMY_SP))),
+                    name: Pat::Ident(BindingIdent::from(self.templates[0].id.clone())),
                     definite: false,
                     span: DUMMY_SP,
                     init: Some(Box::new(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
+                        span,
                         callee: Callee::Expr(Box::new(Expr::Ident(t_ident))),
                         type_args: None,
                         args: vec![ExprOrSpread {
@@ -188,7 +255,7 @@ impl VisitMut for TransformVisitor {
                                     span: DUMMY_SP,
                                     cooked: None,
                                     tail: true,
-                                    raw: self.templates[0].clone().into(),
+                                    raw: self.templates[0].template.clone().into(),
                                 }],
                             })),
                         }],
@@ -207,14 +274,14 @@ impl VisitMut for TransformVisitor {
                     raw: None,
                     value: "solid-js/web".into(),
                 }),
-                type_only: Default::default(),
-                asserts: Default::default(),
+                type_only: false,
+                asserts: None,
             })),
         )
     }
 }
 
 #[plugin_transform]
-pub fn process_transform(program: Program, _metadata: TransformPluginProgramMetadata) -> Program {
-    program.fold_with(&mut as_folder(TransformVisitor::new()))
+pub fn process_transform(program: Program, metadata: TransformPluginProgramMetadata) -> Program {
+    program.fold_with(&mut as_folder(TransformVisitor::new(&metadata.comments)))
 }

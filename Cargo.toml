@@ -7,8 +7,8 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-swc_core = { version = "0.40", features = [
-  "plugin_transform",
+swc_core = { version = "0.51", features = [
+  "ecma_plugin_transform",
   "ecma_utils",
   "ecma_visit",
   "ecma_ast",
@@ -17,7 +17,7 @@ swc_core = { version = "0.40", features = [
 
 [dev-dependencies]
 testing = "0.31"
-swc_core = { version = "0.40", features = [
+swc_core = { version = "0.51", features = [
   "testing_transform",
   "ecma_parser",
 ] }
