@@ -72,6 +72,11 @@ impl<C> Visit for TransformVisitor<C>
 where
     C: Comments,
 {
+    fn visit_jsx_text(&mut self, el: &JSXText) {
+        let tpl = self.current_template.as_mut().unwrap();
+        tpl.template.push_str(&el.raw.trim());
+    }
+
     fn visit_jsx_element(&mut self, el: &JSXElement) {
         let level = self.current_template.is_none();
 
