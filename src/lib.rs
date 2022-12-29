@@ -98,6 +98,34 @@ where
         tpl.template.push_str(&el.raw.trim());
     }
 
+    fn visit_jsx_expr_container(&mut self, expr: &JSXExprContainer) {
+        let expr = match &expr.expr {
+            JSXExpr::JSXEmptyExpr(_) => {
+                panic!("unexpected jsx empty expr");
+            }
+            JSXExpr::Expr(expr) => expr,
+        };
+
+        // If the expression is a string literal, parse it as a string literal
+        // Otherwise, parse it as an expression
+        match expr.as_ref() {
+            Expr::Lit(lit) => {
+                match lit {
+                    Lit::Str(str_lit) => {
+                        let str_lit = str_lit.value.to_string();
+                        let tpl = self.current_template.as_mut().unwrap();
+                        tpl.template.push_str(&str_lit);
+                    }
+                    _ => {
+                        panic!("unexpected lit");
+                    }
+                }
+            }
+            _ => {
+            }
+        }
+    }
+
     fn visit_jsx_element(&mut self, el: &JSXElement) {
         let level = self.current_template.is_none();
 
