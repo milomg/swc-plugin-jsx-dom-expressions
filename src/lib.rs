@@ -113,7 +113,31 @@ where
                         match val {
                             JSXAttrValue::JSXExprContainer(expr) => {
                                 let expr = expr.expr.clone();
-                                // buffer.push_str(&format!(" {}={}", name, expr));
+                                let expr = match expr {
+                                    JSXExpr::JSXEmptyExpr(_) => {
+                                        panic!("unexpected jsx empty expr");
+                                    }
+                                    JSXExpr::Expr(expr) => expr,
+                                };
+
+                                // If the expression is a string literal, parse it as a string literal
+                                // Otherwise, parse it as an expression
+                                match *expr {
+                                    Expr::Lit(lit) => {
+                                        match lit {
+                                            Lit::Str(str_lit) => {
+                                                let str_lit = str_lit.value.to_string();
+                                                buffer.push_str(&format!(" {}=\"{}\"", name, str_lit));
+                                            }
+                                            _ => {
+                                                panic!("unexpected lit");
+                                            }
+                                        }
+                                    }
+                                    _ => {                                        
+                                        // buffer.push_str(&format!(" {}={}", name, expr));
+                                    }
+                                }
                             }
                             JSXAttrValue::Lit(lit) => {
                                 match lit {
