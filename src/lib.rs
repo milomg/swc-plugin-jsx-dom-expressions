@@ -8,6 +8,25 @@ use swc_core::{
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
 
+const VOID_ELEMENTS: [&str; 16] = [
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "keygen",
+    "link",
+    "menuitem",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+];
+
 struct TemplateInstance {
     template: String,
     id: Ident,
@@ -138,6 +157,10 @@ where
             let tpl = self.current_template.as_mut().unwrap();
             tpl.template.push_str(&buffer);
             tpl.tag_count += 1.0;
+        }
+
+        if VOID_ELEMENTS.contains(&tag_name.as_str()) {
+            return;
         }
 
         el.visit_children_with(self);
