@@ -36,12 +36,13 @@ fn set_attr(
     attr: &JSXAttr,
     elem: &Ident,
     name: &&str,
-    value: Box<Expr>,
+    value: &Box<Expr>,
     isSVG: bool,
     dynamic: bool,
     isCE: bool,
     prev_id: Option<&Ident>,
-) {
+) -> Option<Expr> {
+    return None;
 }
 
 fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
@@ -69,28 +70,42 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
             JSXAttrOrSpread::SpreadElement(_) => panic!("Spread wasn't preprocessed"),
         };
 
-        let value = attr.value;
+        let value = &attr.value;
 
-        let key = match attr.name {
+        let key = match &attr.name {
             JSXAttrName::JSXNamespacedName(name) => format!("{}:{}", name.ns.sym, name.name.sym),
             JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
         };
 
+        let t: Box<Expr>;
         let value = match value {
-            Some(value) => match value {
-                JSXAttrValue::JSXExprContainer(value) => match value.expr {
-                    JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
-                    JSXExpr::Expr(expr) => Some(expr),
-                },
-                JSXAttrValue::JSXElement(value) => Some(value.into()),
-                JSXAttrValue::JSXFragment(value) => Some(value.into()),
-                JSXAttrValue::Lit(value) => Some(value.into()),
-            },
+            Some(value) => {
+                let expr = match value {
+                    JSXAttrValue::JSXExprContainer(value) => match &value.expr {
+                        JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
+                        JSXExpr::Expr(expr) => expr,
+                    },
+                    JSXAttrValue::JSXElement(value) => {
+                        t = Box::new(Expr::JSXElement(value.clone()));
+                        &t
+                    }
+                    JSXAttrValue::JSXFragment(value) => {
+                        t = Box::new(Expr::JSXFragment(value.clone()));
+                        &t
+                    }
+                    JSXAttrValue::Lit(value) => {
+                        t = Box::new(Expr::Lit(value.clone()));
+                        &t
+                    }
+                };
+                Some(expr)
+            }
             None => None,
         };
 
         let aliases: HashMap<&str, &str> = ALIASES.iter().cloned().collect();
-        let key = aliases.get(key.as_str()).unwrap_or(&key.as_str());
+        let key_str = key.as_str();
+        let key = aliases.get(key.as_str()).unwrap_or(&key_str);
 
         // if (value && ChildProperties.has(key)) {
         //   results.exprs.push(
@@ -109,7 +124,7 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
                     false,
                     is_custom_element,
                     None,
-                )
+                );
                 // results.exprs.push();
             }
         }
