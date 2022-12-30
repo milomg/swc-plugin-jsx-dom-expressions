@@ -1,9 +1,5 @@
-const a = () => (
-  <div>
-    <module.A />;
-    <module.a.B />;
-    <module.A.B />;
-    <module.a-b />;
-    <module.a-b.c-d />;
-  </div>
-);
+const template = <module.A />;
+const template2 = <module.a.B />;
+const template3 = <module.A.B />;
+const template4 = <module.a-b />;
+const template5 = <module.a-b.c-d />;
