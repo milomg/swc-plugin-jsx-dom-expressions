@@ -7,7 +7,8 @@ use crate::shared::{
     utils::get_tag_name,
 };
 use swc_core::ecma::ast::{
-    Expr, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement, JSXExpr,
+    Expr, ExprStmt, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
+    JSXExpr, Stmt,
 };
 
 pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) {
@@ -107,15 +108,9 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
         let key_str = key.as_str();
         let key = aliases.get(key.as_str()).unwrap_or(&key_str);
 
-        // if (value && ChildProperties.has(key)) {
-        //   results.exprs.push(
-        //     t.expressionStatement(setAttr(attribute, elem, key, value, { isSVG, isCE }))
-        //   );
-        // }
-
         if let Some(value) = value {
             if CHILD_PROPERTIES.contains(key) {
-                set_attr(
+                let expr = set_attr(
                     &attr,
                     elem,
                     key,
@@ -125,7 +120,13 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
                     is_custom_element,
                     None,
                 );
-                // results.exprs.push();
+                if let Some(expr) = expr {
+                    let expr_statement = ExprStmt {
+                        span: Default::default(),
+                        expr: Box::new(expr),
+                    };
+                    results.exprs.push(Stmt::Expr(expr_statement));
+                }
             }
         }
 
