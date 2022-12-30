@@ -1,24 +1,19 @@
 use shared::transform::JSXElementOrFragment;
 use swc_core::{
-    common::{comments::Comments, Span, DUMMY_SP},
+    common::comments::Comments,
     ecma::{
         ast::*,
-        utils::prepend_stmt,
-        visit::{as_folder, FoldWith, Visit, VisitMut, VisitMutWith, VisitWith},
+        visit::{as_folder, FoldWith, Visit, VisitMut},
     },
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
 
+mod dom;
 mod shared;
-pub use crate::shared::structs::TemplateCreation;
-pub use crate::shared::structs::TemplateInstantiation;
+// pub use crate::shared::structs::TemplateCreation;
+// pub use crate::shared::structs::TemplateInstantiation;
 pub use crate::shared::structs::TransformVisitor;
 pub use crate::shared::transform::transform_jsx;
-
-// const VOID_ELEMENTS: [&str; 16] = [
-//     "area", "base", "br", "col", "embed", "hr", "img", "input", "keygen", "link", "menuitem",
-//     "meta", "param", "source", "track", "wbr",
-// ];
 
 // fn jsx_object_to_str(x: &JSXObject) -> String {
 //     match x {

@@ -1,11 +1,51 @@
-use swc_core::{
-    common::{comments::Comments, Span, DUMMY_SP},
-    ecma::{
-        ast::*,
-        utils::prepend_stmt,
-        visit::{as_folder, FoldWith, Visit, VisitMut, VisitMutWith, VisitWith},
-    },
-    plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
-};
+use swc_core::{common::DUMMY_SP, ecma::ast::*};
 
-pub fn transform_component(expr: &mut JSXElement) {}
+enum TagId {
+    Ident(Ident),
+    StringLiteral(Str),
+    MemberExpr(Box<MemberExpr>),
+}
+
+fn get_component_identifier(node: &JSXElementName) -> TagId {
+    match node {
+        JSXElementName::Ident(ident) => TagId::Ident(ident.clone()),
+        JSXElementName::JSXMemberExpr(member) => {
+            let obj = get_component_identifier(&match &member.obj {
+                JSXObject::JSXMemberExpr(member) => JSXElementName::JSXMemberExpr(*member.clone()),
+                JSXObject::Ident(ident) => JSXElementName::Ident(ident.clone()),
+            });
+            TagId::MemberExpr(Box::new(MemberExpr {
+                span: DUMMY_SP,
+                obj: Box::new(match obj {
+                    TagId::Ident(ident) => Expr::Ident(ident),
+                    TagId::StringLiteral(str) => Expr::Lit(Lit::Str(str)),
+                    TagId::MemberExpr(member) => Expr::Member(*member),
+                }),
+                prop: MemberProp::Ident(member.prop.clone()),
+            }))
+        }
+        JSXElementName::JSXNamespacedName(name) => {
+            let name = format!("{}:{}", name.ns.sym, name.name.sym);
+            let name = Str {
+                span: DUMMY_SP,
+                value: Into::into(name),
+                raw: None,
+            };
+            TagId::StringLiteral(name)
+        }
+    }
+}
+
+pub fn transform_component(expr: &mut JSXElement) {
+    let name = &expr.opening.name;
+    let tag_id = get_component_identifier(name);
+
+    let has_children = expr.children.len() > 0;
+
+    for attribute in &mut expr.opening.attrs {
+        match attribute {
+            JSXAttrOrSpread::SpreadElement(_) => {}
+            _ => {}
+        }
+    }
+}

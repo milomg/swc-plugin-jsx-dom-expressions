@@ -479,6 +479,8 @@ checksum = "fad582f4b9e86b6caa621cabeb0963332d92eea04729ab12892c2533951e6440"
 name = "jsx-dom-expressions"
 version = "0.1.0"
 dependencies = [
+ "string_cache",
+ "swc_atoms",
  "swc_core",
  "testing",
 ]

@@ -1,21 +1,12 @@
+pub use crate::dom::element::transform_element_dom;
 pub use crate::shared::component::transform_component;
-pub use crate::shared::structs::TemplateCreation;
-pub use crate::shared::structs::TemplateInstantiation;
 pub use crate::shared::structs::TransformVisitor;
-pub use crate::shared::utils::is_component;
+pub use crate::shared::utils::{get_tag_name, is_component};
 
-use swc_core::{
-    common::{comments::Comments, Span, DUMMY_SP},
-    ecma::{
-        ast::*,
-        utils::prepend_stmt,
-        visit::{as_folder, FoldWith, Visit, VisitMut, VisitMutWith, VisitWith},
-    },
-    plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
-};
+use swc_core::{common::comments::Comments, ecma::ast::*};
 
 pub struct TransformInfo {
-    top_level: bool,
+    pub top_level: bool,
 }
 
 pub enum JSXElementOrFragment<'a> {
@@ -38,30 +29,12 @@ where
     }
 }
 
-fn get_tag_name(element: &mut JSXElement) -> String {
-    let jsx_name = &element.opening.name;
-    match jsx_name {
-        JSXElementName::Ident(ident) => ident.sym.to_string(),
-        JSXElementName::JSXMemberExpr(member) => {
-            let mut name = member.prop.sym.to_string();
-            let mut obj = &member.obj;
-            while let JSXObject::JSXMemberExpr(member) = obj {
-                name = format!("{}.{}", member.prop.sym.to_string(), name);
-                obj = &member.obj;
-            }
-            name = format!("{}.{}", member.prop.sym.to_string(), name);
-            name
-        }
-        JSXElementName::JSXNamespacedName(name) => {
-            format!("{}:{}", name.ns.sym.to_string(), name.name.sym.to_string())
-        }
-    }
-}
-
 fn transform_element(element: &mut JSXElement, info: &TransformInfo) {
     let tag_name = get_tag_name(element);
     println!("tag_name: {}", tag_name);
     if is_component(&tag_name) {
         transform_component(element);
+        return;
     }
+    transform_element_dom(element, info);
 }
