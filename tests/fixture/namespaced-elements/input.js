@@ -1,5 +1,5 @@
 const a = () => (
-  <div>
+  <a:b>
     <c:d>hi</c:d>
-  </div>
+  </a:b>
 );

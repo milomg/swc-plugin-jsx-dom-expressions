@@ -1,3 +1,4 @@
+use shared::transform::JSXElementOrFragment;
 use swc_core::{
     common::{comments::Comments, Span, DUMMY_SP},
     ecma::{
@@ -185,77 +186,79 @@ impl<C> VisitMut for TransformVisitor<C>
 where
     C: Comments,
 {
-    fn visit_mut_expr(&mut self, expr: &mut Expr) {
-        transform_jsx(self, expr);
-
-        //     if let Expr::JSXElement(el) = expr {
-        //         el.visit_with(self);
-        //         let val = std::mem::take(&mut self.current_template);
-
-        //         let mut val = val.unwrap();
-
-        //         self.templates.push(TemplateCreation {
-        //             template: val.template,
-        //             id: val.id.clone(),
-        //             tag_count: val.tag_count
-        //         });
-
-        //         let el0 = Ident::new("_el$0".into(), DUMMY_SP);
-        //         val.decl.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
-        //             span: DUMMY_SP,
-        //             kind: VarDeclKind::Const,
-        //             declare: false,
-        //             decls: vec![VarDeclarator {
-        //                 name: Pat::Ident(BindingIdent::from(el0.clone())),
-        //                 definite: false,
-        //                 span: DUMMY_SP,
-        //                 init: Some(Box::new(Expr::Call(CallExpr {
-        //                     span: DUMMY_SP,
-        //                     callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-        //                         span: DUMMY_SP,
-        //                         obj: Box::new(Expr::Ident(val.id)),
-        //                         prop: MemberProp::Ident(Ident::new("cloneNode".into(), DUMMY_SP)),
-        //                     }))),
-        //                     args: vec![ExprOrSpread {
-        //                         spread: None,
-        //                         expr: Box::new(Expr::Lit(Lit::Bool(Bool {
-        //                             span: DUMMY_SP,
-        //                             value: true,
-        //                         }))),
-        //                     }],
-        //                     type_args: None,
-        //                 }))),
-        //             }],
-        //         }))));
-
-        //         expr.visit_mut_children_with(self);
-
-        //         val.decl.push(Stmt::Return(ReturnStmt {
-        //             span: DUMMY_SP,
-        //             arg: Some(Box::new(Expr::Ident(el0))),
-        //         }));
-
-        //         *expr = Expr::Call(CallExpr {
-        //             args: vec![],
-        //             span: DUMMY_SP,
-        //             type_args: None,
-        //             callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
-        //                 return_type: None,
-        //                 type_params: None,
-        //                 span: DUMMY_SP,
-        //                 params: vec![],
-        //                 is_async: false,
-        //                 is_generator: false,
-        //                 body: BlockStmtOrExpr::BlockStmt(BlockStmt {
-        //                     span: DUMMY_SP,
-        //                     stmts: val.decl,
-        //                 }),
-        //             }))),
-        //         });
-        //     } else {
-        //         expr.visit_mut_children_with(self);
-        //     }
+    fn visit_mut_jsx_element(&mut self, element: &mut JSXElement) {
+        transform_jsx(self, &mut JSXElementOrFragment::Element(element));
     }
+
+    // fn visit_mut_expr(&mut self, expr: &mut Expr) {
+    //     if let Expr::JSXElement(el) = expr {
+    //         el.visit_with(self);
+    //         let val = std::mem::take(&mut self.current_template);
+
+    //         let mut val = val.unwrap();
+
+    //         self.templates.push(TemplateCreation {
+    //             template: val.template,
+    //             id: val.id.clone(),
+    //             tag_count: val.tag_count
+    //         });
+
+    //         let el0 = Ident::new("_el$0".into(), DUMMY_SP);
+    //         val.decl.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+    //             span: DUMMY_SP,
+    //             kind: VarDeclKind::Const,
+    //             declare: false,
+    //             decls: vec![VarDeclarator {
+    //                 name: Pat::Ident(BindingIdent::from(el0.clone())),
+    //                 definite: false,
+    //                 span: DUMMY_SP,
+    //                 init: Some(Box::new(Expr::Call(CallExpr {
+    //                     span: DUMMY_SP,
+    //                     callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+    //                         span: DUMMY_SP,
+    //                         obj: Box::new(Expr::Ident(val.id)),
+    //                         prop: MemberProp::Ident(Ident::new("cloneNode".into(), DUMMY_SP)),
+    //                     }))),
+    //                     args: vec![ExprOrSpread {
+    //                         spread: None,
+    //                         expr: Box::new(Expr::Lit(Lit::Bool(Bool {
+    //                             span: DUMMY_SP,
+    //                             value: true,
+    //                         }))),
+    //                     }],
+    //                     type_args: None,
+    //                 }))),
+    //             }],
+    //         }))));
+
+    //         expr.visit_mut_children_with(self);
+
+    //         val.decl.push(Stmt::Return(ReturnStmt {
+    //             span: DUMMY_SP,
+    //             arg: Some(Box::new(Expr::Ident(el0))),
+    //         }));
+
+    //         *expr = Expr::Call(CallExpr {
+    //             args: vec![],
+    //             span: DUMMY_SP,
+    //             type_args: None,
+    //             callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
+    //                 return_type: None,
+    //                 type_params: None,
+    //                 span: DUMMY_SP,
+    //                 params: vec![],
+    //                 is_async: false,
+    //                 is_generator: false,
+    //                 body: BlockStmtOrExpr::BlockStmt(BlockStmt {
+    //                     span: DUMMY_SP,
+    //                     stmts: val.decl,
+    //                 }),
+    //             }))),
+    //         });
+    //     } else {
+    //         expr.visit_mut_children_with(self);
+    //     }
+    // }
 
     // fn visit_mut_module(&mut self, module: &mut Module) {
     //     module.visit_mut_children_with(self);
