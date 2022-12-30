@@ -27,7 +27,7 @@ const VOID_ELEMENTS: [&str; 16] = [
     "wbr",
 ];
 
-struct TemplateInstance {
+struct TemplateInstantiation {
     template: String,
     id: Ident,
     decl: Vec<Stmt>,
@@ -46,7 +46,7 @@ where
     C: Comments,
 {
     templates: Vec<TemplateCreation>,
-    current_template: Option<TemplateInstance>,
+    current_template: Option<TemplateInstantiation>,
     comments: C,
 }
 
@@ -195,7 +195,7 @@ where
         buffer.push('>');
 
         if level {
-            self.current_template = Some(TemplateInstance {
+            self.current_template = Some(TemplateInstantiation {
                 template: String::new(),
                 id: Ident::new(format!("_tmpl${}", self.templates.len()).into(), DUMMY_SP),
                 decl: vec![],
