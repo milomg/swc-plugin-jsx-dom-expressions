@@ -18,12 +18,10 @@ pub fn transform_jsx<C>(visitor: &mut TransformVisitor<C>, element: &mut JSXElem
 where
     C: Comments,
 {
-    println!("transform_jsx");
     let info = match element {
         JSXElementOrFragment::Fragment(_) => TransformInfo { top_level: false },
         JSXElementOrFragment::Element(_) => TransformInfo { top_level: true },
     };
-    println!("got here");
     if let JSXElementOrFragment::Element(element) = element {
         transform_element(element, &info);
     }
@@ -31,7 +29,6 @@ where
 
 fn transform_element(element: &mut JSXElement, info: &TransformInfo) {
     let tag_name = get_tag_name(element);
-    println!("tag_name: {}", tag_name);
     if is_component(&tag_name) {
         transform_component(element);
         return;

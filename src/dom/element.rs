@@ -8,7 +8,7 @@ use crate::shared::{
 };
 use swc_core::ecma::ast::{
     Expr, ExprStmt, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
-    JSXExpr, Stmt,
+    JSXExpr, Lit, Stmt,
 };
 
 pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) {
@@ -31,13 +31,15 @@ pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) {
         results.template = format!("{}{}", "<svg>", results.template);
     }
     transform_attributes(node, &mut results);
+    results.template = format!("{}{}", results.template, ">");
+    println!("{}", results.template);
 }
 
 fn set_attr(
     attr: &JSXAttr,
     elem: &Ident,
     name: &&str,
-    value: &Box<Expr>,
+    value: &Lit,
     isSVG: bool,
     dynamic: bool,
     isCE: bool,
@@ -66,6 +68,7 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
     // combine class properties
 
     for attr in node.opening.attrs.clone() {
+        println!("attribute");
         let attr = match attr {
             JSXAttrOrSpread::JSXAttr(attr) => attr,
             JSXAttrOrSpread::SpreadElement(_) => panic!("Spread wasn't preprocessed"),
@@ -78,67 +81,95 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
             JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
         };
 
-        let t: Box<Expr>;
-        let value = match value {
-            Some(value) => {
-                let expr = match value {
-                    JSXAttrValue::JSXExprContainer(value) => match &value.expr {
-                        JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
-                        JSXExpr::Expr(expr) => expr,
-                    },
-                    JSXAttrValue::JSXElement(value) => {
-                        t = Box::new(Expr::JSXElement(value.clone()));
-                        &t
-                    }
-                    JSXAttrValue::JSXFragment(value) => {
-                        t = Box::new(Expr::JSXFragment(value.clone()));
-                        &t
-                    }
-                    JSXAttrValue::Lit(value) => {
-                        t = Box::new(Expr::Lit(value.clone()));
-                        &t
-                    }
-                };
-                Some(expr)
-            }
-            None => None,
-        };
-
-        let aliases: HashMap<&str, &str> = ALIASES.iter().cloned().collect();
-        let key_str = key.as_str();
-        let mut key = aliases.get(key.as_str()).unwrap_or(&key_str);
-
+        let mut value_is_lit_or_none: bool;
         if let Some(value) = value {
-            if CHILD_PROPERTIES.contains(key) {
-                let expr = set_attr(
-                    &attr,
-                    elem,
-                    key,
-                    value,
-                    is_svg,
-                    false,
-                    is_custom_element,
-                    None,
-                );
-                if let Some(expr) = expr {
-                    let expr_statement = ExprStmt {
-                        span: Default::default(),
-                        expr: Box::new(expr),
-                    };
-                    results.exprs.push(Stmt::Expr(expr_statement));
+            if let JSXAttrValue::JSXExprContainer(value) = value {
+                match &value.expr {
+                    JSXExpr::JSXEmptyExpr(_) => panic!("Empty expressions are not supported."),
+                    JSXExpr::Expr(expr) => match expr.as_ref() {
+                        Expr::Lit(_) => value_is_lit_or_none = true,
+                        _ => value_is_lit_or_none = false,
+                    },
                 }
+            } else {
+                value_is_lit_or_none = true;
             }
         } else {
-            let key_string: String;
-            let key_str: &str;
-            if !is_svg {
-                key_string = key.to_lowercase();
-                key_str = key_string.as_str();
-                key = &key_str;
-            }
-            results.template += &format!(" {}", key);
+            value_is_lit_or_none = true;
+        }
+
+        println!("value_is_lit_or_none: {}", value_is_lit_or_none);
+
+        if !value_is_lit_or_none {
+        } else {
+            let value = match value {
+                Some(value) => {
+                    let expr = match value {
+                        JSXAttrValue::JSXExprContainer(value) => match &value.expr {
+                            JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
+                            JSXExpr::Expr(expr) => match expr.as_ref() {
+                                Expr::Lit(value) => value,
+                                _ => panic!(),
+                            },
+                        },
+                        JSXAttrValue::JSXElement(_) => panic!(),
+                        JSXAttrValue::JSXFragment(_) => panic!(),
+                        JSXAttrValue::Lit(value) => value,
+                    };
+                    Some(expr)
+                }
+                None => None,
+            };
+
+            let aliases: HashMap<&str, &str> = ALIASES.iter().cloned().collect();
+            let key_str = key.as_str();
+            let mut key = aliases.get(key.as_str()).unwrap_or(&key_str);
+
+            let mut value_is_child_property = false;
             if let Some(value) = value {
-                // results.template += &format!("=\"{}\"", escape_backticks(escape_html(value, true)));
+                if CHILD_PROPERTIES.contains(key) {
+                    value_is_child_property = true;
+                    let expr = set_attr(
+                        &attr,
+                        elem,
+                        key,
+                        value,
+                        is_svg,
+                        false,
+                        is_custom_element,
+                        None,
+                    );
+                    if let Some(expr) = expr {
+                        let expr_statement = ExprStmt {
+                            span: Default::default(),
+                            expr: Box::new(expr),
+                        };
+                        results.exprs.push(Stmt::Expr(expr_statement));
+                    }
+                }
+            }
+            if !value_is_child_property {
+                let key_string: String;
+                let key_str: &str;
+                if !is_svg {
+                    key_string = key.to_lowercase();
+                    key_str = key_string.as_str();
+                    key = &key_str;
+                }
+                results.template += &format!(" {}", key);
+                if let Some(value) = value {
+                    let value_as_string = match value {
+                        Lit::Str(value) => value.value.to_string(),
+                        Lit::Bool(value) => value.value.to_string(),
+                        Lit::Null(_) => "null".to_string(),
+                        Lit::Num(value) => value.value.to_string(),
+                        Lit::BigInt(value) => value.value.to_string(),
+                        Lit::Regex(value) => value.exp.to_string(),
+                        Lit::JSXText(value) => value.raw.to_string(),
+                    };
+                    // results.template += &format!("=\"{}\"", escape_backticks(escape_html(value, true)));
+                    results.template += &format!("=\"{}\"", value_as_string);
+                }
             }
         }
     }
