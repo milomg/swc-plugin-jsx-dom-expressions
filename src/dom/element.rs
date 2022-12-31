@@ -106,7 +106,7 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
 
         let aliases: HashMap<&str, &str> = ALIASES.iter().cloned().collect();
         let key_str = key.as_str();
-        let key = aliases.get(key.as_str()).unwrap_or(&key_str);
+        let mut key = aliases.get(key.as_str()).unwrap_or(&key_str);
 
         if let Some(value) = value {
             if CHILD_PROPERTIES.contains(key) {
@@ -128,12 +128,18 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
                     results.exprs.push(Stmt::Expr(expr_statement));
                 }
             }
+        } else {
+            let key_string: String;
+            let key_str: &str;
+            if !is_svg {
+                key_string = key.to_lowercase();
+                key_str = key_string.as_str();
+                key = &key_str;
+            }
+            results.template += &format!(" {}", key);
+            if let Some(value) = value {
+                // results.template += &format!("=\"{}\"", escape_backticks(escape_html(value, true)));
+            }
         }
-
-        // else {
-        //   !isSVG && (key = key.toLowerCase());
-        //   results.template += ` ${key}`;
-        //   results.template += value ? `="${escapeBackticks(escapeHTML(value.value, true))}"` : "";
-        // }
     }
 }
