@@ -1,5 +1,7 @@
 use swc_core::{common::DUMMY_SP, ecma::ast::*};
 
+use super::structs::Template;
+
 enum TagId {
     Ident(Ident),
     StringLiteral(Str),
@@ -36,7 +38,7 @@ fn get_component_identifier(node: &JSXElementName) -> TagId {
     }
 }
 
-pub fn transform_component(expr: &mut JSXElement) {
+pub fn transform_component(expr: &mut JSXElement) -> Template {
     let name = &expr.opening.name;
     let tag_id = get_component_identifier(name);
 
@@ -47,5 +49,19 @@ pub fn transform_component(expr: &mut JSXElement) {
             JSXAttrOrSpread::SpreadElement(_) => {}
             _ => {}
         }
+    }
+
+    // Placeholder to satisfy type checking
+    Template {
+        template: "".into(),
+        tag_name: "".into(),
+        decl: vec![],
+        exprs: vec![],
+        dynamics: vec![],
+        tag_count: 0.0,
+        is_svg: false,
+        is_void: false,
+        id: None,
+        has_custom_element: false,
     }
 }

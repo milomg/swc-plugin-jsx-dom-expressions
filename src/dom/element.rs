@@ -11,7 +11,7 @@ use swc_core::ecma::ast::{
     JSXExpr, Lit, Stmt,
 };
 
-pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) {
+pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> Template {
     let tag_name = get_tag_name(node);
     let wrap_svg = info.top_level && tag_name != "svg" && SVG_ELEMENTS.contains(&tag_name.as_str());
     let void_tag = VOID_ELEMENTS.contains(&tag_name.as_str());
@@ -25,7 +25,8 @@ pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) {
         tag_count: 0.0,
         is_svg: wrap_svg,
         is_void: void_tag,
-        id: Ident::new("".into(), Default::default()),
+        id: None,
+        has_custom_element: false,
     };
     if wrap_svg {
         results.template = format!("{}{}", "<svg>", results.template);
@@ -33,11 +34,12 @@ pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) {
     transform_attributes(node, &mut results);
     results.template = format!("{}{}", results.template, ">");
     println!("{}", results.template);
+    results
 }
 
 fn set_attr(
     attr: &JSXAttr,
-    elem: &Ident,
+    elem: &Option<Ident>,
     name: &&str,
     value: &Lit,
     isSVG: bool,
