@@ -3,18 +3,11 @@ use swc_core::{
     ecma::ast::{BindingIdent, CallExpr, Expr, Ident, JSXElement, Lit, Pat, Str, VarDeclarator},
 };
 
-use crate::{shared::structs::Template, TransformVisitor};
+use crate::{shared::structs::TemplateInstantiation, TransformVisitor};
 
-pub fn create_template<C>(
-    visitor: &mut TransformVisitor<C>,
-    node: &JSXElement,
-    result: &Template,
-    wrap: bool,
-) -> Expr
-where
-    C: Comments,
-{
-    if let Some(id) = &result.id {
+pub fn create_template(node: &JSXElement, result: &TemplateInstantiation, wrap: bool) -> Expr {
+    let id = &result.id;
+    {
         //     registerTemplate(path, result);
         //     if (
         //       !(result.exprs.length || result.dynamics.length || result.postExprs.length) &&
@@ -99,8 +92,11 @@ where
     }))
 }
 
-fn register_template<C>(visitor: &mut TransformVisitor<C>, node: &JSXElement, results: &Template)
-where
+fn register_template<C>(
+    visitor: &mut TransformVisitor<C>,
+    node: &JSXElement,
+    results: &TemplateInstantiation,
+) where
     C: Comments,
 {
     let decl: VarDeclarator;
@@ -119,14 +115,13 @@ where
                 template_id = Some(&template_def.id);
             }
             None => {
-                visitor.template = Some(Template {
+                visitor.template = Some(TemplateInstantiation {
                     id: Some(Ident::new("tmpl$".into(), Default::default())),
                     template: results.template.clone(),
                     is_svg: results.is_svg,
                     decl: vec![],
                     exprs: vec![],
                     is_void: false,
-                    tag_count: 0.0,
                     tag_name: "".into(),
                     dynamics: vec![],
                     has_custom_element: false,

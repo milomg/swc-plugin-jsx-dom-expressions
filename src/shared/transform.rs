@@ -1,12 +1,14 @@
 pub use crate::dom::element::transform_element_dom;
+use crate::dom::template::create_template;
 pub use crate::shared::component::transform_component;
 pub use crate::shared::structs::TransformVisitor;
 pub use crate::shared::utils::{get_tag_name, is_component};
 use swc_core::common::comments::Comments;
+use swc_core::common::DUMMY_SP;
 
 use swc_core::ecma::ast::*;
 
-use super::structs::Template;
+use super::structs::{TemplateConstruction, TemplateInstantiation};
 
 pub struct TransformInfo {
     pub top_level: bool,
@@ -16,29 +18,34 @@ impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
-    pub fn transform_jsx_elment(&mut self, node: &mut JSXElement) -> Template {
+    pub fn transform_jsx_expr(&mut self, node: &mut Expr) {
+        if let Expr::JSXElement(jsxnode) = node {
+            let results = self.transform_jsx_element(jsxnode);
+            *node = create_template(&jsxnode, &results, false);
+        }
+    }
+    pub fn transform_jsx_element(&mut self, node: &mut JSXElement) -> TemplateInstantiation {
         let info = TransformInfo { top_level: true };
         let results = transform_element(node, &info);
         results
     }
-    pub fn transform_jsx_fragment(&mut self, node: &mut JSXFragment) -> Template {
+    pub fn transform_jsx_fragment(&mut self, node: &mut JSXFragment) -> TemplateInstantiation {
         let info = TransformInfo { top_level: false };
-        Template {
+        TemplateInstantiation {
             template: "".into(),
+            id: None,
             tag_name: "".into(),
             decl: vec![],
             exprs: vec![],
             dynamics: vec![],
-            tag_count: 0.0,
             is_svg: false,
             is_void: false,
-            id: None,
             has_custom_element: false,
         }
     }
 }
 
-pub fn transform_element(node: &mut JSXElement, info: &TransformInfo) -> Template {
+pub fn transform_element(node: &mut JSXElement, info: &TransformInfo) -> TemplateInstantiation {
     let tag_name = get_tag_name(node);
     if is_component(&tag_name) {
         return transform_component(node);

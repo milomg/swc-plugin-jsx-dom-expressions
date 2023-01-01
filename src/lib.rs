@@ -17,10 +17,11 @@ impl<C> VisitMut for TransformVisitor<C>
 where
     C: Comments,
 {
-    fn visit_mut_jsx_element(&mut self, element: &mut JSXElement) {
-        transform_element(element, &TransformInfo { top_level: true });
-    }
+    fn visit_mut_jsx_element(&mut self, element: &mut JSXElement) {}
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
+        if let Expr::JSXElement(_) = expr {
+            self.transform_jsx_expr(expr)
+        }
         expr.visit_mut_children_with(self);
     }
     fn visit_mut_module(&mut self, module: &mut Module) {

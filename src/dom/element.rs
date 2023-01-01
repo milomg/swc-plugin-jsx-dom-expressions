@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::shared::{
     constants::{ALIASES, CHILD_PROPERTIES, SVG_ELEMENTS, VOID_ELEMENTS},
-    structs::Template,
+    structs::{TemplateConstruction, TemplateInstantiation},
     transform::TransformInfo,
     utils::get_tag_name,
 };
@@ -11,28 +11,31 @@ use swc_core::ecma::ast::{
     JSXExpr, Lit, Stmt,
 };
 
-pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> Template {
+pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> TemplateInstantiation {
     let tag_name = get_tag_name(node);
     let wrap_svg = info.top_level && tag_name != "svg" && SVG_ELEMENTS.contains(&tag_name.as_str());
     let void_tag = VOID_ELEMENTS.contains(&tag_name.as_str());
     let is_custom_element = tag_name.contains("-");
-    let mut results = Template {
+    let mut results = TemplateInstantiation {
         template: format!("<{}", tag_name),
-        tag_name,
+        id: None,
+        tag_name: tag_name.clone(),
         decl: vec![],
         exprs: vec![],
         dynamics: vec![],
-        tag_count: 0.0,
         is_svg: wrap_svg,
         is_void: void_tag,
-        id: None,
         has_custom_element: false,
     };
     if wrap_svg {
-        results.template = format!("{}{}", "<svg>", results.template);
+        results.template = "<svg>".to_string() + &results.template;
     }
     transform_attributes(node, &mut results);
-    results.template = format!("{}{}", results.template, ">");
+    results.template += ">";
+    if !void_tag {
+        transform_children(node, &mut results);
+        results.template += &format!("</{}>", tag_name);
+    }
     println!("{}", results.template);
     results
 }
@@ -50,7 +53,7 @@ fn set_attr(
     return None;
 }
 
-fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
+fn transform_attributes(node: &mut JSXElement, results: &mut TemplateInstantiation) {
     let elem = &results.id;
     let attributes = node.opening.attrs.clone();
     let is_svg = results.is_svg;
@@ -176,3 +179,5 @@ fn transform_attributes(node: &mut JSXElement, results: &mut Template) {
         }
     }
 }
+
+fn transform_children(node: &mut JSXElement, results: &mut TemplateInstantiation) {}

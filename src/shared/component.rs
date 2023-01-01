@@ -1,6 +1,6 @@
 use swc_core::{common::DUMMY_SP, ecma::ast::*};
 
-use super::structs::Template;
+use super::structs::TemplateInstantiation;
 
 enum TagId {
     Ident(Ident),
@@ -38,7 +38,7 @@ fn get_component_identifier(node: &JSXElementName) -> TagId {
     }
 }
 
-pub fn transform_component(expr: &mut JSXElement) -> Template {
+pub fn transform_component(expr: &mut JSXElement) -> TemplateInstantiation {
     let name = &expr.opening.name;
     let tag_id = get_component_identifier(name);
 
@@ -52,13 +52,12 @@ pub fn transform_component(expr: &mut JSXElement) -> Template {
     }
 
     // Placeholder to satisfy type checking
-    Template {
+    TemplateInstantiation {
         template: "".into(),
         tag_name: "".into(),
         decl: vec![],
         exprs: vec![],
         dynamics: vec![],
-        tag_count: 0.0,
         is_svg: false,
         is_void: false,
         id: None,
