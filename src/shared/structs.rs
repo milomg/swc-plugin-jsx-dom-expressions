@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::collections::HashMap;
 
 use swc_core::{common::comments::Comments, ecma::ast::*};
 
@@ -15,17 +15,18 @@ pub struct Template {
     pub has_custom_element: bool,
 }
 
-// pub struct TemplateCreation {
-//     template: String,
-//     id: Ident,
-//     tag_count: f64,
-// }
+pub struct TemplateCreation {
+    pub template: String,
+    pub id: Ident,
+    pub tag_count: f64,
+}
 
 pub struct TransformVisitor<C>
 where
     C: Comments,
 {
-    pub templates: Vec<Template>,
+    pub template: Option<Template>,
+    pub templates: Vec<TemplateCreation>,
     pub imports: HashMap<String, Ident>,
     comments: C,
 }
@@ -37,6 +38,7 @@ where
     pub fn new(comments: C) -> Self {
         Self {
             templates: vec![],
+            template: None,
             imports: HashMap::new(),
             comments,
         }

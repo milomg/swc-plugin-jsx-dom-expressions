@@ -1,12 +1,9 @@
 use swc_core::{
     common::comments::Comments,
-    ecma::ast::{BindingIdent, CallExpr, Expr, Ident, Lit, Pat, Str, VarDeclarator, JSXElement},
+    ecma::ast::{BindingIdent, CallExpr, Expr, Ident, JSXElement, Lit, Pat, Str, VarDeclarator},
 };
 
-use crate::{
-    shared::{structs::Template},
-    TransformVisitor,
-};
+use crate::{shared::structs::Template, TransformVisitor};
 
 pub fn create_template<C>(
     visitor: &mut TransformVisitor<C>,
@@ -102,18 +99,15 @@ where
     }))
 }
 
-fn register_template<C>(
-    visitor: &mut TransformVisitor<C>,
-    node: &JSXElement,
-    results: &Template,
-) where
+fn register_template<C>(visitor: &mut TransformVisitor<C>, node: &JSXElement, results: &Template)
+where
     C: Comments,
 {
     let decl: VarDeclarator;
 
     if !results.template.is_empty() {
         //       let templateId;
-        let template_id: &Option<Ident>;
+        let template_id: Option<&Ident>;
 
         let template_def = visitor
             .templates
@@ -122,10 +116,10 @@ fn register_template<C>(
 
         match template_def {
             Some(template_def) => {
-                template_id = &template_def.id;
+                template_id = Some(&template_def.id);
             }
             None => {
-                visitor.templates.push(Template {
+                visitor.template = Some(Template {
                     id: Some(Ident::new("tmpl$".into(), Default::default())),
                     template: results.template.clone(),
                     is_svg: results.is_svg,
@@ -138,7 +132,7 @@ fn register_template<C>(
                     has_custom_element: false,
                 });
 
-                template_id = &visitor.templates.last().unwrap().id;
+                template_id = visitor.template.as_ref().unwrap().id.as_ref();
             }
         }
 

@@ -11,6 +11,7 @@ use super::structs::Template;
 pub struct TransformInfo {
     pub top_level: bool,
 }
+
 impl<C> TransformVisitor<C>
 where
     C: Comments,

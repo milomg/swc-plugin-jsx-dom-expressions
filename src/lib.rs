@@ -1,4 +1,4 @@
-use shared::transform::{TransformInfo, transform_element};
+use shared::transform::{transform_element, TransformInfo};
 use swc_core::ecma::visit::VisitMutWith;
 use swc_core::{
     common::comments::Comments,
@@ -20,7 +20,6 @@ where
     fn visit_mut_jsx_element(&mut self, element: &mut JSXElement) {
         transform_element(element, &TransformInfo { top_level: true });
     }
-
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
         expr.visit_mut_children_with(self);
     }
