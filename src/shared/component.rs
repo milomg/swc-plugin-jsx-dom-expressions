@@ -41,7 +41,7 @@ pub fn transform_component(expr: &mut JSXElement) -> TemplateInstantiation {
     let name = &expr.opening.name;
     let tag_id = get_component_identifier(name);
 
-    let has_children = expr.children.len() > 0;
+    let has_children = !expr.children.is_empty();
 
     for attribute in &mut expr.opening.attrs {
         match attribute {

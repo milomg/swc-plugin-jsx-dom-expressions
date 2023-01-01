@@ -17,7 +17,6 @@ where
         result: &TemplateInstantiation,
         wrap: bool,
     ) -> Expr {
-        let id = &result.id;
         if let Some(id) = &result.id {
             self.register_template(node, result);
             if result.exprs.is_empty()
@@ -44,7 +43,7 @@ where
                                 }))
                                 .chain(
                                     wrap_dynamics(node, &result.dynamics)
-                                        .unwrap_or(vec![])
+                                        .unwrap_or_default()
                                         .into_iter()
                                         .map(|x| {
                                             Stmt::Expr(ExprStmt {
@@ -231,5 +230,5 @@ fn wrap_dynamics(node: &JSXElement, dynamics: &Vec<Expr>) -> Option<Vec<Expr>> {
 
     if dynamics.len() == 1 {}
 
-    return None;
+    None
 }

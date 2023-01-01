@@ -17,7 +17,7 @@ pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> Tem
     let tag_name = get_tag_name(node);
     let wrap_svg = info.top_level && tag_name != "svg" && SVG_ELEMENTS.contains(&tag_name.as_str());
     let void_tag = VOID_ELEMENTS.contains(&tag_name.as_str());
-    let is_custom_element = tag_name.contains("-");
+    let is_custom_element = tag_name.contains('-');
     let mut results = TemplateInstantiation {
         template: format!("<{}", tag_name),
         id: None,
@@ -55,18 +55,18 @@ fn set_attr(
     value: &Lit,
     is_svg: bool,
     dynamic: bool,
-    isCE: bool,
+    is_ce: bool,
     prev_id: Option<&Ident>,
 ) -> Option<Expr> {
-    return None;
+    None
 }
 
 fn transform_attributes(node: &mut JSXElement, results: &mut TemplateInstantiation) {
     let elem = &results.id;
     let attributes = node.opening.attrs.clone();
     let is_svg = results.is_svg;
-    let is_custom_element = results.tag_name.contains("-");
-    let has_children = node.children.len() > 0;
+    let is_custom_element = results.tag_name.contains('-');
+    let has_children = !node.children.is_empty();
 
     // preprocess spreads
     if attributes.iter().any(|attribute| match attribute {
@@ -94,22 +94,21 @@ fn transform_attributes(node: &mut JSXElement, results: &mut TemplateInstantiati
             JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
         };
 
-        let mut value_is_lit_or_none: bool;
-        if let Some(value) = value {
+        let value_is_lit_or_none = if let Some(value) = value {
             if let JSXAttrValue::JSXExprContainer(value) = value {
                 match &value.expr {
                     JSXExpr::JSXEmptyExpr(_) => panic!("Empty expressions are not supported."),
                     JSXExpr::Expr(expr) => match expr.as_ref() {
-                        Expr::Lit(_) => value_is_lit_or_none = true,
-                        _ => value_is_lit_or_none = false,
+                        Expr::Lit(_) => true,
+                        _ => false,
                     },
                 }
             } else {
-                value_is_lit_or_none = true;
+                true
             }
         } else {
-            value_is_lit_or_none = true;
-        }
+            true
+        };
 
         println!("value_is_lit_or_none: {}", value_is_lit_or_none);
 

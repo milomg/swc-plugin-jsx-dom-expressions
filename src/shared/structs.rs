@@ -17,7 +17,7 @@ pub struct TemplateInstantiation {
     pub is_svg: bool,
     pub is_void: bool,
     pub has_custom_element: bool,
-    pub dynamic: bool
+    pub dynamic: bool,
 }
 
 pub struct TransformVisitor<C>
@@ -27,7 +27,7 @@ where
     pub template: Option<TemplateInstantiation>,
     pub templates: Vec<TemplateConstruction>,
     pub imports: HashMap<String, Ident>,
-    comments: C,
+    pub comments: C,
 }
 
 impl<C> TransformVisitor<C>

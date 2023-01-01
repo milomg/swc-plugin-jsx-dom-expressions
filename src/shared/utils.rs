@@ -11,10 +11,10 @@ use swc_core::{
     },
 };
 
-pub fn is_component(tag_name: &String) -> bool {
+pub fn is_component(tag_name: &str) -> bool {
     let first_char = tag_name.chars().next().unwrap();
     let first_char_lower = first_char.to_lowercase().to_string();
-    let has_dot = tag_name.contains(".");
+    let has_dot = tag_name.contains('.');
     let has_non_alpha = !first_char.is_alphabetic();
     first_char_lower != first_char.to_string() || has_dot || has_non_alpha
 }
@@ -27,14 +27,14 @@ pub fn get_tag_name(element: &mut JSXElement) -> String {
             let mut name = member.prop.sym.to_string();
             let mut obj = &member.obj;
             while let JSXObject::JSXMemberExpr(member) = obj {
-                name = format!("{}.{}", member.prop.sym.to_string(), name);
+                name = format!("{}.{}", member.prop.sym, name);
                 obj = &member.obj;
             }
-            name = format!("{}.{}", member.prop.sym.to_string(), name);
+            name = format!("{}.{}", member.prop.sym, name);
             name
         }
         JSXElementName::JSXNamespacedName(name) => {
-            format!("{}:{}", name.ns.sym.to_string(), name.name.sym.to_string())
+            format!("{}:{}", name.ns.sym, name.name.sym)
         }
     }
 }
@@ -82,8 +82,7 @@ where
         private_ident!("todo_fix_register_import_method")
     }
 
-    fn add_named_import(&mut self, node: &mut JSXElement, name: &String, imported_source: &String) {
-    }
+    fn add_named_import(&mut self, node: &mut JSXElement, name: &str, imported_source: &str) {}
 }
 
 pub fn is_dynamic(
@@ -125,7 +124,7 @@ pub fn is_dynamic(
         dynamic: false,
     };
     expr.visit_with(&mut dyn_visitor);
-    return dyn_visitor.dynamic;
+    dyn_visitor.dynamic
 }
 
 struct DynamicVisitor {

@@ -18,13 +18,12 @@ where
     pub fn transform_jsx_expr(&mut self, node: &mut Expr) {
         if let Expr::JSXElement(jsxnode) = node {
             let results = self.transform_jsx_element(jsxnode);
-            *node = self.create_template(&jsxnode, &results, false);
+            *node = self.create_template(jsxnode, &results, false);
         }
     }
     pub fn transform_jsx_element(&mut self, node: &mut JSXElement) -> TemplateInstantiation {
         let info = TransformInfo { top_level: true };
-        let results = transform_element(node, &info);
-        results
+        transform_element(node, &info)
     }
     pub fn transform_jsx_fragment(&mut self, node: &mut JSXFragment) -> TemplateInstantiation {
         let info = TransformInfo { top_level: false };
