@@ -1,16 +1,16 @@
 use swc_core::{
     common::comments::Comments,
-    ecma::ast::{BindingIdent, CallExpr, Expr, Ident, Lit, Pat, Str, VarDeclarator},
+    ecma::ast::{BindingIdent, CallExpr, Expr, Ident, Lit, Pat, Str, VarDeclarator, JSXElement},
 };
 
 use crate::{
-    shared::{structs::Template, transform::JSXElementOrFragment},
+    shared::{structs::Template},
     TransformVisitor,
 };
 
 pub fn create_template<C>(
     visitor: &mut TransformVisitor<C>,
-    node: &JSXElementOrFragment,
+    node: &JSXElement,
     result: &Template,
     wrap: bool,
 ) -> Expr
@@ -104,7 +104,7 @@ where
 
 fn register_template<C>(
     visitor: &mut TransformVisitor<C>,
-    node: &JSXElementOrFragment,
+    node: &JSXElement,
     results: &Template,
 ) where
     C: Comments,

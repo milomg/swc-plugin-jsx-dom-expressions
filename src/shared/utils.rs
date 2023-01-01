@@ -1,9 +1,14 @@
+use crate::TransformVisitor;
 use swc_core::{
     common::comments::Comments,
-    ecma::ast::{JSXElement, JSXElementName, JSXObject},
+    ecma::{
+        ast::{
+            BinExpr, BinaryOp, CallExpr, Expr, Function, JSXElement, JSXElementName, JSXExpr,
+            JSXExprContainer, JSXFragment, JSXObject, MemberExpr,
+        },
+        visit::{Visit, VisitWith},
+    },
 };
-
-use crate::TransformVisitor;
 
 pub fn is_component(tag_name: &String) -> bool {
     let first_char = tag_name.chars().next().unwrap();
@@ -81,4 +86,91 @@ fn add_named_import<C>(
 ) where
     C: Comments,
 {
+}
+
+pub fn is_dynamic(
+    element: &mut JSXExprContainer,
+    check_member: bool,
+    check_tags: bool,
+    check_call_expression: bool,
+    native: bool,
+) -> bool {
+    let expr = &element.expr;
+
+    if let JSXExpr::Expr(expr) = expr {
+        if let Expr::Fn(_) = **expr {
+            return false;
+        }
+    }
+
+    if match expr {
+        JSXExpr::JSXEmptyExpr(_) => false,
+        JSXExpr::Expr(expr) => match expr.as_ref() {
+            Expr::Call(_) => check_call_expression,
+            Expr::Member(_) => check_member,
+            Expr::Bin(BinExpr {
+                op: BinaryOp::In, ..
+            }) => check_member,
+            Expr::JSXElement(_) => check_tags,
+            Expr::JSXFragment(_) => check_tags,
+            _ => false,
+        },
+    } {
+        return true;
+    }
+
+    let mut dyn_visitor = DynamicVisitor {
+        check_member,
+        check_tags,
+        check_call_expression,
+        native,
+        dynamic: false,
+    };
+    expr.visit_with(&mut dyn_visitor);
+    return dyn_visitor.dynamic;
+}
+
+struct DynamicVisitor {
+    check_member: bool,
+    check_tags: bool,
+    check_call_expression: bool,
+    native: bool,
+    dynamic: bool,
+}
+
+impl Visit for DynamicVisitor {
+    fn visit_function(&mut self, function: &Function) {
+        // https://github.com/ryansolid/dom-expressions/blob/main/packages/babel-plugin-jsx-dom-expressions/src/shared/utils.js#L115-L117
+        // if (t.isObjectMethod(p.node) && p.node.computed) {
+        //   dynamic = isDynamic(p.get("key"), { checkMember, checkTags, checkCallExpressions, native });
+        // }
+        // p.skip();
+        unimplemented!();
+    }
+    fn visit_call_expr(&mut self, call_expr: &CallExpr) {
+        if self.check_call_expression {
+            self.dynamic = true;
+        }
+    }
+    fn visit_member_expr(&mut self, member_expr: &MemberExpr) {
+        if self.check_member {
+            self.dynamic = true;
+        }
+    }
+    fn visit_bin_expr(&mut self, bin_expr: &BinExpr) {
+        if self.check_member && bin_expr.op == BinaryOp::In {
+            self.dynamic = true;
+        }
+        bin_expr.visit_children_with(self);
+    }
+    fn visit_jsx_element(&mut self, element: &JSXElement) {
+        if self.check_tags {
+            self.dynamic = true;
+        }
+    }
+    fn visit_jsx_fragment(&mut self, fragment: &JSXFragment) {
+        if self.check_tags {
+            self.dynamic = true;
+        }
+    }
 }

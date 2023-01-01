@@ -42,7 +42,7 @@ fn set_attr(
     elem: &Option<Ident>,
     name: &&str,
     value: &Lit,
-    isSVG: bool,
+    is_svg: bool,
     dynamic: bool,
     isCE: bool,
     prev_id: Option<&Ident>,
