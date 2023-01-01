@@ -1,9 +1,8 @@
+use crate::{shared::structs::TemplateInstantiation, TransformVisitor};
 use swc_core::{
     common::comments::Comments,
     ecma::ast::{BindingIdent, CallExpr, Expr, Ident, JSXElement, Lit, Pat, Str, VarDeclarator},
 };
-
-use crate::{shared::structs::TemplateInstantiation, TransformVisitor};
 
 pub fn create_template(node: &JSXElement, result: &TemplateInstantiation, wrap: bool) -> Expr {
     let id = &result.id;

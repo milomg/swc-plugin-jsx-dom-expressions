@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use crate::shared::{
     constants::{ALIASES, CHILD_PROPERTIES, SVG_ELEMENTS, VOID_ELEMENTS},
-    structs::{TemplateConstruction, TemplateInstantiation},
+    structs::TemplateInstantiation,
     transform::TransformInfo,
     utils::get_tag_name,
 };
+use std::collections::HashMap;
 use swc_core::ecma::ast::{
     Expr, ExprStmt, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
     JSXExpr, Lit, Stmt,

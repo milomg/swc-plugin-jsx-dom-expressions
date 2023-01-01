@@ -1,14 +1,11 @@
+use super::structs::TemplateInstantiation;
 pub use crate::dom::element::transform_element_dom;
 use crate::dom::template::create_template;
 pub use crate::shared::component::transform_component;
 pub use crate::shared::structs::TransformVisitor;
 pub use crate::shared::utils::{get_tag_name, is_component};
 use swc_core::common::comments::Comments;
-use swc_core::common::DUMMY_SP;
-
 use swc_core::ecma::ast::*;
-
-use super::structs::{TemplateConstruction, TemplateInstantiation};
 
 pub struct TransformInfo {
     pub top_level: bool,

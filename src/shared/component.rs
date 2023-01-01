@@ -1,6 +1,5 @@
-use swc_core::{common::DUMMY_SP, ecma::ast::*};
-
 use super::structs::TemplateInstantiation;
+use swc_core::{common::DUMMY_SP, ecma::ast::*};
 
 enum TagId {
     Ident(Ident),

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use swc_core::{common::comments::Comments, ecma::ast::*};
 
 pub struct TemplateConstruction {
