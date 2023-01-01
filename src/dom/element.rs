@@ -5,9 +5,12 @@ use crate::shared::{
     utils::get_tag_name,
 };
 use std::collections::HashMap;
-use swc_core::ecma::ast::{
-    Expr, ExprStmt, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
-    JSXExpr, Lit, Stmt,
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{
+        Expr, ExprStmt, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
+        JSXExpr, Lit, Stmt, VarDecl, VarDeclKind,
+    },
 };
 
 pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> TemplateInstantiation {
@@ -19,12 +22,18 @@ pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> Tem
         template: format!("<{}", tag_name),
         id: None,
         tag_name: tag_name.clone(),
-        decl: vec![],
+        decl: VarDecl {
+            span: DUMMY_SP,
+            kind: VarDeclKind::Const,
+            declare: true,
+            decls: vec![],
+        },
         exprs: vec![],
         dynamics: vec![],
         is_svg: wrap_svg,
         is_void: void_tag,
         has_custom_element: false,
+        dynamic: false,
     };
     if wrap_svg {
         results.template = "<svg>".to_string() + &results.template;
@@ -144,11 +153,7 @@ fn transform_attributes(node: &mut JSXElement, results: &mut TemplateInstantiati
                         None,
                     );
                     if let Some(expr) = expr {
-                        let expr_statement = ExprStmt {
-                            span: Default::default(),
-                            expr: Box::new(expr),
-                        };
-                        results.exprs.push(Stmt::Expr(expr_statement));
+                        results.exprs.push(expr);
                     }
                 }
             }

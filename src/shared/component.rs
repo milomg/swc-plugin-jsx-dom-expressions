@@ -54,12 +54,18 @@ pub fn transform_component(expr: &mut JSXElement) -> TemplateInstantiation {
     TemplateInstantiation {
         template: "".into(),
         tag_name: "".into(),
-        decl: vec![],
+        decl: VarDecl {
+            span: DUMMY_SP,
+            kind: VarDeclKind::Const,
+            declare: true,
+            decls: vec![],
+        },
         exprs: vec![],
         dynamics: vec![],
         is_svg: false,
         is_void: false,
         id: None,
         has_custom_element: false,
+        dynamic: false,
     }
 }

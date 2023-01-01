@@ -11,12 +11,13 @@ pub struct TemplateInstantiation {
     pub template: String,
     pub id: Option<Ident>,
     pub tag_name: String,
-    pub decl: Vec<Stmt>,
-    pub exprs: Vec<Stmt>,
-    pub dynamics: Vec<Stmt>,
+    pub decl: VarDecl,
+    pub exprs: Vec<Expr>,
+    pub dynamics: Vec<Expr>,
     pub is_svg: bool,
     pub is_void: bool,
     pub has_custom_element: bool,
+    pub dynamic: bool
 }
 
 pub struct TransformVisitor<C>

@@ -3,9 +3,10 @@ use swc_core::{
     common::comments::Comments,
     ecma::{
         ast::{
-            BinExpr, BinaryOp, CallExpr, Expr, Function, JSXElement, JSXElementName, JSXExpr,
-            JSXExprContainer, JSXFragment, JSXObject, MemberExpr,
+            BinExpr, BinaryOp, CallExpr, Expr, Function, Ident, JSXElement, JSXElementName,
+            JSXExpr, JSXExprContainer, JSXFragment, JSXObject, MemberExpr,
         },
+        utils::private_ident,
         visit::{Visit, VisitWith},
     },
 };
@@ -54,38 +55,35 @@ pub fn get_tag_name(element: &mut JSXElement) -> String {
 //     }
 //   }
 
-pub fn register_import_method<C>(
-    visitor: &mut TransformVisitor<C>,
-    node: &mut JSXElement,
-    name: &String,
-    module_name: &String,
-) where
+impl<C> TransformVisitor<C>
+where
     C: Comments,
 {
-    let key = format!("{}:{}", module_name, name);
-    if !visitor.imports.contains_key(&key) {
-        // let id = add_named_import(path, name, module_name, {
-        //     name_hint: format!("_${}", name),
-        // });
-        // imports.set(`${moduleName}:${name}`, id);
-        // return id;
-    } else {
-        // let iden = imports.get(`${moduleName}:${name}`);
-        // the cloning is required to play well with babel-preset-env which is
-        // transpiling import as we add them and using the same identifier causes
-        // problems with the multiple identifiers of the same thing
-        // return t.cloneDeep(iden);
+    pub fn register_import_method(
+        &mut self,
+        node: &JSXElement,
+        name: &str,
+        module_name: &str,
+    ) -> Ident {
+        let key = format!("{}:{}", module_name, name);
+        if !self.imports.contains_key(&key) {
+            // let id = add_named_import(path, name, module_name, {
+            //     name_hint: format!("_${}", name),
+            // });
+            // imports.set(`${moduleName}:${name}`, id);
+            // return id;
+        } else {
+            // let iden = imports.get(`${moduleName}:${name}`);
+            // the cloning is required to play well with babel-preset-env which is
+            // transpiling import as we add them and using the same identifier causes
+            // problems with the multiple identifiers of the same thing
+            // return t.cloneDeep(iden);
+        }
+        private_ident!("todo_fix_register_import_method")
     }
-}
 
-fn add_named_import<C>(
-    visitor: &mut TransformVisitor<C>,
-    node: &mut JSXElement,
-    name: &String,
-    imported_source: &String,
-) where
-    C: Comments,
-{
+    fn add_named_import(&mut self, node: &mut JSXElement, name: &String, imported_source: &String) {
+    }
 }
 
 pub fn is_dynamic(

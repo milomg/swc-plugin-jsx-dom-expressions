@@ -1,4 +1,3 @@
-use shared::transform::{transform_element, TransformInfo};
 use swc_core::ecma::visit::VisitMutWith;
 use swc_core::{
     common::comments::Comments,
