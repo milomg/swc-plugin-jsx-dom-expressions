@@ -17,8 +17,8 @@ where
 {
     pub fn transform_jsx_expr(&mut self, node: &mut Expr) {
         if let Expr::JSXElement(jsxnode) = node {
-            let results = self.transform_jsx_element(jsxnode);
-            *node = self.create_template(jsxnode, &results, false);
+            let mut results = self.transform_jsx_element(jsxnode);
+            *node = self.create_template(jsxnode, &mut results, false);
         }
     }
     pub fn transform_jsx_element(&mut self, node: &mut JSXElement) -> TemplateInstantiation {
@@ -38,6 +38,7 @@ where
                 decls: vec![],
             },
             exprs: vec![],
+            post_exprs: vec![],
             dynamics: vec![],
             is_svg: false,
             is_void: false,

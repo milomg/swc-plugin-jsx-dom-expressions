@@ -7,13 +7,22 @@ pub struct TemplateConstruction {
     pub tag_count: f64,
 }
 
+pub struct DynamicAttr {
+    pub elem: Ident,
+    pub key: String,
+    pub value: Expr,
+    pub is_svg: bool,
+    pub is_ce: bool,
+}
+
 pub struct TemplateInstantiation {
     pub template: String,
     pub id: Option<Ident>,
     pub tag_name: String,
     pub decl: VarDecl,
     pub exprs: Vec<Expr>,
-    pub dynamics: Vec<Expr>,
+    pub dynamics: Vec<DynamicAttr>,
+    pub post_exprs: Vec<Expr>,
     pub is_svg: bool,
     pub is_void: bool,
     pub has_custom_element: bool,

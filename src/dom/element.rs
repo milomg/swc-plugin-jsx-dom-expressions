@@ -30,6 +30,7 @@ pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> Tem
         },
         exprs: vec![],
         dynamics: vec![],
+        post_exprs: vec![],
         is_svg: wrap_svg,
         is_void: void_tag,
         has_custom_element: false,
@@ -48,15 +49,18 @@ pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> Tem
     results
 }
 
-fn set_attr(
-    attr: &JSXAttr,
-    elem: &Option<Ident>,
-    name: &&str,
-    value: &Lit,
-    is_svg: bool,
-    dynamic: bool,
-    is_ce: bool,
-    prev_id: Option<&Ident>,
+pub struct AttrOptions {
+    pub is_svg: bool,
+    pub dynamic: bool,
+    pub is_custom_element: bool,
+    pub prev_id: Option<Ident>,
+}
+pub fn set_attr(
+    attr: &JSXElement,
+    elem: Option<&Ident>,
+    name: &str,
+    value: &Expr,
+    options: &AttrOptions,
 ) -> Option<Expr> {
     None
 }
@@ -114,7 +118,7 @@ fn transform_attributes(node: &mut JSXElement, results: &mut TemplateInstantiati
 
         if !value_is_lit_or_none {
         } else {
-            let value = match value {
+            let value = match &value {
                 Some(value) => {
                     let expr = match value {
                         JSXAttrValue::JSXExprContainer(value) => match &value.expr {
@@ -142,14 +146,16 @@ fn transform_attributes(node: &mut JSXElement, results: &mut TemplateInstantiati
                 if CHILD_PROPERTIES.contains(key) {
                     value_is_child_property = true;
                     let expr = set_attr(
-                        &attr,
-                        elem,
+                        node,
+                        elem.as_ref(),
                         key,
-                        value,
-                        is_svg,
-                        false,
-                        is_custom_element,
-                        None,
+                        &Expr::Lit(value.clone()),
+                        &AttrOptions {
+                            is_svg,
+                            dynamic: false,
+                            is_custom_element,
+                            prev_id: None,
+                        },
                     );
                     if let Some(expr) = expr {
                         results.exprs.push(expr);

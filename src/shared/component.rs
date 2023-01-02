@@ -62,6 +62,7 @@ pub fn transform_component(expr: &mut JSXElement) -> TemplateInstantiation {
         },
         exprs: vec![],
         dynamics: vec![],
+        post_exprs: vec![],
         is_svg: false,
         is_void: false,
         id: None,
