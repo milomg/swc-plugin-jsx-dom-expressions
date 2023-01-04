@@ -7,7 +7,7 @@ use swc_core::{
     ecma::{
         ast::{
             ArrowExpr, AssignExpr, AssignOp, BinExpr, BinaryOp, BindingIdent, BlockStmt,
-            BlockStmtOrExpr, CallExpr, Callee, Decl, Expr, ExprOrSpread, ExprStmt, Ident,
+            BlockStmtOrExpr, Bool, CallExpr, Callee, Decl, Expr, ExprOrSpread, ExprStmt, Ident,
             JSXElement, KeyValueProp, Lit, MemberExpr, MemberProp, ObjectLit, Pat, PatOrExpr, Prop,
             PropName, PropOrSpread, ReturnStmt, Stmt, UnaryExpr, UnaryOp, VarDecl, VarDeclKind,
             VarDeclarator,
@@ -28,7 +28,7 @@ where
         result: &mut TemplateInstantiation,
         wrap: bool,
     ) -> Expr {
-        if let Some(id) = &result.id {
+        if let Some(id) = result.id.clone() {
             self.register_template(node, result);
             if result.exprs.is_empty()
                 && result.dynamics.is_empty()
@@ -71,7 +71,7 @@ where
                                 }))
                                 .chain([Stmt::Return(ReturnStmt {
                                     span: DUMMY_SP,
-                                    arg: Some(Box::new(Expr::Ident(id.clone()))),
+                                    arg: Some(Box::new(Expr::Ident(id))),
                                 })])
                                 .collect(),
                         }),
@@ -102,12 +102,11 @@ where
         result.exprs[0].clone()
     }
 
-    pub fn register_template(&mut self, node: &JSXElement, results: &TemplateInstantiation) {
+    pub fn register_template(&mut self, node: &JSXElement, results: &mut TemplateInstantiation) {
         let decl: VarDeclarator;
 
         if !results.template.is_empty() {
-            //       let templateId;
-            let template_id: Option<&Ident>;
+            let template_id: Option<Ident>;
 
             let template_def = self
                 .templates
@@ -116,7 +115,7 @@ where
 
             match template_def {
                 Some(template_def) => {
-                    template_id = Some(&template_def.id);
+                    template_id = Some(template_def.id.clone());
                 }
                 None => {
                     self.template = Some(TemplateInstantiation {
@@ -138,103 +137,80 @@ where
                         dynamic: false,
                     });
 
-                    template_id = self.template.as_ref().unwrap().id.as_ref();
+                    template_id = self.template.as_ref().unwrap().id.clone();
                 }
             }
 
-            //       decl = t.variableDeclarator(
-            //         results.id,
-            //         results.hasCustomElement
-            //           ? t.callExpression(
-            //               registerImportMethod(path, "untrack", getRendererConfig(path, "dom").moduleName),
-            //               [
-            //                 t.arrowFunctionExpression(
-            //                   [],
-            //                   t.callExpression(
-            //                     t.memberExpression(t.identifier("document"), t.identifier("importNode")),
-            //                     [templateId, t.booleanLiteral(true)]
-            //                   )
-            //                 )
-            //               ]
-            //             )
-            //           : t.callExpression(t.memberExpression(templateId, t.identifier("cloneNode")), [
-            //               t.booleanLiteral(true)
-            //             ])
-            //       );
+            let init = match results.has_custom_element {
+                true => Expr::Call(CallExpr {
+                    span: Default::default(),
+                    callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method(
+                        node,
+                        "untrack",
+                        "solid-js/web",
+                    )))),
+                    args: vec![ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Arrow(ArrowExpr {
+                            span: Default::default(),
+                            params: vec![],
+                            body: BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
+                                span: Default::default(),
+                                callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                                    span: Default::default(),
+                                    obj: Box::new(Expr::Ident(Ident::new(
+                                        "document".into(),
+                                        Default::default(),
+                                    ))),
+                                    prop: MemberProp::Ident(Ident::new(
+                                        "importNode".into(),
+                                        Default::default(),
+                                    )),
+                                }))),
+                                args: vec![ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Ident(template_id.unwrap().clone())),
+                                }],
+                                type_args: None,
+                            }))),
+                            is_async: false,
+                            is_generator: false,
+                            type_params: None,
+                            return_type: None,
+                        })),
+                    }],
+                    type_args: None,
+                }),
+                false => Expr::Call(CallExpr {
+                    span: Default::default(),
+                    callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                        span: Default::default(),
+                        obj: (Box::new(Expr::Ident(template_id.unwrap().clone()))),
+                        prop: (MemberProp::Ident(Ident::new(
+                            "cloneNode".into(),
+                            Default::default(),
+                        ))),
+                    }))),
+                    args: vec![ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Lit(Lit::Bool(Bool {
+                            span: Default::default(),
+                            value: true,
+                        }))),
+                    }],
+                    type_args: None,
+                }),
+            };
 
-            // let init = match results.has_custom_element {
-            //     true => Expr::Call(CallExpr {
-            //         span: Default::default(),
-            //         callee: register_import_method(
-            //             visitor,
-            //             "untrack",
-            //             // get_renderer_config(visitor, "dom").module_name.clone(),
-            //             "solid-js/web",
-            //         ),
-            //         //         args: vec![ExprOrSpread {
-            //         //             spread: None,
-            //         //             expr: Box::new(Expr::Arrow(ArrowExpr {
-            //         //                 span: Default::default(),
-            //         //                 params: vec![],
-            //         //                 body: BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
-            //         //                     span: Default::default(),
-            //         //                     callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-            //         //                         span: Default::default(),
-            //         //                         obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
-            //         //                             "document".into(),
-            //         //                             Default::default(),
-            //         //                         )))),
-            //         //                         prop: Box::new(Expr::Ident(Ident::new(
-            //         //                             "importNode".into(),
-            //         //                             Default::default(),
-            //         //                         ))),
-            //         //                         computed: false,
-            //         //                     }))),
-            //         //                     args: vec![ExprOrSpread {
-            //         //                         spread: None,
-            //         //                         expr: Box::new(Expr::Ident(template_id.clone().unwrap())),
-            //         //                     }],
-            //         //                     type_args: None,
-            //         //                 }))),
-            //         //                 is_async: false,
-            //         //                 is_generator: false,
-            //         //                 type_params: None,
-            //         //                 return_type: None,
-            //         //             })),
-            //         //         }],
-            //         //         type_args: None,
-            //     }),
-            //     false => Expr::Call(CallExpr {
-            //     //         span: Default::default(),
-            //     //         callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-            //     //             span: Default::default(),
-            //     //             obj: ExprOrSuper::Expr(Box::new(Expr::Ident(template_id.clone().unwrap()))),
-            //     //             prop: Box::new(Expr::Ident(Ident::new(
-            //     //                 "cloneNode".into(),
-            //     //                 Default::default(),
-            //     //             ))),
-            //     //             computed: false,
-            //     //         }))),
-            //     //         args: vec![ExprOrSpread {
-            //     //             spread: None,
-            //     //             expr: Box::new(Expr::Lit(Lit::Bool(Bool {
-            //     //                 span: Default::default(),
-            //     //                 value: true,
-            //     //             }))),
-            //     //         }],
-            //     //         type_args: None,
-            //     }),
-            // };
+            decl = VarDeclarator {
+                span: Default::default(),
+                name: Pat::Ident(BindingIdent::from(results.id.clone().unwrap())),
+                init: Some(Box::new(init)),
+                definite: false,
+            };
 
-            // decl = VarDeclarator {
-            //     span: Default::default(),
-            //     name: Pat::Ident(BindingIdent::from(results.id.unwrap())),
-            //     init:
-            // }
+            results.decl.decls.insert(0, decl);
         }
-
-        //     results.decl.unshift(decl);
-        //     results.decl = t.variableDeclaration("const", results.decl);
     }
 
     fn wrap_dynamics(
