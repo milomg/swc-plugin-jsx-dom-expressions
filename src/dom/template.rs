@@ -1,22 +1,15 @@
+use super::element::{set_attr, AttrOptions};
 use crate::{
-    shared::structs::{DynamicAttr, TemplateInstantiation},
+    shared::structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
     TransformVisitor,
 };
 use swc_core::{
-    common::{comments::Comments, DUMMY_SP},
+    common::{comments::Comments, Span, DUMMY_SP},
     ecma::{
-        ast::{
-            ArrowExpr, AssignExpr, AssignOp, BinExpr, BinaryOp, BindingIdent, BlockStmt,
-            BlockStmtOrExpr, Bool, CallExpr, Callee, Decl, Expr, ExprOrSpread, ExprStmt, Ident,
-            JSXElement, KeyValueProp, Lit, MemberExpr, MemberProp, ObjectLit, Pat, PatOrExpr, Prop,
-            PropName, PropOrSpread, ReturnStmt, Stmt, UnaryExpr, UnaryOp, VarDecl, VarDeclKind,
-            VarDeclarator,
-        },
-        utils::private_ident,
+        ast::*,
+        utils::{prepend_stmt, private_ident},
     },
 };
-
-use super::element::{set_attr, AttrOptions};
 
 impl<C> TransformVisitor<C>
 where
@@ -29,7 +22,7 @@ where
         wrap: bool,
     ) -> Expr {
         if let Some(id) = result.id.clone() {
-            self.register_template(node, result);
+            self.register_template(result);
             if result.exprs.is_empty()
                 && result.dynamics.is_empty()
                 && result.post_exprs.is_empty()
@@ -89,11 +82,7 @@ where
         if wrap && result.dynamic {
             return Expr::Call(CallExpr {
                 span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method(
-                    node,
-                    "memo",
-                    "solid-js/web",
-                )))),
+                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("memo")))),
                 args: vec![result.exprs[0].clone().into()],
                 type_args: None,
             });
@@ -102,7 +91,55 @@ where
         result.exprs[0].clone()
     }
 
-    pub fn register_template(&mut self, node: &JSXElement, results: &mut TemplateInstantiation) {
+    pub fn append_templates(&mut self, module: &mut Module) {
+        let templ = self.register_import_method("template");
+        prepend_stmt(
+            &mut module.body,
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Const,
+                declare: false,
+                decls: self
+                    .templates
+                    .drain(..)
+                    .map(|template| {
+                        let span = Span::dummy_with_cmt();
+                        self.comments.add_pure_comment(span.lo);
+                        VarDeclarator {
+                            span: DUMMY_SP,
+                            name: template.id.into(),
+                            init: Some(Box::new(Expr::Call(CallExpr {
+                                span: span,
+                                callee: Callee::Expr(Box::new(Expr::Ident(templ.clone()))),
+                                args: vec![
+                                    ExprOrSpread {
+                                        spread: None,
+                                        expr: Box::new(Expr::Lit(Lit::Str(Str {
+                                            span: DUMMY_SP,
+                                            value: template.template.into(),
+                                            raw: None,
+                                        }))),
+                                    },
+                                    ExprOrSpread {
+                                        spread: None,
+                                        expr: Box::new(Expr::Lit(Lit::Num(Number {
+                                            span: DUMMY_SP,
+                                            value: template.tag_count,
+                                            raw: None,
+                                        }))),
+                                    },
+                                ], // .concat(template.isSVG ? t.booleanLiteral(template.isSVG) : [])
+                                type_args: None,
+                            }))),
+                            definite: false,
+                        }
+                    })
+                    .collect(),
+            })))),
+        )
+    }
+
+    pub fn register_template(&mut self, results: &mut TemplateInstantiation) {
         let decl: VarDeclarator;
 
         if !results.template.is_empty() {
@@ -118,37 +155,21 @@ where
                     template_id = Some(template_def.id.clone());
                 }
                 None => {
-                    self.template = Some(TemplateInstantiation {
-                        id: Some(Ident::new("_tmpl$".into(), DUMMY_SP)),
+                    template_id = Some(Ident::new("_tmpl$".into(), DUMMY_SP));
+                    self.templates.push(TemplateConstruction {
+                        id: template_id.clone().unwrap(),
                         template: results.template.clone(),
-                        is_svg: results.is_svg,
-                        decl: VarDecl {
-                            span: DUMMY_SP,
-                            kind: VarDeclKind::Const,
-                            declare: false,
-                            decls: vec![],
-                        },
-                        exprs: vec![],
-                        post_exprs: vec![],
-                        is_void: false,
-                        tag_name: "".into(),
-                        dynamics: vec![],
-                        has_custom_element: false,
-                        dynamic: false,
+                        tag_count: results.template.matches('<').count() as f64 - 1.0,
                     });
-
-                    template_id = self.template.as_ref().unwrap().id.clone();
                 }
             }
 
             let init = match results.has_custom_element {
                 true => Expr::Call(CallExpr {
                     span: Default::default(),
-                    callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method(
-                        node,
-                        "untrack",
-                        "solid-js/web",
-                    )))),
+                    callee: Callee::Expr(Box::new(Expr::Ident(
+                        self.register_import_method("untrack"),
+                    ))),
                     args: vec![ExprOrSpread {
                         spread: None,
                         expr: Box::new(Expr::Arrow(ArrowExpr {
@@ -222,7 +243,7 @@ where
             return None;
         }
 
-        let effect_wrapper_id = self.register_import_method(node, "effect", "solid-js/web");
+        let effect_wrapper_id = self.register_import_method("effect");
 
         if dynamics.len() == 1 {
             let prev_value = if dynamics[0].key == "classList" || dynamics[0].key == "style" {

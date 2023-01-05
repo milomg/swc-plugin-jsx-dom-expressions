@@ -25,6 +25,9 @@ where
     }
     fn visit_mut_module(&mut self, module: &mut Module) {
         module.visit_mut_children_with(self);
+
+        self.append_templates(module);
+        self.insert_imports(module);
     }
 }
 

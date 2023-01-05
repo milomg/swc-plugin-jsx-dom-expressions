@@ -7,13 +7,7 @@ use crate::shared::{
 use std::collections::HashMap;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::{
-        ast::{
-            Expr, ExprStmt, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
-            JSXExpr, Lit, Stmt, VarDecl, VarDeclKind,
-        },
-        utils::private_ident,
-    },
+    ecma::{ast::*, utils::private_ident},
 };
 
 pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> TemplateInstantiation {
