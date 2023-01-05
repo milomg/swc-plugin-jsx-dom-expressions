@@ -119,7 +119,7 @@ where
                 }
                 None => {
                     self.template = Some(TemplateInstantiation {
-                        id: Some(Ident::new("tmpl$".into(), DUMMY_SP)),
+                        id: Some(Ident::new("_tmpl$".into(), DUMMY_SP)),
                         template: results.template.clone(),
                         is_svg: results.is_svg,
                         decl: VarDecl {

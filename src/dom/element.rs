@@ -7,9 +7,12 @@ use crate::shared::{
 use std::collections::HashMap;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{
-        Expr, ExprStmt, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
-        JSXExpr, Lit, Stmt, VarDecl, VarDeclKind,
+    ecma::{
+        ast::{
+            Expr, ExprStmt, Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
+            JSXExpr, Lit, Stmt, VarDecl, VarDeclKind,
+        },
+        utils::private_ident,
     },
 };
 
@@ -39,13 +42,15 @@ pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> Tem
     if wrap_svg {
         results.template = "<svg>".to_string() + &results.template;
     }
+    if !info.skip_id {
+        results.id = Some(private_ident!("_el$"));
+    }
     transform_attributes(node, &mut results);
     results.template += ">";
     if !void_tag {
         transform_children(node, &mut results);
         results.template += &format!("</{}>", tag_name);
     }
-    println!("{}", results.template);
     results
 }
 

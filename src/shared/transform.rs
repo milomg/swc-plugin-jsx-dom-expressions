@@ -9,6 +9,7 @@ use swc_core::ecma::ast::*;
 
 pub struct TransformInfo {
     pub top_level: bool,
+    pub skip_id: bool,
 }
 
 impl<C> TransformVisitor<C>
@@ -22,11 +23,17 @@ where
         }
     }
     pub fn transform_jsx_element(&mut self, node: &mut JSXElement) -> TemplateInstantiation {
-        let info = TransformInfo { top_level: true };
+        let info = TransformInfo {
+            top_level: true,
+            skip_id: false,
+        };
         transform_element(node, &info)
     }
     pub fn transform_jsx_fragment(&mut self, node: &mut JSXFragment) -> TemplateInstantiation {
-        let info = TransformInfo { top_level: false };
+        let info = TransformInfo {
+            top_level: false,
+            skip_id: false,
+        };
         TemplateInstantiation {
             template: "".into(),
             id: None,
