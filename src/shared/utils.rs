@@ -8,6 +8,8 @@ use swc_core::{
     },
 };
 
+use super::structs::{ChildTemplateInstantiation, ImmutableChildTemplateInstantiation};
+
 pub fn is_component(tag_name: &str) -> bool {
     let first_char = tag_name.chars().next().unwrap();
     let first_char_lower = first_char.to_lowercase().to_string();
@@ -182,4 +184,37 @@ pub fn filter_children(c: &JSXElementChild) -> bool {
         }) => false,
         _ => true,
     }
+}
+
+pub fn wrapped_by_text(list: &[ImmutableChildTemplateInstantiation], start_index: usize) -> bool {
+    let mut index = start_index;
+    let mut wrapped = false;
+    while index > 0 {
+        index -= 1;
+        let node = &list[index];
+        if node.text {
+            wrapped = true;
+            break;
+        }
+
+        if (node.id.is_some()) {
+            return false;
+        }
+    }
+    if !wrapped {
+        return false;
+    }
+    index = start_index;
+    while index < list.len() {
+        let node = &list[index];
+        if node.text {
+            return true;
+        }
+        if (node.id.is_some()) {
+            return false;
+        }
+        index += 1;
+    }
+
+    return false;
 }

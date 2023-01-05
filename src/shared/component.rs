@@ -37,13 +37,13 @@ fn get_component_identifier(node: &JSXElementName) -> TagId {
     }
 }
 
-pub fn transform_component(expr: &mut JSXElement) -> TemplateInstantiation {
+pub fn transform_component(expr: &JSXElement) -> TemplateInstantiation {
     let name = &expr.opening.name;
     let tag_id = get_component_identifier(name);
 
     let has_children = !expr.children.is_empty();
 
-    for attribute in &mut expr.opening.attrs {
+    for attribute in &expr.opening.attrs {
         match attribute {
             JSXAttrOrSpread::SpreadElement(_) => {}
             _ => {}

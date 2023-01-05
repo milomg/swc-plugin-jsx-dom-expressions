@@ -29,6 +29,30 @@ pub struct TemplateInstantiation {
     pub dynamic: bool,
 }
 
+pub struct ChildTemplateInstantiation {
+    pub template: String,
+    pub id: Option<Ident>,
+    pub tag_name: String,
+    pub has_custom_element: bool,
+    pub text: bool,
+    pub decl: VarDecl,
+    pub exprs: Vec<Expr>,
+    pub dynamics: Vec<DynamicAttr>,
+    pub post_exprs: Vec<Expr>,
+}
+pub struct MutableChildTemplateInstantiation {
+    pub decl: VarDecl,
+    pub exprs: Vec<Expr>,
+    pub dynamics: Vec<DynamicAttr>,
+    pub post_exprs: Vec<Expr>,
+}
+pub struct ImmutableChildTemplateInstantiation {
+    pub template: String,
+    pub id: Option<Ident>,
+    pub tag_name: String,
+    pub has_custom_element: bool,
+    pub text: bool,
+}
 pub struct TransformVisitor<C>
 where
     C: Comments,
