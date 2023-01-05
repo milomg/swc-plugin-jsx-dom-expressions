@@ -1,9 +1,8 @@
-use swc_core::ecma::visit::VisitMutWith;
 use swc_core::{
     common::comments::Comments,
     ecma::{
         ast::*,
-        visit::{as_folder, FoldWith, VisitMut},
+        visit::{as_folder, FoldWith, VisitMut, VisitMutWith},
     },
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
@@ -16,12 +15,16 @@ impl<C> VisitMut for TransformVisitor<C>
 where
     C: Comments,
 {
-    fn visit_mut_jsx_element(&mut self, element: &mut JSXElement) {}
+    fn visit_mut_jsx_element(&mut self, element: &mut JSXElement) {
+        self.transform_jsx_element(element);
+        element.visit_mut_children_with(self);
+    }
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
-        if let Expr::JSXElement(_) = expr {
-            self.transform_jsx_expr(expr)
+        if let Expr::JSXElement(node) = expr {
+            *expr = self.transform_jsx_expr(node.as_mut());
+        } else {
+            expr.visit_mut_children_with(self);
         }
-        expr.visit_mut_children_with(self);
     }
     fn visit_mut_module(&mut self, module: &mut Module) {
         module.visit_mut_children_with(self);

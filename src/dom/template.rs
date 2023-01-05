@@ -190,7 +190,7 @@ where
                                 }))),
                                 args: vec![ExprOrSpread {
                                     spread: None,
-                                    expr: Box::new(Expr::Ident(template_id.unwrap().clone())),
+                                    expr: Box::new(Expr::Ident(template_id.unwrap())),
                                 }],
                                 type_args: None,
                             }))),
@@ -206,7 +206,7 @@ where
                     span: Default::default(),
                     callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
                         span: Default::default(),
-                        obj: (Box::new(Expr::Ident(template_id.unwrap().clone()))),
+                        obj: (Box::new(Expr::Ident(template_id.unwrap()))),
                         prop: (MemberProp::Ident(Ident::new(
                             "cloneNode".into(),
                             Default::default(),
@@ -362,7 +362,7 @@ where
                         op: AssignOp::Assign,
                         right: Box::new(
                             set_attr(
-                                &node,
+                                node,
                                 Some(&dynamic.elem),
                                 &dynamic.key,
                                 &dynamic.value,
@@ -395,7 +395,7 @@ where
                         op: BinaryOp::LogicalAnd,
                         right: Box::new(
                             set_attr(
-                                &node,
+                                node,
                                 Some(&dynamic.elem),
                                 &dynamic.key,
                                 &Expr::Assign(AssignExpr {
@@ -425,7 +425,7 @@ where
             }
         }
 
-        return Some(vec![Expr::Call(CallExpr {
+        Some(vec![Expr::Call(CallExpr {
             span: Default::default(),
             callee: Callee::Expr(Box::new(Expr::Ident(effect_wrapper_id))),
             args: vec![
@@ -450,7 +450,7 @@ where
                             .chain(
                                 [Stmt::Return(ReturnStmt {
                                     span: Default::default(),
-                                    arg: Some(Box::new(Expr::Ident(prev_id.clone()))),
+                                    arg: Some(Box::new(Expr::Ident(prev_id))),
                                 })]
                                 .into_iter(),
                             )
@@ -479,6 +479,6 @@ where
                 },
             ],
             type_args: None,
-        })]);
+        })])
     }
 }

@@ -16,7 +16,7 @@ pub fn is_component(tag_name: &str) -> bool {
     first_char_lower != first_char.to_string() || has_dot || has_non_alpha
 }
 
-pub fn get_tag_name(element: &mut JSXElement) -> String {
+pub fn get_tag_name(element: &JSXElement) -> String {
     let jsx_name = &element.opening.name;
     match jsx_name {
         JSXElementName::Ident(ident) => ident.sym.to_string(),
@@ -156,5 +156,30 @@ impl Visit for DynamicVisitor {
         if self.check_tags {
             self.dynamic = true;
         }
+    }
+}
+
+pub fn get_static_expression(node: &JSXElementChild) -> Option<JSXExpr> {
+    //   let value, type;
+    //   return (
+    //     t.isJSXExpressionContainer(node) &&
+    //     t.isJSXElement(path.parent) &&
+    //     !isComponent(getTagName(path.parent)) &&
+    //     !t.isSequenceExpression(node.expression) &&
+    //     (value = path.get("expression").evaluate().value) !== undefined &&
+    //     ((type = typeof value) === "string" || type === "number") &&
+    //     value
+    //   );
+    None
+}
+
+pub fn filter_children(c: &JSXElementChild) -> bool {
+    match c {
+        JSXElementChild::JSXText(t) => !t.raw.trim().is_empty(),
+        JSXElementChild::JSXExprContainer(JSXExprContainer {
+            expr: JSXExpr::JSXEmptyExpr(_),
+            ..
+        }) => false,
+        _ => true,
     }
 }

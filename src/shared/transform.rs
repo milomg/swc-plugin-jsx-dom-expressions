@@ -9,7 +9,7 @@ pub use crate::{
 };
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
-    ecma::ast::*,
+    ecma::{ast::*, visit::VisitMutWith},
 };
 
 pub struct TransformInfo {
@@ -21,15 +21,20 @@ impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
-    pub fn transform_jsx_expr(&mut self, node: &mut Expr) {
-        if let Expr::JSXElement(jsxnode) = node {
-            let mut results = self.transform_jsx_element(jsxnode);
-            *node = self.create_template(jsxnode, &mut results, false);
-        }
+    pub fn transform_jsx_expr(&mut self, node: &mut JSXElement) -> Expr {
+        let mut results = transform_element(
+            node,
+            &TransformInfo {
+                top_level: true,
+                skip_id: false,
+            },
+        );
+        node.visit_mut_children_with(self);
+        self.create_template(node, &mut results, false)
     }
     pub fn transform_jsx_element(&mut self, node: &mut JSXElement) -> TemplateInstantiation {
         let info = TransformInfo {
-            top_level: true,
+            top_level: false,
             skip_id: false,
         };
         transform_element(node, &info)
@@ -58,6 +63,13 @@ where
             dynamic: false,
         }
     }
+}
+
+pub fn transform_jsx_child(
+    node: &JSXElementChild,
+    info: &TransformInfo,
+) -> Option<TemplateInstantiation> {
+    None
 }
 
 pub fn transform_element(node: &mut JSXElement, info: &TransformInfo) -> TemplateInstantiation {

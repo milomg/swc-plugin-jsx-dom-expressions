@@ -1,8 +1,8 @@
 use crate::shared::{
     constants::{ALIASES, CHILD_PROPERTIES, SVG_ELEMENTS, VOID_ELEMENTS},
     structs::TemplateInstantiation,
-    transform::TransformInfo,
-    utils::get_tag_name,
+    transform::{is_component, transform_jsx_child, TransformInfo},
+    utils::{filter_children, get_static_expression, get_tag_name},
 };
 use std::collections::HashMap;
 use swc_core::{
@@ -10,7 +10,7 @@ use swc_core::{
     ecma::{ast::*, utils::private_ident},
 };
 
-pub fn transform_element_dom(node: &mut JSXElement, info: &TransformInfo) -> TemplateInstantiation {
+pub fn transform_element_dom(node: &JSXElement, info: &TransformInfo) -> TemplateInstantiation {
     let tag_name = get_tag_name(node);
     let wrap_svg = info.top_level && tag_name != "svg" && SVG_ELEMENTS.contains(&tag_name.as_str());
     let void_tag = VOID_ELEMENTS.contains(&tag_name.as_str());
@@ -64,7 +64,7 @@ pub fn set_attr(
     None
 }
 
-fn transform_attributes(node: &mut JSXElement, results: &mut TemplateInstantiation) {
+fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) {
     let elem = &results.id;
     let attributes = node.opening.attrs.clone();
     let is_svg = results.is_svg;
@@ -188,4 +188,160 @@ fn transform_attributes(node: &mut JSXElement, results: &mut TemplateInstantiati
     }
 }
 
-fn transform_children(node: &mut JSXElement, results: &mut TemplateInstantiation) {}
+fn transform_children(node: &JSXElement, results: &mut TemplateInstantiation) {
+    let mut filtered_children = node
+        .children
+        .iter()
+        .filter(|c| filter_children(c))
+        .collect::<Vec<&JSXElementChild>>();
+    let child_nodes =
+        filtered_children
+            .iter()
+            .enumerate()
+            .fold(vec![], |mut memo, (index, child)| {
+                // if (child.isJSXFragment()) {
+                //     throw new Error(
+                //       `Fragments can only be used top level in JSX. Not used under a <${tagName}>.`
+                //     );
+                //   }
+                //   const transformed = transformNode(child, {
+                //     skipId: !results.id || !detectExpressions(filteredChildren, index, config)
+                //   });
+                //   if (!transformed) return memo;
+                //   const i = memo.length;
+                //   if (transformed.text && i && memo[i - 1].text) {
+                //     memo[i - 1].template += transformed.template;
+                //   } else memo.push(transformed);
+                //   return memo;
+                if let JSXElementChild::JSXFragment(_) = child {
+                    panic!(
+                        "Fragments can only be used top level in JSX. Not used under a <{}>.",
+                        get_tag_name(node)
+                    );
+                }
+
+                let transformed = transform_jsx_child(
+                    child,
+                    &TransformInfo {
+                        skip_id: results.id.is_none()
+                            || !detect_expressions(&filtered_children, index),
+                        top_level: false,
+                    },
+                );
+
+                if let Some(transformed) = transformed {
+                    // let i = memo.len();
+                    // if transformed.text && i > 0 && memo[i - 1].text {
+                    //     memo[i - 1].template += &transformed.template;
+                    // } else {
+                    memo.push(transformed);
+                    // }
+                    memo
+                } else {
+                    memo
+                }
+            });
+}
+
+fn detect_expressions(children: &Vec<&JSXElementChild>, index: usize) -> bool {
+    // if (children[index - 1]) {
+    //     const node = children[index - 1].node;
+    //     if (
+    //       t.isJSXExpressionContainer(node) &&
+    //       !t.isJSXEmptyExpression(node.expression) &&
+    //       !getStaticExpression(children[index - 1])
+    //     )
+    //       return true;
+    //     let tagName;
+    //     if (t.isJSXElement(node) && (tagName = getTagName(node)) && isComponent(tagName)) return true;
+    //   }
+    //   for (let i = index; i < children.length; i++) {
+    //     const child = children[i].node;
+    //     if (t.isJSXExpressionContainer(child)) {
+    //       if (!t.isJSXEmptyExpression(child.expression) && !getStaticExpression(children[i]))
+    //         return true;
+    //     } else if (t.isJSXElement(child)) {
+    //       const tagName = getTagName(child);
+    //       if (isComponent(tagName)) return true;
+    //       if (config.contextToCustomElements && (tagName === "slot" || tagName.indexOf("-") > -1))
+    //         return true;
+    //       if (
+    //         child.openingElement.attributes.some(
+    //           attr =>
+    //             t.isJSXSpreadAttribute(attr) ||
+    //             ["textContent", "innerHTML", "innerText"].includes(attr.name.name) ||
+    //             (attr.name.namespace && attr.name.namespace.name === "use") ||
+    //             (t.isJSXExpressionContainer(attr.value) &&
+    //               !(
+    //                 t.isStringLiteral(attr.value.expression) ||
+    //                 t.isNumericLiteral(attr.value.expression)
+    //               ))
+    //         )
+    //       )
+    //         return true;
+    //       const nextChildren = filterChildren(children[i].get("children"));
+    //       if (nextChildren.length) if (detectExpressions(nextChildren, 0, config)) return true;
+    //     }
+    //   }
+    if index > 0 {
+        let node = &children[index - 1];
+        if let JSXElementChild::JSXExprContainer(expr) = node {
+            if !matches!(expr.expr, JSXExpr::JSXEmptyExpr(_))
+                && get_static_expression(node).is_none()
+            {
+                return true;
+            }
+        }
+        if let JSXElementChild::JSXElement(e) = node {
+            let tag_name = get_tag_name(e);
+            if is_component(&tag_name) {
+                return true;
+            }
+        }
+    }
+    for i in index..children.len() {
+        let child = &children[i];
+        if let JSXElementChild::JSXExprContainer(expr) = child {
+            if !matches!(expr.expr, JSXExpr::JSXEmptyExpr(_))
+                && get_static_expression(child).is_none()
+            {
+                return true;
+            }
+        }
+        if let JSXElementChild::JSXElement(e) = child {
+            let tag_name = get_tag_name(e);
+            if is_component(&tag_name) {
+                return true;
+            }
+            if e.opening.attrs.iter().any(|attr| match attr {
+                JSXAttrOrSpread::SpreadElement(_) => true,
+                JSXAttrOrSpread::JSXAttr(attr) => {
+                    (match &attr.name {
+                        JSXAttrName::Ident(i) => ["textContent", "innerHTML", "innerText"]
+                            .contains(&i.to_string().as_str()),
+                        JSXAttrName::JSXNamespacedName(n) => n.ns.to_string() == "use",
+                    } || (if let Some(JSXAttrValue::JSXExprContainer(expr)) = &attr.value {
+                        if let JSXExpr::Expr(expr) = &expr.expr {
+                            !matches!(**expr, Expr::Lit(Lit::Str(_)) | Expr::Lit(Lit::Num(_)))
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }))
+                }
+            }) {
+                return true;
+            }
+            let next_children = e
+                .children
+                .iter()
+                .filter(|c| filter_children(c))
+                .collect::<Vec<&JSXElementChild>>();
+            if !next_children.is_empty() && detect_expressions(&next_children, 0) {
+                return true;
+            }
+        }
+    }
+    false
+}
