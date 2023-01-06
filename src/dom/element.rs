@@ -36,7 +36,7 @@ where
             decl: VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Const,
-                declare: true,
+                declare: false,
                 decls: vec![],
             },
             exprs: vec![],
@@ -228,6 +228,7 @@ where
                         skip_id: results.id.is_none()
                             || !detect_expressions(&filtered_children, index),
                         top_level: false,
+                        component_child: false,
                     },
                 );
 
@@ -280,17 +281,15 @@ where
             if let Some(id) = &child2.id {
                 let walk = Expr::Member(MemberExpr {
                     span: DUMMY_SP,
-                    obj: (Box::new(Expr::Ident(Ident::new("tempPath".into(), DUMMY_SP)))),
-                    prop: MemberProp::Ident(
-                        (Ident::new(
-                            if index == 0 {
-                                "firstChild".into()
-                            } else {
-                                "nextSibling".into()
-                            },
-                            DUMMY_SP,
-                        )),
-                    ),
+                    obj: (Box::new(Expr::Ident(temp_path.unwrap()))),
+                    prop: MemberProp::Ident(Ident::new(
+                        if index == 0 {
+                            "firstChild".into()
+                        } else {
+                            "nextSibling".into()
+                        },
+                        DUMMY_SP,
+                    )),
                 });
                 results.decl.decls.push(VarDeclarator {
                     span: DUMMY_SP,
@@ -424,10 +423,7 @@ fn create_placeholder(
         }
         .into(),
     );
-    (
-        expr_id,
-        None,
-    )
+    (expr_id, None)
 }
 fn next_child(child_nodes: &[ImmutableChildTemplateInstantiation], index: usize) -> Option<Expr> {
     if index + 1 < child_nodes.len() {

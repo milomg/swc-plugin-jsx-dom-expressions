@@ -8,7 +8,7 @@ use swc_core::{
     },
 };
 
-use super::structs::{ChildTemplateInstantiation, ImmutableChildTemplateInstantiation};
+use super::structs::{ImmutableChildTemplateInstantiation};
 
 pub fn is_component(tag_name: &str) -> bool {
     let first_char = tag_name.chars().next().unwrap();
@@ -75,7 +75,7 @@ where
 }
 
 pub fn is_dynamic(
-    element: &mut JSXExprContainer,
+    element: &JSXExprContainer,
     check_member: bool,
     check_tags: bool,
     check_call_expression: bool,
@@ -197,7 +197,7 @@ pub fn wrapped_by_text(list: &[ImmutableChildTemplateInstantiation], start_index
             break;
         }
 
-        if (node.id.is_some()) {
+        if node.id.is_some() {
             return false;
         }
     }
@@ -210,7 +210,7 @@ pub fn wrapped_by_text(list: &[ImmutableChildTemplateInstantiation], start_index
         if node.text {
             return true;
         }
-        if (node.id.is_some()) {
+        if node.id.is_some() {
             return false;
         }
         index += 1;

@@ -57,7 +57,7 @@ pub fn transform_component(expr: &JSXElement) -> TemplateInstantiation {
         decl: VarDecl {
             span: DUMMY_SP,
             kind: VarDeclKind::Const,
-            declare: true,
+            declare: false,
             decls: vec![],
         },
         exprs: vec![],

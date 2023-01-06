@@ -1,4 +1,7 @@
-use super::structs::{ChildTemplateInstantiation, TemplateInstantiation};
+use super::{
+    structs::{ChildTemplateInstantiation, TemplateInstantiation},
+    utils::is_dynamic,
+};
 pub use crate::shared::{
     component::transform_component,
     structs::TransformVisitor,
@@ -6,12 +9,13 @@ pub use crate::shared::{
 };
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
-    ecma::{ast::*, utils::private_ident, visit::VisitMutWith},
+    ecma::{ast::*, utils::private_ident},
 };
 
 pub struct TransformInfo {
     pub top_level: bool,
     pub skip_id: bool,
+    pub component_child: bool,
 }
 
 impl<C> TransformVisitor<C>
@@ -24,15 +28,16 @@ where
             &TransformInfo {
                 top_level: true,
                 skip_id: false,
+                component_child: false,
             },
         );
-        node.visit_mut_children_with(self);
         self.create_template(node, &mut results, false)
     }
     pub fn transform_jsx_element(&mut self, node: &JSXElement) -> TemplateInstantiation {
         let info = TransformInfo {
             top_level: false,
             skip_id: false,
+            component_child: false,
         };
         self.transform_element(node, &info)
     }
@@ -40,6 +45,7 @@ where
         let info = TransformInfo {
             top_level: false,
             skip_id: false,
+            component_child: false,
         };
         TemplateInstantiation {
             template: "".into(),
@@ -48,7 +54,7 @@ where
             decl: VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Const,
-                declare: true,
+                declare: false,
                 decls: vec![],
             },
             exprs: vec![],
@@ -124,7 +130,7 @@ where
                         decl: VarDecl {
                             span: DUMMY_SP,
                             kind: VarDeclKind::Const,
-                            declare: true,
+                            declare: false,
                             decls: vec![],
                         },
                         exprs: vec![],
@@ -133,6 +139,55 @@ where
                         has_custom_element: false,
                         text: true,
                     })
+                }
+            }
+            JSXElementChild::JSXExprContainer(node) => {
+                match &node.expr {
+                    JSXExpr::JSXEmptyExpr(_) => None,
+                    JSXExpr::Expr(expr) => {
+                        if !is_dynamic(
+                            node,
+                            true,
+                            info.component_child,
+                            false,
+                            info.component_child,
+                        ) {
+                            return Some(ChildTemplateInstantiation {
+                                id: None,
+                                tag_name: "".into(),
+                                template: "".into(),
+                                decl: VarDecl {
+                                    span: DUMMY_SP,
+                                    kind: VarDeclKind::Const,
+                                    declare: false,
+                                    decls: vec![],
+                                },
+                                exprs: vec![*expr.clone()],
+                                dynamics: vec![],
+                                post_exprs: vec![],
+                                has_custom_element: false,
+                                text: false,
+                            });
+                        }
+
+                        // let expr = expr;
+                        Some(ChildTemplateInstantiation {
+                            id: None,
+                            tag_name: "".into(),
+                            template: "".into(),
+                            decl: VarDecl {
+                                span: DUMMY_SP,
+                                kind: VarDeclKind::Const,
+                                declare: false,
+                                decls: vec![],
+                            },
+                            exprs: vec![*expr.clone()],
+                            dynamics: vec![],
+                            post_exprs: vec![],
+                            has_custom_element: false,
+                            text: false,
+                        })
+                    }
                 }
             }
             JSXElementChild::JSXSpreadChild(node) => {
@@ -152,7 +207,7 @@ where
                     decl: VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Const,
-                        declare: true,
+                        declare: false,
                         decls: vec![],
                     },
                     exprs: vec![expr],
@@ -161,9 +216,6 @@ where
                     has_custom_element: false,
                     text: false,
                 })
-            }
-            _ => {
-                panic!("not implemented");
             }
         }
     }

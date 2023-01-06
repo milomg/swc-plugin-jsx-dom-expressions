@@ -159,7 +159,7 @@ where
                     self.templates.push(TemplateConstruction {
                         id: template_id.clone().unwrap(),
                         template: results.template.clone(),
-                        tag_count: results.template.matches('<').count() as f64 - 1.0,
+                        tag_count: results.template.matches('<').count() as f64,
                     });
                 }
             }
