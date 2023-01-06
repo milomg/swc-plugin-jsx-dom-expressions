@@ -98,7 +98,6 @@ fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) 
     // combine class properties
 
     for attr in node.opening.attrs.clone() {
-        println!("attribute");
         let attr = match attr {
             JSXAttrOrSpread::JSXAttr(attr) => attr,
             JSXAttrOrSpread::SpreadElement(_) => panic!("Spread wasn't preprocessed"),
@@ -126,8 +125,6 @@ fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) 
         } else {
             true
         };
-
-        println!("value_is_lit_or_none: {}", value_is_lit_or_none);
 
         if !value_is_lit_or_none {
         } else {

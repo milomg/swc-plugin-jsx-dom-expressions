@@ -8,7 +8,7 @@ use swc_core::{
     },
 };
 
-use super::structs::{ImmutableChildTemplateInstantiation};
+use super::structs::ImmutableChildTemplateInstantiation;
 
 pub fn is_component(tag_name: &str) -> bool {
     let first_char = tag_name.chars().next().unwrap();
