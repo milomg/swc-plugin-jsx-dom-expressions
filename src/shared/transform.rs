@@ -1,9 +1,8 @@
 use super::{
-    structs::{ChildTemplateInstantiation, TemplateInstantiation},
+    structs::{TemplateInstantiation},
     utils::is_dynamic,
 };
 pub use crate::shared::{
-    component::transform_component,
     structs::TransformVisitor,
     utils::{get_tag_name, is_component},
 };
@@ -31,7 +30,7 @@ where
                 component_child: false,
             },
         );
-        self.create_template(node, &mut results, false)
+        self.create_template(&mut results, false)
     }
     pub fn transform_jsx_element(&mut self, node: &JSXElement) -> TemplateInstantiation {
         let info = TransformInfo {
@@ -63,6 +62,7 @@ where
             is_svg: false,
             is_void: false,
             has_custom_element: false,
+            text: false,
             dynamic: false,
         }
     }
@@ -74,7 +74,7 @@ where
     ) -> TemplateInstantiation {
         let tag_name = get_tag_name(node);
         if is_component(&tag_name) {
-            return transform_component(node);
+            return self.transform_component(node);
         }
         self.transform_element_dom(node, info)
     }
@@ -83,43 +83,19 @@ where
         &mut self,
         node: &JSXElementChild,
         info: &TransformInfo,
-    ) -> Option<ChildTemplateInstantiation> {
+    ) -> Option<TemplateInstantiation> {
         match node {
-            JSXElementChild::JSXElement(node) => {
-                let result = self.transform_element(node, info);
-                Some(ChildTemplateInstantiation {
-                    id: result.id,
-                    tag_name: result.tag_name,
-                    template: result.template,
-                    decl: result.decl,
-                    exprs: result.exprs,
-                    dynamics: result.dynamics,
-                    post_exprs: result.post_exprs,
-                    has_custom_element: result.has_custom_element,
-                    text: false,
-                })
-            }
+            JSXElementChild::JSXElement(node) => Some(self.transform_element(node, info)),
             JSXElementChild::JSXFragment(node) => {
                 // TODO: fixme
-                let result = self.transform_jsx_fragment(node);
-                Some(ChildTemplateInstantiation {
-                    id: result.id,
-                    tag_name: result.tag_name,
-                    template: result.template,
-                    decl: result.decl,
-                    exprs: result.exprs,
-                    dynamics: result.dynamics,
-                    post_exprs: result.post_exprs,
-                    has_custom_element: result.has_custom_element,
-                    text: false,
-                })
+                Some(self.transform_jsx_fragment(node))
             }
             JSXElementChild::JSXText(node) => {
                 let text = node.value.trim().to_string();
                 if text.trim().is_empty() {
                     None
                 } else {
-                    Some(ChildTemplateInstantiation {
+                    Some(TemplateInstantiation {
                         id: if info.skip_id {
                             None
                         } else {
@@ -137,7 +113,10 @@ where
                         dynamics: vec![],
                         post_exprs: vec![],
                         has_custom_element: false,
+                        is_svg: false,
+                        is_void: false,
                         text: true,
+                        dynamic: false,
                     })
                 }
             }
@@ -152,7 +131,7 @@ where
                             false,
                             info.component_child,
                         ) {
-                            return Some(ChildTemplateInstantiation {
+                            return Some(TemplateInstantiation {
                                 id: None,
                                 tag_name: "".into(),
                                 template: "".into(),
@@ -166,12 +145,15 @@ where
                                 dynamics: vec![],
                                 post_exprs: vec![],
                                 has_custom_element: false,
+                                is_svg: false,
+                                is_void: false,
                                 text: false,
+                                dynamic: false,
                             });
                         }
 
                         // let expr = expr;
-                        Some(ChildTemplateInstantiation {
+                        Some(TemplateInstantiation {
                             id: None,
                             tag_name: "".into(),
                             template: "".into(),
@@ -185,12 +167,16 @@ where
                             dynamics: vec![],
                             post_exprs: vec![],
                             has_custom_element: false,
+                            is_svg: false,
+                            is_void: false,
                             text: false,
+                            dynamic: true,
                         })
                     }
                 }
             }
             JSXElementChild::JSXSpreadChild(node) => {
+                // TODO: add is_dynamic check for optimization
                 let expr = Expr::Arrow(ArrowExpr {
                     span: DUMMY_SP,
                     params: vec![],
@@ -200,7 +186,7 @@ where
                     type_params: None,
                     return_type: None,
                 });
-                Some(ChildTemplateInstantiation {
+                Some(TemplateInstantiation {
                     id: None,
                     tag_name: "".into(),
                     template: "".into(),
@@ -214,7 +200,10 @@ where
                     dynamics: vec![],
                     post_exprs: vec![],
                     has_custom_element: false,
+                    is_svg: false,
+                    is_void: false,
                     text: false,
+                    dynamic: true,
                 })
             }
         }

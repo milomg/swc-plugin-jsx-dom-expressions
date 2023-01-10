@@ -17,7 +17,6 @@ where
 {
     pub fn create_template(
         &mut self,
-        node: &JSXElement,
         result: &mut TemplateInstantiation,
         wrap: bool,
     ) -> Expr {
@@ -46,7 +45,7 @@ where
                                     })
                                 }))
                                 .chain(
-                                    self.wrap_dynamics(node, &mut result.dynamics)
+                                    self.wrap_dynamics(&mut result.dynamics)
                                         .unwrap_or_default()
                                         .into_iter()
                                         .map(|x| {
@@ -234,11 +233,7 @@ where
         }
     }
 
-    fn wrap_dynamics(
-        &mut self,
-        node: &JSXElement,
-        dynamics: &mut Vec<DynamicAttr>,
-    ) -> Option<Vec<Expr>> {
+    fn wrap_dynamics(&mut self, dynamics: &mut Vec<DynamicAttr>) -> Option<Vec<Expr>> {
         if dynamics.is_empty() {
             return None;
         }
@@ -287,7 +282,6 @@ where
                             span: Default::default(),
                             callee: Callee::Expr(Box::new(
                                 set_attr(
-                                    node,
                                     Some(&dynamics[0].elem),
                                     &dynamics[0].key,
                                     &dynamics[0].value,
@@ -362,7 +356,6 @@ where
                         op: AssignOp::Assign,
                         right: Box::new(
                             set_attr(
-                                node,
                                 Some(&dynamic.elem),
                                 &dynamic.key,
                                 &dynamic.value,
@@ -395,7 +388,6 @@ where
                         op: BinaryOp::LogicalAnd,
                         right: Box::new(
                             set_attr(
-                                node,
                                 Some(&dynamic.elem),
                                 &dynamic.key,
                                 &Expr::Assign(AssignExpr {
