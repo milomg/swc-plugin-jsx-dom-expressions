@@ -27,7 +27,17 @@ fn get_component_identifier(node: &JSXElementName) -> TagId {
                     TagId::StringLiteral(str) => Expr::Lit(Lit::Str(str)),
                     TagId::MemberExpr(member) => Expr::Member(*member),
                 }),
-                prop: MemberProp::Ident(member.prop.clone()),
+                prop: match Ident::verify_symbol(&member.prop.sym) {
+                    Ok(_) => MemberProp::Ident(member.prop.clone()),
+                    Err(_) => MemberProp::Computed(ComputedPropName {
+                        span: DUMMY_SP,
+                        expr: Box::new(Str {
+                            span: DUMMY_SP,
+                            value: Into::into(member.prop.sym.to_string()),
+                            raw: None,
+                        }.into()),
+                    }),
+                },
             }))
         }
         JSXElementName::JSXNamespacedName(name) => {
