@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::element::{set_attr, AttrOptions};
 use crate::{
     shared::structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
@@ -15,11 +17,7 @@ impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
-    pub fn create_template(
-        &mut self,
-        result: &mut TemplateInstantiation,
-        wrap: bool,
-    ) -> Expr {
+    pub fn create_template(&mut self, result: &mut TemplateInstantiation, wrap: bool) -> Expr {
         if let Some(id) = result.id.clone() {
             self.register_template(result);
             if result.exprs.is_empty()
@@ -154,7 +152,17 @@ where
                     template_id = Some(template_def.id.clone());
                 }
                 None => {
-                    template_id = Some(Ident::new("_tmpl$".into(), DUMMY_SP));
+                    template_id = Some(Ident::new(
+                        format!(
+                            "_tmpl${}",
+                            match self.templates.is_empty() {
+                                true => Cow::Borrowed(""),
+                                false => Cow::Owned((self.templates.len() + 1).to_string()),
+                            }
+                        )
+                        .into(),
+                        DUMMY_SP,
+                    ));
                     self.templates.push(TemplateConstruction {
                         id: template_id.clone().unwrap(),
                         template: results.template.clone(),
