@@ -1,7 +1,6 @@
 use crate::TransformVisitor;
 
 use super::{structs::TemplateInstantiation, transform::TransformInfo};
-use regex::Regex;
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::ast::*,
@@ -41,10 +40,6 @@ fn get_component_identifier(node: &JSXElementName) -> TagId {
             TagId::StringLiteral(name)
         }
     }
-}
-
-lazy_static::lazy_static! {
-    static ref USELESS_TEXT_REGEX: Regex = Regex::new(r"^[\r\n]\s*$").unwrap();
 }
 
 impl<C> TransformVisitor<C>
@@ -96,7 +91,7 @@ where
                 JSXElementChild::JSXElement(_)
                 | JSXElementChild::JSXFragment(_)
                 | JSXElementChild::JSXSpreadChild(_) => true,
-                JSXElementChild::JSXText(child) => !USELESS_TEXT_REGEX.is_match(&child.raw),
+                JSXElementChild::JSXText(child) => child.raw.chars().any(|c| !c.is_whitespace()),
                 JSXElementChild::JSXExprContainer(_) => false,
             })
             .collect::<Vec<_>>();

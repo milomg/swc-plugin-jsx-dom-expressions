@@ -489,8 +489,6 @@ name = "jsx-dom-expressions"
 version = "0.1.0"
 dependencies = [
  "html-escape",
- "lazy_static",
- "regex",
  "string_cache",
  "swc_atoms",
  "swc_core",
