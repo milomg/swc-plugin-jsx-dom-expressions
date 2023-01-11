@@ -1,9 +1,9 @@
 use crate::TransformVisitor;
 
-use super::{structs::TemplateInstantiation, transform::TransformInfo};
+use super::{structs::TemplateInstantiation, transform::TransformInfo, utils::is_dynamic};
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
-    ecma::ast::*,
+    ecma::{ast::*, utils::quote_ident},
 };
 
 enum TagId {
@@ -62,14 +62,278 @@ where
 
         let has_children = !expr.children.is_empty();
 
+        let mut exprs: Vec<Expr> = vec![];
+
+        let mut props = vec![];
+        let mut running_objects = vec![];
+        let mut has_dynamic_spread = false;
+
         for attribute in &expr.opening.attrs {
             match attribute {
-                JSXAttrOrSpread::SpreadElement(node) => {}
-                _ => {}
+                JSXAttrOrSpread::SpreadElement(node) => {
+                    if !running_objects.is_empty() {
+                        props.push(
+                            ObjectLit {
+                                span: DUMMY_SP,
+                                props: running_objects
+                                    .into_iter()
+                                    .map(|prop| PropOrSpread::Prop(Box::new(prop)))
+                                    .collect(),
+                            }
+                            .into(),
+                        );
+                        running_objects = vec![];
+                    }
+
+                    let expr = if is_dynamic(&node.expr, true, false, false, false) {
+                        has_dynamic_spread = true;
+                        match *node.expr.clone() {
+                            Expr::Call(CallExpr {
+                                callee: Callee::Expr(callee_expr),
+                                args,
+                                ..
+                            }) if args.is_empty()
+                                && !matches!(*callee_expr, Expr::Call(_) | Expr::Member(_)) =>
+                            {
+                                *callee_expr.clone()
+                            }
+                            expr => ArrowExpr {
+                                span: DUMMY_SP,
+                                params: vec![],
+                                body: BlockStmtOrExpr::Expr(Box::new(expr)),
+                                is_async: false,
+                                is_generator: false,
+                                type_params: None,
+                                return_type: None,
+                            }
+                            .into(),
+                        }
+                    } else {
+                        *node.expr.clone()
+                    };
+                    props.push(expr);
+                }
+                JSXAttrOrSpread::JSXAttr(attr) => {
+                    let key = match &attr.name {
+                        JSXAttrName::Ident(ident) => ident.to_string(),
+                        JSXAttrName::JSXNamespacedName(name) => {
+                            format!("{}:{}", name.ns.sym, name.name.sym)
+                        }
+                    };
+
+                    if has_children && key == "children" {
+                        continue;
+                    }
+
+                    let prop = match attr.value.clone() {
+                        Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                            expr: JSXExpr::Expr(expr),
+                            ..
+                        })) => {
+                            if key == "ref" {
+                                let expr = {
+                                    let mut expr = *expr;
+                                    loop {
+                                        match expr {
+                                            Expr::TsNonNull(non_null_expr) => {
+                                                expr = *non_null_expr.expr
+                                            }
+                                            Expr::TsAs(as_expr) => expr = *as_expr.expr,
+                                            Expr::TsSatisfies(satisfies_expr) => {
+                                                expr = *satisfies_expr.expr
+                                            }
+                                            _ => break,
+                                        }
+                                    }
+                                    expr
+                                };
+                                todo!("handle ref")
+                            } else if is_dynamic(expr.as_ref(), true, true, false, false) {
+                                // TODO: add wrapConditionals support
+                                GetterProp {
+                                    span: DUMMY_SP,
+                                    key: PropName::Str(Str {
+                                        span: DUMMY_SP,
+                                        value: key.into(),
+                                        raw: None,
+                                    }),
+                                    type_ann: None,
+                                    body: Some(BlockStmt {
+                                        span: DUMMY_SP,
+                                        stmts: vec![Stmt::Return(ReturnStmt {
+                                            span: DUMMY_SP,
+                                            arg: Some(expr),
+                                        })],
+                                    }),
+                                }
+                                .into()
+                            } else {
+                                Prop::KeyValue(KeyValueProp {
+                                    key: PropName::Str(Str {
+                                        span: DUMMY_SP,
+                                        value: key.into(),
+                                        raw: None,
+                                    }),
+                                    value: expr,
+                                })
+                            }
+                        }
+                        Some(JSXAttrValue::Lit(lit)) => Prop::KeyValue(KeyValueProp {
+                            key: PropName::Str(Str {
+                                span: DUMMY_SP,
+                                value: key.into(),
+                                raw: None,
+                            }),
+                            value: lit.into(),
+                        }),
+                        Some(JSXAttrValue::JSXElement(el)) => Prop::KeyValue(KeyValueProp {
+                            key: PropName::Str(Str {
+                                span: DUMMY_SP,
+                                value: key.into(),
+                                raw: None,
+                            }),
+                            value: Box::new(Expr::JSXElement(el)),
+                        }),
+                        Some(JSXAttrValue::JSXFragment(frag)) => Prop::KeyValue(KeyValueProp {
+                            key: PropName::Str(Str {
+                                span: DUMMY_SP,
+                                value: key.into(),
+                                raw: None,
+                            }),
+                            value: Box::new(Expr::JSXFragment(frag)),
+                        }),
+                        None
+                        | Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                            expr: JSXExpr::JSXEmptyExpr(_),
+                            ..
+                        })) => Prop::KeyValue(KeyValueProp {
+                            key: PropName::Str(Str {
+                                span: DUMMY_SP,
+                                value: key.into(),
+                                raw: None,
+                            }),
+                            value: Lit::Bool(Bool {
+                                span: DUMMY_SP,
+                                value: true,
+                            })
+                            .into(),
+                        }),
+                    };
+                    running_objects.push(prop);
+                }
             }
         }
 
-        // Placeholder to satisfy type checking
+        let child_result = self.transform_component_children(&expr.children);
+
+        match child_result {
+            Some((expr, true)) => {
+                running_objects.push(
+                    GetterProp {
+                        span: DUMMY_SP,
+                        key: quote_ident!("children").into(),
+                        body: {
+                            let body = match &expr {
+                                Expr::Call(CallExpr { args, .. }) => {
+                                    if let Some(ExprOrSpread { expr, .. }) = args.first() {
+                                        if let Expr::Fn(fun) = &**expr {
+                                            fun.function.body.clone()
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                }
+                                Expr::Fn(fun) => fun.function.body.clone(),
+                                Expr::Arrow(arrow) => Some(match arrow.body.clone() {
+                                    BlockStmtOrExpr::BlockStmt(block) => block,
+                                    BlockStmtOrExpr::Expr(expr) => BlockStmt {
+                                        span: DUMMY_SP,
+                                        stmts: vec![Stmt::Return(ReturnStmt {
+                                            span: DUMMY_SP,
+                                            arg: Some(expr),
+                                        })],
+                                    },
+                                }),
+                                _ => None,
+                            };
+
+                            Some(body.unwrap_or(BlockStmt {
+                                span: DUMMY_SP,
+                                stmts: vec![Stmt::Return(ReturnStmt {
+                                    span: DUMMY_SP,
+                                    arg: Some(Box::new(expr)),
+                                })],
+                            }))
+                        },
+                        type_ann: None,
+                    }
+                    .into(),
+                );
+            }
+            Some((expr, false)) => {
+                running_objects.push(
+                    KeyValueProp {
+                        key: quote_ident!("children").into(),
+                        value: Box::new(expr),
+                    }
+                    .into(),
+                );
+            }
+            None => (),
+        }
+
+        if !running_objects.is_empty() && props.is_empty() {
+            props.push(
+                ObjectLit {
+                    span: DUMMY_SP,
+                    props: running_objects.into_iter().map(|p| p.into()).collect(),
+                }
+                .into(),
+            )
+        }
+
+        let singularized_prop = if props.len() > 1 || has_dynamic_spread {
+            Some(
+                CallExpr {
+                    span: DUMMY_SP,
+                    callee: Callee::Expr(self.register_import_method("mergeProps").into()),
+                    args: props.into_iter().map(|p| p.into()).collect(),
+                    type_args: None,
+                }
+                .into(),
+            )
+        } else {
+            props.pop()
+        };
+
+        exprs.push(
+            CallExpr {
+                span: DUMMY_SP,
+                callee: Callee::Expr(self.register_import_method("createComponent").into()),
+                args: vec![
+                    match tag_id {
+                        TagId::Ident(ident) => Expr::Ident(ident),
+                        TagId::StringLiteral(lit) => Expr::Lit(lit.into()),
+                        TagId::MemberExpr(expr) => Expr::Member(*expr),
+                    }
+                    .into(),
+                    singularized_prop
+                        .unwrap_or(
+                            ObjectLit {
+                                span: DUMMY_SP,
+                                props: vec![],
+                            }
+                            .into(),
+                        )
+                        .into(),
+                ],
+                type_args: None,
+            }
+            .into(),
+        );
+
         TemplateInstantiation {
             template: "".into(),
             tag_name: "".into(),
@@ -79,7 +343,47 @@ where
                 declare: false,
                 decls: vec![],
             },
-            exprs: vec![],
+            exprs: if exprs.len() > 1 {
+                let ret = exprs.pop();
+                let mut stmts: Vec<Stmt> = exprs
+                    .into_iter()
+                    .map(|expr| {
+                        Stmt::Expr(ExprStmt {
+                            span: DUMMY_SP,
+                            expr: Box::new(expr),
+                        })
+                    })
+                    .collect();
+                stmts.push(Stmt::Return(ReturnStmt {
+                    span: DUMMY_SP,
+                    arg: ret.map(|e| Box::new(e)),
+                }));
+
+                vec![CallExpr {
+                    span: DUMMY_SP,
+                    callee: Callee::Expr(
+                        ArrowExpr {
+                            span: DUMMY_SP,
+                            params: vec![],
+                            body: BlockStmt {
+                                span: DUMMY_SP,
+                                stmts,
+                            }
+                            .into(),
+                            is_async: false,
+                            is_generator: false,
+                            type_params: None,
+                            return_type: None,
+                        }
+                        .into(),
+                    ),
+                    args: vec![],
+                    type_args: None,
+                }
+                .into()]
+            } else {
+                exprs
+            },
             dynamics: vec![],
             post_exprs: vec![],
             is_svg: false,
@@ -93,7 +397,7 @@ where
 
     fn transform_component_children(
         &mut self,
-        children: Vec<JSXElementChild>,
+        children: &Vec<JSXElementChild>,
     ) -> Option<(Expr, bool)> {
         let filtered_children = children
             .into_iter()
