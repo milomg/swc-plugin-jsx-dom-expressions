@@ -31,11 +31,14 @@ fn get_component_identifier(node: &JSXElementName) -> TagId {
                     Ok(_) => MemberProp::Ident(member.prop.clone()),
                     Err(_) => MemberProp::Computed(ComputedPropName {
                         span: DUMMY_SP,
-                        expr: Box::new(Str {
-                            span: DUMMY_SP,
-                            value: Into::into(member.prop.sym.to_string()),
-                            raw: None,
-                        }.into()),
+                        expr: Box::new(
+                            Str {
+                                span: DUMMY_SP,
+                                value: Into::into(member.prop.sym.to_string()),
+                                raw: None,
+                            }
+                            .into(),
+                        ),
                     }),
                 },
             }))
@@ -85,7 +88,7 @@ where
                         running_objects = vec![];
                     }
 
-                    let expr = if is_dynamic(&node.expr, true, false, false, false) {
+                    let expr = if is_dynamic(&node.expr, true, false, true, false) {
                         has_dynamic_spread = true;
                         match *node.expr.clone() {
                             Expr::Call(CallExpr {
@@ -114,14 +117,22 @@ where
                     props.push(expr);
                 }
                 JSXAttrOrSpread::JSXAttr(attr) => {
-                    let key = match &attr.name {
-                        JSXAttrName::Ident(ident) => ident.to_string(),
+                    let name = match &attr.name {
+                        JSXAttrName::Ident(ident) => ident.sym.to_string(),
                         JSXAttrName::JSXNamespacedName(name) => {
                             format!("{}:{}", name.ns.sym, name.name.sym)
                         }
                     };
+                    let key = match Ident::verify_symbol(&name) {
+                        Ok(_) => PropName::Ident(Ident::new(name.clone().into(), DUMMY_SP)),
+                        Err(_) => PropName::Str(Str {
+                            span: DUMMY_SP,
+                            value: name.clone().into(),
+                            raw: None,
+                        }),
+                    };
 
-                    if has_children && key == "children" {
+                    if has_children && name == "children" {
                         continue;
                     }
 
@@ -130,7 +141,7 @@ where
                             expr: JSXExpr::Expr(expr),
                             ..
                         })) => {
-                            if key == "ref" {
+                            if name == "ref" {
                                 let expr = {
                                     let mut expr = *expr;
                                     loop {
@@ -148,15 +159,11 @@ where
                                     expr
                                 };
                                 todo!("handle ref")
-                            } else if is_dynamic(expr.as_ref(), true, true, false, false) {
+                            } else if is_dynamic(expr.as_ref(), true, true, true, false) {
                                 // TODO: add wrapConditionals support
                                 GetterProp {
                                     span: DUMMY_SP,
-                                    key: PropName::Str(Str {
-                                        span: DUMMY_SP,
-                                        value: key.into(),
-                                        raw: None,
-                                    }),
+                                    key,
                                     type_ann: None,
                                     body: Some(BlockStmt {
                                         span: DUMMY_SP,
@@ -168,38 +175,19 @@ where
                                 }
                                 .into()
                             } else {
-                                Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Str(Str {
-                                        span: DUMMY_SP,
-                                        value: key.into(),
-                                        raw: None,
-                                    }),
-                                    value: expr,
-                                })
+                                Prop::KeyValue(KeyValueProp { key, value: expr })
                             }
                         }
                         Some(JSXAttrValue::Lit(lit)) => Prop::KeyValue(KeyValueProp {
-                            key: PropName::Str(Str {
-                                span: DUMMY_SP,
-                                value: key.into(),
-                                raw: None,
-                            }),
+                            key,
                             value: lit.into(),
                         }),
                         Some(JSXAttrValue::JSXElement(el)) => Prop::KeyValue(KeyValueProp {
-                            key: PropName::Str(Str {
-                                span: DUMMY_SP,
-                                value: key.into(),
-                                raw: None,
-                            }),
+                            key,
                             value: Box::new(Expr::JSXElement(el)),
                         }),
                         Some(JSXAttrValue::JSXFragment(frag)) => Prop::KeyValue(KeyValueProp {
-                            key: PropName::Str(Str {
-                                span: DUMMY_SP,
-                                value: key.into(),
-                                raw: None,
-                            }),
+                            key,
                             value: Box::new(Expr::JSXFragment(frag)),
                         }),
                         None
@@ -207,11 +195,7 @@ where
                             expr: JSXExpr::JSXEmptyExpr(_),
                             ..
                         })) => Prop::KeyValue(KeyValueProp {
-                            key: PropName::Str(Str {
-                                span: DUMMY_SP,
-                                value: key.into(),
-                                raw: None,
-                            }),
+                            key,
                             value: Lit::Bool(Bool {
                                 span: DUMMY_SP,
                                 value: true,
