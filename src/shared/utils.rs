@@ -75,32 +75,25 @@ where
 }
 
 pub fn is_dynamic(
-    element: &JSXExprContainer,
+    expr: &Expr,
     check_member: bool,
     check_tags: bool,
     check_call_expression: bool,
     native: bool,
 ) -> bool {
-    let expr = &element.expr;
-
-    if let JSXExpr::Expr(expr) = expr {
-        if let Expr::Fn(_) = **expr {
-            return false;
-        }
+    if let Expr::Fn(_) = expr {
+        return false;
     }
 
     if match expr {
-        JSXExpr::JSXEmptyExpr(_) => false,
-        JSXExpr::Expr(expr) => match expr.as_ref() {
-            Expr::Call(_) => check_call_expression,
-            Expr::Member(_) => check_member,
-            Expr::Bin(BinExpr {
-                op: BinaryOp::In, ..
-            }) => check_member,
-            Expr::JSXElement(_) => check_tags,
-            Expr::JSXFragment(_) => check_tags,
-            _ => false,
-        },
+        Expr::Call(_) => check_call_expression,
+        Expr::Member(_) => check_member,
+        Expr::Bin(BinExpr {
+            op: BinaryOp::In, ..
+        }) => check_member,
+        Expr::JSXElement(_) => check_tags,
+        Expr::JSXFragment(_) => check_tags,
+        _ => false,
     } {
         return true;
     }

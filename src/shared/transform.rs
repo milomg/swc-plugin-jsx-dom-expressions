@@ -125,7 +125,7 @@ where
                     JSXExpr::JSXEmptyExpr(_) => None,
                     JSXExpr::Expr(expr) => {
                         if !is_dynamic(
-                            node,
+                            expr,
                             true,
                             info.component_child,
                             false,
