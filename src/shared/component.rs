@@ -12,56 +12,13 @@ enum TagId {
     MemberExpr(Box<MemberExpr>),
 }
 
-fn get_component_identifier(node: &JSXElementName) -> TagId {
-    match node {
-        JSXElementName::Ident(ident) => TagId::Ident(ident.clone()),
-        JSXElementName::JSXMemberExpr(member) => {
-            let obj = get_component_identifier(&match &member.obj {
-                JSXObject::JSXMemberExpr(member) => JSXElementName::JSXMemberExpr(*member.clone()),
-                JSXObject::Ident(ident) => JSXElementName::Ident(ident.clone()),
-            });
-            TagId::MemberExpr(Box::new(MemberExpr {
-                span: DUMMY_SP,
-                obj: Box::new(match obj {
-                    TagId::Ident(ident) => Expr::Ident(ident),
-                    TagId::StringLiteral(str) => Expr::Lit(Lit::Str(str)),
-                    TagId::MemberExpr(member) => Expr::Member(*member),
-                }),
-                prop: match Ident::verify_symbol(&member.prop.sym) {
-                    Ok(_) => MemberProp::Ident(member.prop.clone()),
-                    Err(_) => MemberProp::Computed(ComputedPropName {
-                        span: DUMMY_SP,
-                        expr: Box::new(
-                            Str {
-                                span: DUMMY_SP,
-                                value: Into::into(member.prop.sym.to_string()),
-                                raw: None,
-                            }
-                            .into(),
-                        ),
-                    }),
-                },
-            }))
-        }
-        JSXElementName::JSXNamespacedName(name) => {
-            let name = format!("{}:{}", name.ns.sym, name.name.sym);
-            let name = Str {
-                span: DUMMY_SP,
-                value: Into::into(name),
-                raw: None,
-            };
-            TagId::StringLiteral(name)
-        }
-    }
-}
-
 impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
     pub fn transform_component(&mut self, expr: &JSXElement) -> TemplateInstantiation {
         let name = &expr.opening.name;
-        let tag_id = get_component_identifier(name);
+        let tag_id = self.get_component_identifier(name);
 
         let has_children = !expr.children.is_empty();
 
@@ -505,6 +462,63 @@ where
                 .into(),
                 true,
             ))
+        }
+    }
+
+    fn get_component_identifier(&mut self, node: &JSXElementName) -> TagId {
+        match node {
+            JSXElementName::Ident(ident) => {
+                let ident = if self
+                    .config
+                    .builtins
+                    .iter()
+                    .any(|builtin| &ident.sym == AsRef::<str>::as_ref(builtin))
+                {
+                    self.register_import_method(&ident.sym)
+                } else {
+                    ident.clone()
+                };
+                TagId::Ident(ident)
+            }
+            JSXElementName::JSXMemberExpr(member) => {
+                let obj = self.get_component_identifier(&match &member.obj {
+                    JSXObject::JSXMemberExpr(member) => {
+                        JSXElementName::JSXMemberExpr(*member.clone())
+                    }
+                    JSXObject::Ident(ident) => JSXElementName::Ident(ident.clone()),
+                });
+                TagId::MemberExpr(Box::new(MemberExpr {
+                    span: DUMMY_SP,
+                    obj: Box::new(match obj {
+                        TagId::Ident(ident) => Expr::Ident(ident),
+                        TagId::StringLiteral(str) => Expr::Lit(Lit::Str(str)),
+                        TagId::MemberExpr(member) => Expr::Member(*member),
+                    }),
+                    prop: match Ident::verify_symbol(&member.prop.sym) {
+                        Ok(_) => MemberProp::Ident(member.prop.clone()),
+                        Err(_) => MemberProp::Computed(ComputedPropName {
+                            span: DUMMY_SP,
+                            expr: Box::new(
+                                Str {
+                                    span: DUMMY_SP,
+                                    value: Into::into(member.prop.sym.to_string()),
+                                    raw: None,
+                                }
+                                .into(),
+                            ),
+                        }),
+                    },
+                }))
+            }
+            JSXElementName::JSXNamespacedName(name) => {
+                let name = format!("{}:{}", name.ns.sym, name.name.sym);
+                let name = Str {
+                    span: DUMMY_SP,
+                    value: Into::into(name),
+                    raw: None,
+                };
+                TagId::StringLiteral(name)
+            }
         }
     }
 }
