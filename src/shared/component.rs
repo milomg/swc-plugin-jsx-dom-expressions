@@ -390,7 +390,10 @@ where
                 | JSXElementChild::JSXFragment(_)
                 | JSXElementChild::JSXSpreadChild(_) => true,
                 JSXElementChild::JSXText(child) => child.raw.chars().any(|c| !c.is_whitespace()),
-                JSXElementChild::JSXExprContainer(_) => false,
+                JSXElementChild::JSXExprContainer(container) => match container.expr {
+                    JSXExpr::Expr(_) => true,
+                    JSXExpr::JSXEmptyExpr(_) => false,
+                },
             })
             .collect::<Vec<_>>();
         if filtered_children.len() == 0 {
