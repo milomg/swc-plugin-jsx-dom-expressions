@@ -1,6 +1,6 @@
 use super::{
-    structs::{TemplateInstantiation},
-    utils::is_dynamic,
+    structs::TemplateInstantiation,
+    utils::{get_static_expression, is_dynamic},
 };
 pub use crate::shared::{
     structs::TransformVisitor,
@@ -91,39 +91,18 @@ where
                 Some(self.transform_jsx_fragment(node))
             }
             JSXElementChild::JSXText(node) => {
-                let text = node.value.trim().to_string();
-                if text.trim().is_empty() {
-                    None
-                } else {
-                    Some(TemplateInstantiation {
-                        id: if info.skip_id {
-                            None
-                        } else {
-                            Some(private_ident!("el$"))
-                        },
-                        tag_name: "".into(),
-                        template: text,
-                        decl: VarDecl {
-                            span: DUMMY_SP,
-                            kind: VarDeclKind::Const,
-                            declare: false,
-                            decls: vec![],
-                        },
-                        exprs: vec![],
-                        dynamics: vec![],
-                        post_exprs: vec![],
-                        has_custom_element: false,
-                        is_svg: false,
-                        is_void: false,
-                        text: true,
-                        dynamic: false,
-                    })
-                }
+                self.transform_text_child(node.value.to_string(), info)
             }
             JSXElementChild::JSXExprContainer(node) => {
                 match &node.expr {
                     JSXExpr::JSXEmptyExpr(_) => None,
                     JSXExpr::Expr(expr) => {
+                        if let Some(evaluated) = get_static_expression(expr) {
+                            if !info.component_child {
+                                return self.transform_text_child(evaluated, info);
+                            }
+                        }
+
                         if !is_dynamic(
                             expr,
                             true,
@@ -206,6 +185,40 @@ where
                     dynamic: true,
                 })
             }
+        }
+    }
+
+    pub fn transform_text_child(
+        &self,
+        text: String,
+        info: &TransformInfo,
+    ) -> Option<TemplateInstantiation> {
+        if text.trim().is_empty() {
+            None
+        } else {
+            Some(TemplateInstantiation {
+                id: if info.skip_id {
+                    None
+                } else {
+                    Some(private_ident!("el$"))
+                },
+                tag_name: "".into(),
+                template: text,
+                decl: VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Const,
+                    declare: false,
+                    decls: vec![],
+                },
+                exprs: vec![],
+                dynamics: vec![],
+                post_exprs: vec![],
+                has_custom_element: false,
+                is_svg: false,
+                is_void: false,
+                text: true,
+                dynamic: false,
+            })
         }
     }
 }

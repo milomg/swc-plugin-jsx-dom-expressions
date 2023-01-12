@@ -435,9 +435,11 @@ fn next_child(child_nodes: &[ImmutableChildTemplateInstantiation], index: usize)
 fn detect_expressions(children: &Vec<&JSXElementChild>, index: usize) -> bool {
     if index > 0 {
         let node = &children[index - 1];
-        if let JSXElementChild::JSXExprContainer(expr) = node {
-            if !matches!(expr.expr, JSXExpr::JSXEmptyExpr(_))
-                && get_static_expression(node).is_none()
+        if let JSXElementChild::JSXExprContainer(JSXExprContainer {
+            expr: JSXExpr::Expr(expr),
+            ..
+        }) = node {
+            if get_static_expression(&**expr).is_none()
             {
                 return true;
             }
@@ -451,9 +453,11 @@ fn detect_expressions(children: &Vec<&JSXElementChild>, index: usize) -> bool {
     }
     for i in index..children.len() {
         let child = &children[i];
-        if let JSXElementChild::JSXExprContainer(expr) = child {
-            if !matches!(expr.expr, JSXExpr::JSXEmptyExpr(_))
-                && get_static_expression(child).is_none()
+        if let JSXElementChild::JSXExprContainer(JSXExprContainer {
+            expr: JSXExpr::Expr(expr),
+            ..
+        }) = child {
+            if get_static_expression(&*expr).is_none()
             {
                 return true;
             }

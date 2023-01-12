@@ -8,7 +8,7 @@ use swc_core::{
     },
 };
 
-use super::structs::ImmutableChildTemplateInstantiation;
+use super::{structs::ImmutableChildTemplateInstantiation, transform::TransformInfo};
 
 pub fn is_component(tag_name: &str) -> bool {
     let first_char = tag_name.chars().next().unwrap();
@@ -156,18 +156,16 @@ impl Visit for DynamicVisitor {
     }
 }
 
-pub fn get_static_expression(node: &JSXElementChild) -> Option<JSXExpr> {
-    //   let value, type;
-    //   return (
-    //     t.isJSXExpressionContainer(node) &&
-    //     t.isJSXElement(path.parent) &&
-    //     !isComponent(getTagName(path.parent)) &&
-    //     !t.isSequenceExpression(node.expression) &&
-    //     (value = path.get("expression").evaluate().value) !== undefined &&
-    //     ((type = typeof value) === "string" || type === "number") &&
-    //     value
-    //   );
-    None
+pub fn get_static_expression(expr: &Expr) -> Option<String> {
+    // only handle simple literals for now
+    match expr {
+        Expr::Lit(lit) => match lit {
+            Lit::Str(Str { value, .. }) => Some(value.to_string()),
+            Lit::Num(Number { value, .. }) => Some(value.to_string()),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 pub fn filter_children(c: &JSXElementChild) -> bool {
