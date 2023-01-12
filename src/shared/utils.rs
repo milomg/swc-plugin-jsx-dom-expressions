@@ -83,7 +83,7 @@ pub fn is_dynamic(
     check_call_expression: bool,
     native: bool,
 ) -> bool {
-    if let Expr::Fn(_) = expr {
+    if matches!(expr, Expr::Fn(_) | Expr::Arrow(_)) {
         return false;
     }
 
