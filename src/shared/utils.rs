@@ -50,7 +50,9 @@ where
     }
 
     pub fn insert_imports(&mut self, module: &mut Module) {
-        self.imports.drain().for_each(|(name, val)| {
+        let mut entries = self.imports.drain().collect::<Vec<_>>();
+        entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+        for (name, val) in entries {
             prepend_stmt(
                 &mut module.body,
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -70,7 +72,7 @@ where
                     asserts: None,
                 })),
             );
-        });
+        }
     }
 }
 
