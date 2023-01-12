@@ -2,8 +2,8 @@ use crate::{
     shared::{
         constants::{ALIASES, CHILD_PROPERTIES, SVG_ELEMENTS, VOID_ELEMENTS},
         structs::{
-            ChildTemplateInstantiation, ImmutableChildTemplateInstantiation,
-            MutableChildTemplateInstantiation, TemplateInstantiation,
+            ImmutableChildTemplateInstantiation, MutableChildTemplateInstantiation,
+            TemplateInstantiation,
         },
         transform::{is_component, TransformInfo},
         utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text},
@@ -45,6 +45,7 @@ where
             is_svg: wrap_svg,
             is_void: void_tag,
             has_custom_element: false,
+            text: false,
             dynamic: false,
         };
         if wrap_svg {
@@ -69,7 +70,6 @@ pub struct AttrOptions {
     pub prev_id: Option<Ident>,
 }
 pub fn set_attr(
-    attr: &JSXElement,
     elem: Option<&Ident>,
     name: &str,
     value: &Expr,
@@ -156,7 +156,6 @@ fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) 
                 if CHILD_PROPERTIES.contains(key) {
                     value_is_child_property = true;
                     let expr = set_attr(
-                        node,
                         elem.as_ref(),
                         key,
                         &Expr::Lit(value.clone()),
@@ -210,7 +209,7 @@ where
             .filter(|c| filter_children(c))
             .collect::<Vec<&JSXElementChild>>();
         let child_nodes = filtered_children.iter().enumerate().fold(
-            Vec::<ChildTemplateInstantiation>::new(),
+            Vec::<TemplateInstantiation>::new(),
             |mut memo, (index, child)| {
                 if let JSXElementChild::JSXFragment(_) = child {
                     panic!(

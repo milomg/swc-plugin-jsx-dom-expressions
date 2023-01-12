@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::element::{set_attr, AttrOptions};
 use crate::{
     shared::structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
@@ -15,12 +17,7 @@ impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
-    pub fn create_template(
-        &mut self,
-        node: &JSXElement,
-        result: &mut TemplateInstantiation,
-        wrap: bool,
-    ) -> Expr {
+    pub fn create_template(&mut self, result: &mut TemplateInstantiation, wrap: bool) -> Expr {
         if let Some(id) = result.id.clone() {
             self.register_template(result);
             if result.exprs.is_empty()
@@ -46,7 +43,7 @@ where
                                     })
                                 }))
                                 .chain(
-                                    self.wrap_dynamics(node, &mut result.dynamics)
+                                    self.wrap_dynamics(&mut result.dynamics)
                                         .unwrap_or_default()
                                         .into_iter()
                                         .map(|x| {
@@ -155,7 +152,17 @@ where
                     template_id = Some(template_def.id.clone());
                 }
                 None => {
-                    template_id = Some(Ident::new("_tmpl$".into(), DUMMY_SP));
+                    template_id = Some(Ident::new(
+                        format!(
+                            "_tmpl${}",
+                            match self.templates.is_empty() {
+                                true => Cow::Borrowed(""),
+                                false => Cow::Owned((self.templates.len() + 1).to_string()),
+                            }
+                        )
+                        .into(),
+                        DUMMY_SP,
+                    ));
                     self.templates.push(TemplateConstruction {
                         id: template_id.clone().unwrap(),
                         template: results.template.clone(),
@@ -234,11 +241,7 @@ where
         }
     }
 
-    fn wrap_dynamics(
-        &mut self,
-        node: &JSXElement,
-        dynamics: &mut Vec<DynamicAttr>,
-    ) -> Option<Vec<Expr>> {
+    fn wrap_dynamics(&mut self, dynamics: &mut Vec<DynamicAttr>) -> Option<Vec<Expr>> {
         if dynamics.is_empty() {
             return None;
         }
@@ -287,7 +290,6 @@ where
                             span: Default::default(),
                             callee: Callee::Expr(Box::new(
                                 set_attr(
-                                    node,
                                     Some(&dynamics[0].elem),
                                     &dynamics[0].key,
                                     &dynamics[0].value,
@@ -362,7 +364,6 @@ where
                         op: AssignOp::Assign,
                         right: Box::new(
                             set_attr(
-                                node,
                                 Some(&dynamic.elem),
                                 &dynamic.key,
                                 &dynamic.value,
@@ -395,7 +396,6 @@ where
                         op: BinaryOp::LogicalAnd,
                         right: Box::new(
                             set_attr(
-                                node,
                                 Some(&dynamic.elem),
                                 &dynamic.key,
                                 &Expr::Assign(AssignExpr {
