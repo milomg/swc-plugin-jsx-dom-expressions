@@ -89,6 +89,9 @@ where
     }
 
     pub fn append_templates(&mut self, module: &mut Module) {
+        if self.templates.is_empty() {
+            return;
+        }
         let templ = self.register_import_method("template");
         prepend_stmt(
             &mut module.body,
