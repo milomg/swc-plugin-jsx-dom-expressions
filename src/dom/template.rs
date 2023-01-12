@@ -114,11 +114,19 @@ where
                                 args: vec![
                                     ExprOrSpread {
                                         spread: None,
-                                        expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                            span: DUMMY_SP,
-                                            value: template.template.into(),
-                                            raw: None,
-                                        }))),
+                                        expr: Box::new(
+                                            Tpl {
+                                                span: DUMMY_SP,
+                                                exprs: vec![],
+                                                quasis: vec![TplElement {
+                                                    span: DUMMY_SP,
+                                                    tail: true,
+                                                    cooked: None,
+                                                    raw: template.template.into(),
+                                                }],
+                                            }
+                                            .into(),
+                                        ),
                                     },
                                     ExprOrSpread {
                                         spread: None,
