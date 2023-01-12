@@ -107,7 +107,7 @@ where
                             expr,
                             true,
                             info.component_child,
-                            false,
+                            true,
                             info.component_child,
                         ) {
                             return Some(TemplateInstantiation {
