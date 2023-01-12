@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use swc_core::{common::comments::Comments, ecma::ast::*};
 
+use crate::config::Config;
+
 pub struct TemplateConstruction {
     pub template: String,
     pub id: Ident,
@@ -47,6 +49,7 @@ pub struct TransformVisitor<C>
 where
     C: Comments,
 {
+    pub config: Config,
     pub template: Option<TemplateInstantiation>,
     pub templates: Vec<TemplateConstruction>,
     pub imports: HashMap<String, Ident>,
@@ -57,8 +60,9 @@ impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
-    pub fn new(comments: C) -> Self {
+    pub fn new(config: Config, comments: C) -> Self {
         Self {
+            config,
             templates: vec![],
             template: None,
             imports: HashMap::new(),

@@ -8,7 +8,7 @@ use swc_core::{
     },
 };
 
-use super::{structs::ImmutableChildTemplateInstantiation, transform::TransformInfo};
+use super::structs::ImmutableChildTemplateInstantiation;
 
 pub fn is_component(tag_name: &str) -> bool {
     let first_char = tag_name.chars().next().unwrap();
@@ -64,7 +64,7 @@ where
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: "solid-js/web".into(),
+                        value: self.config.module_name.clone().into(),
                         raw: None,
                     }),
                     span: DUMMY_SP,

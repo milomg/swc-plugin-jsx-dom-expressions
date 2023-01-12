@@ -9,6 +9,7 @@ use swc_core::{
 
 mod dom;
 mod shared;
+pub mod config;
 pub use crate::shared::structs::TransformVisitor;
 
 impl<C> VisitMut for TransformVisitor<C>
@@ -35,5 +36,9 @@ where
 
 #[plugin_transform]
 pub fn process_transform(program: Program, metadata: TransformPluginProgramMetadata) -> Program {
-    program.fold_with(&mut as_folder(TransformVisitor::new(&metadata.comments)))
+    let config: config::Config = metadata
+        .get_transform_plugin_config()
+        .and_then(|json| serde_json::from_str(&json).ok())
+        .unwrap_or_default();
+    program.fold_with(&mut as_folder(TransformVisitor::new(config, &metadata.comments)))
 }
