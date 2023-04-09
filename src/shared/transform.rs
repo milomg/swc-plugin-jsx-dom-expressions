@@ -159,7 +159,7 @@ where
                 let expr = Expr::Arrow(ArrowExpr {
                     span: DUMMY_SP,
                     params: vec![],
-                    body: BlockStmtOrExpr::Expr(node.expr.clone()),
+                    body: Box::new(BlockStmtOrExpr::Expr(node.expr.clone())),
                     is_async: false,
                     is_generator: false,
                     type_params: None,

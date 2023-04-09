@@ -32,7 +32,7 @@ where
                     callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
                         span: DUMMY_SP,
                         params: vec![],
-                        body: BlockStmtOrExpr::BlockStmt(BlockStmt {
+                        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
                             span: DUMMY_SP,
                             stmts: [Stmt::Decl(Decl::Var(Box::new(result.decl.clone())))]
                                 .into_iter()
@@ -64,7 +64,7 @@ where
                                     arg: Some(Box::new(Expr::Ident(id))),
                                 })])
                                 .collect(),
-                        }),
+                        })),
                         is_async: false,
                         is_generator: false,
                         type_params: None,
@@ -193,7 +193,7 @@ where
                         expr: Box::new(Expr::Arrow(ArrowExpr {
                             span: Default::default(),
                             params: vec![],
-                            body: BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
+                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
                                 span: Default::default(),
                                 callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
                                     span: Default::default(),
@@ -211,7 +211,7 @@ where
                                     expr: Box::new(Expr::Ident(template_id.unwrap())),
                                 }],
                                 type_args: None,
-                            }))),
+                            })))),
                             is_async: false,
                             is_generator: false,
                             type_params: None,
@@ -297,7 +297,7 @@ where
                                 })]
                             })
                             .unwrap_or_default(),
-                        body: BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
+                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
                             span: Default::default(),
                             callee: Callee::Expr(Box::new(
                                 set_attr(
@@ -315,7 +315,7 @@ where
                             )),
                             args: vec![],
                             type_args: None,
-                        }))),
+                        })))),
                         is_async: false,
                         is_generator: false,
                         type_params: None,
@@ -448,7 +448,7 @@ where
                             id: prev_id.clone(),
                             type_ann: None,
                         })],
-                        body: BlockStmtOrExpr::BlockStmt(BlockStmt {
+                        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
                             span: Default::default(),
                             stmts: [Stmt::Decl(Decl::Var(Box::new(VarDecl {
                                 span: Default::default(),
@@ -466,7 +466,7 @@ where
                                 .into_iter(),
                             )
                             .collect(),
-                        }),
+                        })),
                         is_async: false,
                         is_generator: false,
                         type_params: None,
