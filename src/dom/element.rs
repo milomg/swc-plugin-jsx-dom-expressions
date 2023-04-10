@@ -49,7 +49,7 @@ where
             dynamic: false,
         };
         if wrap_svg {
-            results.template = "<svg>".to_string() + &results.template;
+            results.template = "<svg>".to_string() + results.template.as_str();
         }
         if !info.skip_id {
             results.id = Some(private_ident!("_el$"));

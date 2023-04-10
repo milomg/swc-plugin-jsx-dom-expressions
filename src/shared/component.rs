@@ -60,7 +60,7 @@ where
                             expr => ArrowExpr {
                                 span: DUMMY_SP,
                                 params: vec![],
-                                body: BlockStmtOrExpr::Expr(Box::new(expr)),
+                                body: Box::new(BlockStmtOrExpr::Expr(Box::new(expr))),
                                 is_async: false,
                                 is_generator: false,
                                 type_params: None,
@@ -187,7 +187,7 @@ where
                                     }
                                 }
                                 Expr::Fn(fun) => fun.function.body.clone(),
-                                Expr::Arrow(arrow) => Some(match arrow.body.clone() {
+                                Expr::Arrow(arrow) => Some(match *arrow.body.clone() {
                                     BlockStmtOrExpr::BlockStmt(block) => block,
                                     BlockStmtOrExpr::Expr(expr) => BlockStmt {
                                         span: DUMMY_SP,
@@ -306,11 +306,11 @@ where
                         ArrowExpr {
                             span: DUMMY_SP,
                             params: vec![],
-                            body: BlockStmt {
+                            body: Box::new(BlockStmt {
                                 span: DUMMY_SP,
                                 stmts,
                             }
-                            .into(),
+                            .into()),
                             is_async: false,
                             is_generator: false,
                             type_params: None,
@@ -384,11 +384,13 @@ where
 
                             if is_filtered_children_plural && child.dynamic {
                                 if let Some(Expr::Arrow(ArrowExpr {
-                                    body: BlockStmtOrExpr::Expr(expr),
+                                    body,
                                     ..
                                 })) = child.exprs.first()
                                 {
-                                    child.exprs.insert(0, *expr.clone());
+                                    if let BlockStmtOrExpr::Expr(expr) = body.as_ref() {
+                                        child.exprs.insert(0, *expr.clone());
+                                    }
                                 }
                             }
 
@@ -427,7 +429,7 @@ where
                         ArrowExpr {
                             span: DUMMY_SP,
                             params: vec![],
-                            body: BlockStmtOrExpr::Expr(Box::new(first_children)),
+                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(first_children))),
                             is_async: false,
                             is_generator: false,
                             type_params: None,
@@ -444,7 +446,7 @@ where
                 ArrowExpr {
                     span: DUMMY_SP,
                     params: vec![],
-                    body: BlockStmtOrExpr::Expr(
+                    body: Box::new(BlockStmtOrExpr::Expr(
                         ArrayLit {
                             span: DUMMY_SP,
                             elems: transformed_children
@@ -453,7 +455,7 @@ where
                                 .collect(),
                         }
                         .into(),
-                    ),
+                    )),
                     is_async: false,
                     is_generator: false,
                     type_params: None,
