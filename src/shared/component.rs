@@ -306,11 +306,13 @@ where
                         ArrowExpr {
                             span: DUMMY_SP,
                             params: vec![],
-                            body: Box::new(BlockStmt {
-                                span: DUMMY_SP,
-                                stmts,
-                            }
-                            .into()),
+                            body: Box::new(
+                                BlockStmt {
+                                    span: DUMMY_SP,
+                                    stmts,
+                                }
+                                .into(),
+                            ),
                             is_async: false,
                             is_generator: false,
                             type_params: None,
@@ -383,10 +385,8 @@ where
                             dynamic = dynamic || child.dynamic;
 
                             if is_filtered_children_plural && child.dynamic {
-                                if let Some(Expr::Arrow(ArrowExpr {
-                                    body,
-                                    ..
-                                })) = child.exprs.first()
+                                if let Some(Expr::Arrow(ArrowExpr { body, .. })) =
+                                    child.exprs.first()
                                 {
                                     if let BlockStmtOrExpr::Expr(expr) = body.as_ref() {
                                         child.exprs.insert(0, *expr.clone());

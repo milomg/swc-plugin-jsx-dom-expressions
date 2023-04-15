@@ -11,11 +11,11 @@ use crate::{
     TransformVisitor,
 };
 use std::collections::HashMap;
+use swc_core::ecma::utils::quote_ident;
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::{ast::*, utils::private_ident},
 };
-use swc_core::ecma::utils::quote_ident;
 
 impl<C> TransformVisitor<C>
 where
@@ -84,7 +84,7 @@ enum AttrType<'a> {
     None,
     Unsupported(&'a JSXAttrValue),
     Assign(Option<&'a JSXAttrValue>),
-    Event(&'a Expr)
+    Event(&'a Expr),
 }
 
 fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) {
@@ -137,12 +137,16 @@ fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) 
         };
 
         match value {
-            AttrType::None => {},
+            AttrType::None => {}
             AttrType::Unsupported(_) => {}
             AttrType::Event(expr) => {
                 if let Some(event) = key.strip_prefix("on") {
                     let event = event.to_ascii_lowercase();
-                    results.post_exprs.push(event_bind_expr(results.id.clone().unwrap(), &event, expr.clone()))
+                    results.post_exprs.push(event_bind_expr(
+                        results.id.clone().unwrap(),
+                        &event,
+                        expr.clone(),
+                    ))
                 }
             }
             AttrType::Assign(value) => {
@@ -223,7 +227,7 @@ fn event_bind_expr(el: Ident, event: &str, expr: Expr) -> Expr {
         callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
             span: DUMMY_SP,
             obj: Box::new(Expr::Ident(el)),
-            prop: MemberProp::Ident(quote_ident!(DUMMY_SP, "addEventListener"))
+            prop: MemberProp::Ident(quote_ident!(DUMMY_SP, "addEventListener")),
         }))),
         args: vec![
             ExprOrSpread {
@@ -479,9 +483,9 @@ fn detect_expressions(children: &Vec<&JSXElementChild>, index: usize) -> bool {
         if let JSXElementChild::JSXExprContainer(JSXExprContainer {
             expr: JSXExpr::Expr(expr),
             ..
-        }) = node {
-            if get_static_expression(&**expr).is_none()
-            {
+        }) = node
+        {
+            if get_static_expression(&**expr).is_none() {
                 return true;
             }
         }
@@ -497,9 +501,9 @@ fn detect_expressions(children: &Vec<&JSXElementChild>, index: usize) -> bool {
         if let JSXElementChild::JSXExprContainer(JSXExprContainer {
             expr: JSXExpr::Expr(expr),
             ..
-        }) = child {
-            if get_static_expression(&*expr).is_none()
-            {
+        }) = child
+        {
+            if get_static_expression(&*expr).is_none() {
                 return true;
             }
         }

@@ -103,13 +103,8 @@ where
                             }
                         }
 
-                        if !is_dynamic(
-                            expr,
-                            true,
-                            info.component_child,
-                            true,
-                            info.component_child,
-                        ) {
+                        if !is_dynamic(expr, true, info.component_child, true, info.component_child)
+                        {
                             return Some(TemplateInstantiation {
                                 id: None,
                                 tag_name: "".into(),

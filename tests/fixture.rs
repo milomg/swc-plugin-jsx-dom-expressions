@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use jsx_dom_expressions::TransformVisitor;
 use jsx_dom_expressions::config::Config;
+use jsx_dom_expressions::TransformVisitor;
 use swc_core::common::{chain, Mark};
 use swc_core::{
     ecma::parser::{EsConfig, Syntax},
@@ -27,11 +27,14 @@ fn jsx_dom_expressions_fixture(input: PathBuf) {
         &|t| {
             chain!(
                 resolver(Mark::new(), Mark::new(), false),
-                as_folder(TransformVisitor::new(Config {
-                    module_name: "r-dom".to_string(),
-                    builtins: vec!["For".to_string(), "Show".to_string()],
-                    ..Default::default()
-                }, t.comments.clone()))
+                as_folder(TransformVisitor::new(
+                    Config {
+                        module_name: "r-dom".to_string(),
+                        builtins: vec!["For".to_string(), "Show".to_string()],
+                        ..Default::default()
+                    },
+                    t.comments.clone()
+                ))
             )
         },
         &input,
