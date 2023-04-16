@@ -15,6 +15,8 @@ use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::{ast::*, utils::private_ident},
 };
+use swc_core::ecma::utils::quote_ident;
+
 impl<C> TransformVisitor<C>
 where
     C: Comments,
@@ -78,6 +80,13 @@ pub fn set_attr(
     None
 }
 
+enum AttrType<'a> {
+    None,
+    Unsupported(&'a JSXAttrValue),
+    Assign(Option<&'a JSXAttrValue>),
+    Event(&'a Expr)
+}
+
 fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) {
     let elem = &results.id;
     let attributes = node.opening.attrs.clone();
@@ -110,92 +119,124 @@ fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) 
             JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
         };
 
-        let value_is_lit_or_none = if let Some(value) = value {
-            if let JSXAttrValue::JSXExprContainer(value) = value {
-                match &value.expr {
+        let value = if let Some(value) = value {
+            if let JSXAttrValue::JSXExprContainer(value_container) = value {
+                match &value_container.expr {
                     JSXExpr::JSXEmptyExpr(_) => panic!("Empty expressions are not supported."),
                     JSXExpr::Expr(expr) => match expr.as_ref() {
-                        Expr::Lit(_) => true,
-                        _ => false,
+                        Expr::Lit(_) => AttrType::Assign(Some(value)),
+                        _ if key.starts_with("on") => AttrType::Event(expr),
+                        _ => AttrType::Unsupported(value),
                     },
                 }
             } else {
-                true
+                AttrType::Assign(Some(value))
             }
         } else {
-            true
+            AttrType::Assign(None)
         };
 
-        if !value_is_lit_or_none {
-        } else {
-            let value = match &value {
-                Some(value) => {
-                    let expr = match value {
-                        JSXAttrValue::JSXExprContainer(value) => match &value.expr {
-                            JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
-                            JSXExpr::Expr(expr) => match expr.as_ref() {
-                                Expr::Lit(value) => value,
-                                _ => panic!(),
-                            },
-                        },
-                        JSXAttrValue::JSXElement(_) => panic!(),
-                        JSXAttrValue::JSXFragment(_) => panic!(),
-                        JSXAttrValue::Lit(value) => value,
-                    };
-                    Some(expr)
-                }
-                None => None,
-            };
-
-            let aliases: HashMap<&str, &str> = ALIASES.iter().cloned().collect();
-            let key_str = key.as_str();
-            let mut key = aliases.get(key.as_str()).unwrap_or(&key_str);
-
-            let mut value_is_child_property = false;
-            if let Some(value) = value {
-                if CHILD_PROPERTIES.contains(key) {
-                    value_is_child_property = true;
-                    let expr = set_attr(
-                        elem.as_ref(),
-                        key,
-                        &Expr::Lit(value.clone()),
-                        &AttrOptions {
-                            is_svg,
-                            dynamic: false,
-                            is_custom_element,
-                            prev_id: None,
-                        },
-                    );
-                    if let Some(expr) = expr {
-                        results.exprs.push(expr);
-                    }
+        match value {
+            AttrType::None => {},
+            AttrType::Unsupported(_) => {}
+            AttrType::Event(expr) => {
+                if let Some(event) = key.strip_prefix("on") {
+                    let event = event.to_ascii_lowercase();
+                    results.post_exprs.push(event_bind_expr(results.id.clone().unwrap(), &event, expr.clone()))
                 }
             }
-            if !value_is_child_property {
-                let key_string: String;
-                let key_str: &str;
-                if !is_svg {
-                    key_string = key.to_lowercase();
-                    key_str = key_string.as_str();
-                    key = &key_str;
-                }
-                results.template += &format!(" {}", key);
+            AttrType::Assign(value) => {
+                let value = match &value {
+                    Some(value) => {
+                        let expr = match value {
+                            JSXAttrValue::JSXExprContainer(value) => match &value.expr {
+                                JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
+                                JSXExpr::Expr(expr) => match expr.as_ref() {
+                                    Expr::Lit(value) => value,
+                                    _ => panic!(),
+                                },
+                            },
+                            JSXAttrValue::JSXElement(_) => panic!(),
+                            JSXAttrValue::JSXFragment(_) => panic!(),
+                            JSXAttrValue::Lit(value) => value,
+                        };
+                        Some(expr)
+                    }
+                    None => None,
+                };
+
+                let aliases: HashMap<&str, &str> = ALIASES.iter().cloned().collect();
+                let key_str = key.as_str();
+                let mut key = aliases.get(key.as_str()).unwrap_or(&key_str);
+
+                let mut value_is_child_property = false;
                 if let Some(value) = value {
-                    let value_as_string = match value {
-                        Lit::Str(value) => value.value.to_string(),
-                        Lit::Bool(value) => value.value.to_string(),
-                        Lit::Null(_) => "null".to_string(),
-                        Lit::Num(value) => value.value.to_string(),
-                        Lit::BigInt(value) => value.value.to_string(),
-                        Lit::Regex(value) => value.exp.to_string(),
-                        Lit::JSXText(value) => value.raw.to_string(),
-                    };
-                    // results.template += &format!("=\"{}\"", escape_backticks(escape_html(value, true)));
-                    results.template += &format!("=\"{}\"", value_as_string);
+                    if CHILD_PROPERTIES.contains(key) {
+                        value_is_child_property = true;
+                        let expr = set_attr(
+                            elem.as_ref(),
+                            key,
+                            &Expr::Lit(value.clone()),
+                            &AttrOptions {
+                                is_svg,
+                                dynamic: false,
+                                is_custom_element,
+                                prev_id: None,
+                            },
+                        );
+                        if let Some(expr) = expr {
+                            results.exprs.push(expr);
+                        }
+                    }
+                }
+                if !value_is_child_property {
+                    let key_string: String;
+                    let key_str: &str;
+                    if !is_svg {
+                        key_string = key.to_lowercase();
+                        key_str = key_string.as_str();
+                        key = &key_str;
+                    }
+                    results.template += &format!(" {}", key);
+                    if let Some(value) = value {
+                        let value_as_string = match value {
+                            Lit::Str(value) => value.value.to_string(),
+                            Lit::Bool(value) => value.value.to_string(),
+                            Lit::Null(_) => "null".to_string(),
+                            Lit::Num(value) => value.value.to_string(),
+                            Lit::BigInt(value) => value.value.to_string(),
+                            Lit::Regex(value) => value.exp.to_string(),
+                            Lit::JSXText(value) => value.raw.to_string(),
+                        };
+                        // results.template += &format!("=\"{}\"", escape_backticks(escape_html(value, true)));
+                        results.template += &format!("=\"{}\"", value_as_string);
+                    }
                 }
             }
         }
     }
+}
+
+fn event_bind_expr(el: Ident, event: &str, expr: Expr) -> Expr {
+    Expr::Call(CallExpr {
+        span: DUMMY_SP,
+        callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+            span: DUMMY_SP,
+            obj: Box::new(Expr::Ident(el)),
+            prop: MemberProp::Ident(quote_ident!(DUMMY_SP, "addEventListener"))
+        }))),
+        args: vec![
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Lit(Lit::Str(Str::from(event)))),
+            },
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(expr),
+            },
+        ],
+        type_args: Default::default(),
+    })
 }
 
 impl<C> TransformVisitor<C>
