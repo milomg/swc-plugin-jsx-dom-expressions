@@ -56,7 +56,7 @@ where
         if !info.skip_id {
             results.id = Some(private_ident!("_el$"));
         }
-        transform_attributes(node, &mut results);
+        self.transform_attributes(node, &mut results);
         results.template += ">";
         if !void_tag {
             self.transform_children(node, &mut results);
@@ -80,143 +80,219 @@ pub fn set_attr(
     None
 }
 
+#[derive(Debug)]
 enum AttrType<'a> {
     None,
     Unsupported(&'a JSXAttrValue),
-    Assign(Option<&'a JSXAttrValue>),
+    Literal(Option<&'a JSXAttrValue>),
+    ExprAssign(&'a Expr),
+    CallAssign(&'a Expr),
     Event(&'a Expr),
 }
 
-fn transform_attributes(node: &JSXElement, results: &mut TemplateInstantiation) {
-    let elem = &results.id;
-    let attributes = node.opening.attrs.clone();
-    let is_svg = results.is_svg;
-    let is_custom_element = results.tag_name.contains('-');
-    let has_children = !node.children.is_empty();
+impl<C> TransformVisitor<C>
+    where
+        C: Comments,
+{
+    fn transform_attributes(&mut self, node: &JSXElement, results: &mut TemplateInstantiation) {
+        let elem = &results.id;
+        let attributes = node.opening.attrs.clone();
+        let is_svg = results.is_svg;
+        let is_custom_element = results.tag_name.contains('-');
+        let has_children = !node.children.is_empty();
 
-    // preprocess spreads
-    if attributes.iter().any(|attribute| match attribute {
-        JSXAttrOrSpread::JSXAttr(_) => false,
-        JSXAttrOrSpread::SpreadElement(_) => true,
-    }) {}
+        // preprocess spreads
+        if attributes.iter().any(|attribute| match attribute {
+            JSXAttrOrSpread::JSXAttr(_) => false,
+            JSXAttrOrSpread::SpreadElement(_) => true,
+        }) {}
 
-    // preprocess styles
+        // preprocess styles
 
-    // preprocess classList
+        // preprocess classList
 
-    // combine class properties
+        // combine class properties
 
-    for attr in node.opening.attrs.clone() {
-        let attr = match attr {
-            JSXAttrOrSpread::JSXAttr(attr) => attr,
-            JSXAttrOrSpread::SpreadElement(_) => panic!("Spread wasn't preprocessed"),
-        };
+        for attr in node.opening.attrs.clone() {
+            let attr = match attr {
+                JSXAttrOrSpread::JSXAttr(attr) => attr,
+                JSXAttrOrSpread::SpreadElement(_) => panic!("Spread wasn't preprocessed"),
+            };
 
-        let value = &attr.value;
+            let value = &attr.value;
 
-        let key = match &attr.name {
-            JSXAttrName::JSXNamespacedName(name) => format!("{}:{}", name.ns.sym, name.name.sym),
-            JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
-        };
+            let key = match &attr.name {
+                JSXAttrName::JSXNamespacedName(name) => format!("{}:{}", name.ns.sym, name.name.sym),
+                JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
+            };
 
-        let value = if let Some(value) = value {
-            if let JSXAttrValue::JSXExprContainer(value_container) = value {
-                match &value_container.expr {
-                    JSXExpr::JSXEmptyExpr(_) => panic!("Empty expressions are not supported."),
-                    JSXExpr::Expr(expr) => match expr.as_ref() {
-                        Expr::Lit(_) => AttrType::Assign(Some(value)),
-                        _ if key.starts_with("on") => AttrType::Event(expr),
-                        _ => AttrType::Unsupported(value),
-                    },
+            let value = if let Some(value) = value {
+                if let JSXAttrValue::JSXExprContainer(value_container) = value {
+                    match &value_container.expr {
+                        JSXExpr::JSXEmptyExpr(_) => panic!("Empty expressions are not supported."),
+                        JSXExpr::Expr(expr) => match expr.as_ref() {
+                            Expr::Lit(_) => AttrType::Literal(Some(value)),
+                            _ if key.starts_with("on") => AttrType::Event(expr),
+                            Expr::Member(_) => AttrType::ExprAssign(expr),
+                            Expr::Ident(_) => AttrType::ExprAssign(expr),
+                            Expr::Call(_) => AttrType::CallAssign(expr),
+                            _ => AttrType::Unsupported(value),
+                        },
+                    }
+                } else {
+                    AttrType::Literal(Some(value))
                 }
             } else {
-                AttrType::Assign(Some(value))
-            }
-        } else {
-            AttrType::Assign(None)
-        };
+                AttrType::Literal(None)
+            };
 
-        match value {
-            AttrType::None => {}
-            AttrType::Unsupported(_) => {}
-            AttrType::Event(expr) => {
-                if let Some(event) = key.strip_prefix("on") {
-                    let event = event.to_ascii_lowercase();
-                    results.post_exprs.push(event_bind_expr(
-                        results.id.clone().unwrap(),
-                        &event,
-                        expr.clone(),
-                    ))
-                }
-            }
-            AttrType::Assign(value) => {
-                let value = match &value {
-                    Some(value) => {
-                        let expr = match value {
-                            JSXAttrValue::JSXExprContainer(value) => match &value.expr {
-                                JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
-                                JSXExpr::Expr(expr) => match expr.as_ref() {
-                                    Expr::Lit(value) => value,
-                                    _ => panic!(),
-                                },
-                            },
-                            JSXAttrValue::JSXElement(_) => panic!(),
-                            JSXAttrValue::JSXFragment(_) => panic!(),
-                            JSXAttrValue::Lit(value) => value,
-                        };
-                        Some(expr)
+            let aliases: HashMap<&str, &str> = ALIASES.iter().cloned().collect();
+            let key_str = key.as_str();
+            let mut key = aliases.get(key.as_str()).unwrap_or(&key_str);
+
+            match value {
+                AttrType::None => {}
+                AttrType::Unsupported(_) => {}
+                AttrType::Event(expr) => {
+                    if let Some(event) = key.strip_prefix("on") {
+                        let event = event.to_ascii_lowercase();
+                        results.post_exprs.push(event_bind_expr(
+                            results.id.clone().unwrap(),
+                            &event,
+                            expr.clone(),
+                        ))
                     }
-                    None => None,
-                };
-
-                let aliases: HashMap<&str, &str> = ALIASES.iter().cloned().collect();
-                let key_str = key.as_str();
-                let mut key = aliases.get(key.as_str()).unwrap_or(&key_str);
-
-                let mut value_is_child_property = false;
-                if let Some(value) = value {
-                    if CHILD_PROPERTIES.contains(key) {
-                        value_is_child_property = true;
-                        let expr = set_attr(
-                            elem.as_ref(),
-                            key,
-                            &Expr::Lit(value.clone()),
-                            &AttrOptions {
-                                is_svg,
-                                dynamic: false,
-                                is_custom_element,
-                                prev_id: None,
+                }
+                AttrType::ExprAssign(expr) => {
+                    results.exprs.push(self.attr_assign_expr(results.id.clone().unwrap(), *key, expr.clone()));
+                }
+                AttrType::CallAssign(expr) => {
+                    let body = self.attr_assign_expr(results.id.clone().unwrap(), *key, expr.clone());
+                    results.exprs.push(Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("effect").into()))),
+                        args: vec![
+                            ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Arrow(ArrowExpr {
+                                    span: DUMMY_SP,
+                                    params: vec![],
+                                    body: Box::new(body.into()),
+                                    is_async: false,
+                                    is_generator: false,
+                                    type_params: None,
+                                    return_type: None,
+                                })),
                             },
-                        );
-                        if let Some(expr) = expr {
-                            results.exprs.push(expr);
+                        ],
+                        type_args: Default::default(),
+                    }));
+                }
+                AttrType::Literal(value) => {
+                    let value = match &value {
+                        Some(value) => {
+                            let expr = match value {
+                                JSXAttrValue::JSXExprContainer(value) => match &value.expr {
+                                    JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
+                                    JSXExpr::Expr(expr) => match expr.as_ref() {
+                                        Expr::Lit(value) => value,
+                                        _ => panic!(),
+                                    },
+                                },
+                                JSXAttrValue::JSXElement(_) => panic!(),
+                                JSXAttrValue::JSXFragment(_) => panic!(),
+                                JSXAttrValue::Lit(value) => value,
+                            };
+                            Some(expr)
+                        }
+                        None => None,
+                    };
+
+                    let mut value_is_child_property = false;
+                    if let Some(value) = value {
+                        if CHILD_PROPERTIES.contains(key) {
+                            value_is_child_property = true;
+                            let expr = set_attr(
+                                elem.as_ref(),
+                                key,
+                                &Expr::Lit(value.clone()),
+                                &AttrOptions {
+                                    is_svg,
+                                    dynamic: false,
+                                    is_custom_element,
+                                    prev_id: None,
+                                },
+                            );
+                            if let Some(expr) = expr {
+                                results.exprs.push(expr);
+                            }
+                        }
+                    }
+                    if !value_is_child_property {
+                        let key_string: String;
+                        let key_str: &str;
+                        if !is_svg {
+                            key_string = key.to_lowercase();
+                            key_str = key_string.as_str();
+                            key = &key_str;
+                        }
+                        results.template += &format!(" {}", key);
+                        if let Some(value) = value {
+                            let value_as_string = match value {
+                                Lit::Str(value) => value.value.to_string(),
+                                Lit::Bool(value) => value.value.to_string(),
+                                Lit::Null(_) => "null".to_string(),
+                                Lit::Num(value) => value.value.to_string(),
+                                Lit::BigInt(value) => value.value.to_string(),
+                                Lit::Regex(value) => value.exp.to_string(),
+                                Lit::JSXText(value) => value.raw.to_string(),
+                            };
+                            // results.template += &format!("=\"{}\"", escape_backticks(escape_html(value, true)));
+                            results.template += &format!("=\"{}\"", value_as_string);
                         }
                     }
                 }
-                if !value_is_child_property {
-                    let key_string: String;
-                    let key_str: &str;
-                    if !is_svg {
-                        key_string = key.to_lowercase();
-                        key_str = key_string.as_str();
-                        key = &key_str;
-                    }
-                    results.template += &format!(" {}", key);
-                    if let Some(value) = value {
-                        let value_as_string = match value {
-                            Lit::Str(value) => value.value.to_string(),
-                            Lit::Bool(value) => value.value.to_string(),
-                            Lit::Null(_) => "null".to_string(),
-                            Lit::Num(value) => value.value.to_string(),
-                            Lit::BigInt(value) => value.value.to_string(),
-                            Lit::Regex(value) => value.exp.to_string(),
-                            Lit::JSXText(value) => value.raw.to_string(),
-                        };
-                        // results.template += &format!("=\"{}\"", escape_backticks(escape_html(value, true)));
-                        results.template += &format!("=\"{}\"", value_as_string);
-                    }
-                }
             }
+        }
+    }
+
+    fn attr_assign_expr(&mut self, el: Ident, key: &str, expr: Expr) -> Expr {
+        if key == "class" {
+            Expr::Call(CallExpr {
+                span: DUMMY_SP,
+                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("className").into()))),
+                args: vec![
+                    ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Ident(el)),
+                    },
+                    ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(expr),
+                    },
+                ],
+                type_args: Default::default(),
+            })
+        } else {
+            Expr::Call(CallExpr {
+                span: DUMMY_SP,
+                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("setAttribute").into()))),
+                args: vec![
+                    ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Ident(el)),
+                    },
+                    ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Lit(Lit::Str(key.into()))),
+                    },
+                    ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(expr),
+                    },
+                ],
+                type_args: Default::default(),
+            })
         }
     }
 }
