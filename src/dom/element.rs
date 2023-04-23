@@ -88,6 +88,7 @@ enum AttrType<'a> {
     ExprAssign(&'a Expr),
     CallAssign(&'a Expr),
     Event(&'a Expr),
+    Ref(&'a Expr),
 }
 
 impl<C> TransformVisitor<C>
@@ -132,6 +133,7 @@ impl<C> TransformVisitor<C>
                         JSXExpr::JSXEmptyExpr(_) => panic!("Empty expressions are not supported."),
                         JSXExpr::Expr(expr) => match expr.as_ref() {
                             Expr::Lit(_) => AttrType::Literal(Some(value)),
+                            _ if key.starts_with("ref") => AttrType::Ref(expr),
                             _ if key.starts_with("on") => AttrType::Event(expr),
                             Expr::Member(_) => AttrType::ExprAssign(expr),
                             Expr::Ident(_) => AttrType::ExprAssign(expr),
@@ -162,6 +164,44 @@ impl<C> TransformVisitor<C>
                             expr.clone(),
                         ))
                     }
+                }
+                AttrType::Ref(expr) => {
+                    let ref_ident = private_ident!("ref");
+                    let el_ident = results.id.clone().unwrap();
+                    results.decl.decls.push(VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(ref_ident.clone().into()),
+                        init: Some(Box::new(expr.clone().into())),
+                        definite: false,
+                    });
+                    results.exprs.push(Expr::Cond(CondExpr {
+                        span: DUMMY_SP,
+                        test: Box::new(Expr::Bin(BinExpr {
+                            span: DUMMY_SP,
+                            op: BinaryOp::EqEq,
+                            left: Box::new(Expr::Unary(UnaryExpr {
+                                span: DUMMY_SP,
+                                op: UnaryOp::TypeOf,
+                                arg: Box::new(Expr::Ident(ref_ident.clone())),
+                            })),
+                            right: Box::new(Expr::Lit(Lit::Str("function".into()))),
+                        })),
+                        cons: Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: Callee::Expr(Box::new(Expr::Ident(ref_ident.clone()))),
+                            args: vec![ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Ident(el_ident.clone())),
+                            }],
+                            type_args: None,
+                        })),
+                        alt: Box::new(Expr::Assign(AssignExpr {
+                            span: DUMMY_SP,
+                            op: AssignOp::Assign,
+                            left: PatOrExpr::Expr(Box::new(expr.clone())),
+                            right: Box::new(el_ident.into()),
+                        })),
+                    }));
                 }
                 AttrType::ExprAssign(expr) => {
                     results.exprs.push(self.attr_assign_expr(results.id.clone().unwrap(), *key, expr.clone()));
