@@ -9,7 +9,7 @@ const a = ()=>{
     return (()=>{
         const _el$ = _tmpl$.cloneNode(true), _el$1 = _el$.firstChild;
         _$effect(()=>_$className(_el$, f()));
-        _$setAttribute(_el$1, "title", b);
+        _$setAttribute(_el$1, "title", b + "foo");
         return _el$;
     })();
 };
