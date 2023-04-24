@@ -241,48 +241,88 @@ where
                     }));
                 }
                 AttrType::Style(expr) => {
-                    // todo: when assigning object or string literal, set style directly
-                    let arg = private_ident!("_$p");
-                    results.exprs.push(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(
-                            self.register_import_method("effect"),
-                        ))),
-                        args: vec![ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Arrow(ArrowExpr {
+                    let el_ident = results.id.clone().unwrap();
+                    if let Some(props) = get_plain_object_props(expr) {
+                        for prop in props {
+                            let key = match &prop.key {
+                                PropName::Ident(key) => key,
+                                _ => unreachable!(
+                                    "get_plain_object_props only returns for ident keys"
+                                ),
+                            };
+                            results.exprs.push(Expr::Call(CallExpr {
                                 span: DUMMY_SP,
-                                params: vec![Pat::Ident(BindingIdent{
-                                    id: arg.clone(),
-                                    type_ann: None,
-                                })],
-                                body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
+                                callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
                                     span: DUMMY_SP,
-                                    callee: Callee::Expr(self.register_import_method("style").into()),
-                                    args: vec![
-                                        ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(results.id.clone().unwrap().into()),
+                                    obj: Box::new(Expr::Member(MemberExpr {
+                                        span: DUMMY_SP,
+                                        obj: Box::new(Expr::Ident(el_ident.clone())),
+                                        prop: MemberProp::Ident(quote_ident!(DUMMY_SP, "style")),
+                                    })),
+                                    prop: MemberProp::Ident(quote_ident!(DUMMY_SP, "setProperty")),
+                                }))),
+                                args: vec![
+                                    ExprOrSpread {
+                                        spread: None,
+                                        expr: Box::new(Expr::Lit(key.sym.to_string().into())),
+                                    },
+                                    ExprOrSpread {
+                                        spread: None,
+                                        expr: prop.value.clone(),
+                                    },
+                                ],
+                                type_args: Default::default(),
+                            }));
+                        }
+                    } else {
+                        let arg = private_ident!("_$p");
+                        results.exprs.push(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: Callee::Expr(Box::new(Expr::Ident(
+                                self.register_import_method("effect"),
+                            ))),
+                            args: vec![ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Arrow(ArrowExpr {
+                                    span: DUMMY_SP,
+                                    params: vec![Pat::Ident(BindingIdent {
+                                        id: arg.clone(),
+                                        type_ann: None,
+                                    })],
+                                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(
+                                        CallExpr {
+                                            span: DUMMY_SP,
+                                            callee: Callee::Expr(
+                                                self.register_import_method("style").into(),
+                                            ),
+                                            args: vec![
+                                                ExprOrSpread {
+                                                    spread: None,
+                                                    expr: Box::new(
+                                                        results.id.clone().unwrap().into(),
+                                                    ),
+                                                },
+                                                ExprOrSpread {
+                                                    spread: None,
+                                                    expr: Box::new(expr.clone()),
+                                                },
+                                                ExprOrSpread {
+                                                    spread: None,
+                                                    expr: Box::new(arg.into()),
+                                                },
+                                            ],
+                                            type_args: None,
                                         },
-                                        ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(expr.clone()),
-                                        },
-                                        ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(arg.into()),
-                                        }
-                                    ],
-                                    type_args: None,
-                                })))),
-                                is_async: false,
-                                is_generator: false,
-                                type_params: None,
-                                return_type: None,
-                            })),
-                        }],
-                        type_args: Default::default(),
-                    }));
+                                    )))),
+                                    is_async: false,
+                                    is_generator: false,
+                                    type_params: None,
+                                    return_type: None,
+                                })),
+                            }],
+                            type_args: Default::default(),
+                        }));
+                    }
                 }
                 AttrType::Literal(value) => {
                     let value = match &value {
@@ -396,6 +436,23 @@ where
                 type_args: Default::default(),
             })
         }
+    }
+}
+
+fn get_plain_object_props(expr: &Expr) -> Option<Vec<&KeyValueProp>> {
+    if let Expr::Object(obj) = expr {
+        obj.props
+            .iter()
+            .map(|prop| match prop {
+                PropOrSpread::Prop(prop) => match prop.as_ref() {
+                    Prop::KeyValue(prop) if matches!(prop.key, PropName::Ident(_)) => Some(prop),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect()
+    } else {
+        None
     }
 }
 
