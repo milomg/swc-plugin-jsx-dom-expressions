@@ -209,5 +209,5 @@ pub fn wrapped_by_text(list: &[ImmutableChildTemplateInstantiation], start_index
         index += 1;
     }
 
-    return false;
+    false
 }

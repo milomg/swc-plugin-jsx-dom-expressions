@@ -297,7 +297,7 @@ where
                     .collect();
                 stmts.push(Stmt::Return(ReturnStmt {
                     span: DUMMY_SP,
-                    arg: ret.map(|e| Box::new(e)),
+                    arg: ret.map(Box::new),
                 }));
 
                 vec![CallExpr {
@@ -340,10 +340,10 @@ where
 
     fn transform_component_children(
         &mut self,
-        children: &Vec<JSXElementChild>,
+        children: &[JSXElementChild],
     ) -> Option<(Expr, bool)> {
         let filtered_children = children
-            .into_iter()
+            .iter()
             .filter(|child| match child {
                 JSXElementChild::JSXElement(_)
                 | JSXElementChild::JSXFragment(_)
@@ -355,7 +355,7 @@ where
                 },
             })
             .collect::<Vec<_>>();
-        if filtered_children.len() == 0 {
+        if filtered_children.is_empty() {
             return None;
         }
 
@@ -374,7 +374,7 @@ where
                     }
                     node => {
                         let child = self.transform_jsx_child(
-                            &node,
+                            node,
                             &TransformInfo {
                                 top_level: true,
                                 component_child: true,

@@ -173,7 +173,7 @@ where
                     results.decl.decls.push(VarDeclarator {
                         span: DUMMY_SP,
                         name: Pat::Ident(ref_ident.clone().into()),
-                        init: Some(Box::new(expr.clone().into())),
+                        init: Some(Box::new(expr.clone())),
                         definite: false,
                     });
                     results.exprs.push(Expr::Cond(CondExpr {
@@ -208,17 +208,17 @@ where
                 AttrType::ExprAssign(expr) => {
                     results.exprs.push(self.attr_assign_expr(
                         results.id.clone().unwrap(),
-                        *key,
+                        key,
                         expr.clone(),
                     ));
                 }
                 AttrType::CallAssign(expr) => {
                     let body =
-                        self.attr_assign_expr(results.id.clone().unwrap(), *key, expr.clone());
+                        self.attr_assign_expr(results.id.clone().unwrap(), key, expr.clone());
                     results.exprs.push(Expr::Call(CallExpr {
                         span: DUMMY_SP,
                         callee: Callee::Expr(Box::new(Expr::Ident(
-                            self.register_import_method("effect").into(),
+                            self.register_import_method("effect"),
                         ))),
                         args: vec![ExprOrSpread {
                             spread: None,
@@ -310,7 +310,7 @@ where
             Expr::Call(CallExpr {
                 span: DUMMY_SP,
                 callee: Callee::Expr(Box::new(Expr::Ident(
-                    self.register_import_method("className").into(),
+                    self.register_import_method("className"),
                 ))),
                 args: vec![
                     ExprOrSpread {
@@ -328,7 +328,7 @@ where
             Expr::Call(CallExpr {
                 span: DUMMY_SP,
                 callee: Callee::Expr(Box::new(Expr::Ident(
-                    self.register_import_method("setAttribute").into(),
+                    self.register_import_method("setAttribute"),
                 ))),
                 args: vec![
                     ExprOrSpread {
@@ -573,26 +573,23 @@ fn create_placeholder(
 ) -> (Ident, Option<ExprOrSpread>) {
     let expr_id = Ident::new("_el$".into(), DUMMY_SP);
     results.template += "<!>";
-    results.decl.decls.push(
-        VarDeclarator {
+    results.decl.decls.push(VarDeclarator {
+        span: DUMMY_SP,
+        name: Pat::Ident(expr_id.clone().into()),
+        init: Some(Box::new(Expr::Member(MemberExpr {
             span: DUMMY_SP,
-            name: Pat::Ident(expr_id.clone().into()),
-            init: Some(Box::new(Expr::Member(MemberExpr {
-                span: DUMMY_SP,
-                obj: (Box::new(Expr::Ident(temp_path.clone().unwrap()))),
-                prop: MemberProp::Ident(Ident::new(
-                    if index == 0 {
-                        "firstChild".into()
-                    } else {
-                        "nextSibling".into()
-                    },
-                    DUMMY_SP,
-                )),
-            }))),
-            definite: false,
-        }
-        .into(),
-    );
+            obj: (Box::new(Expr::Ident(temp_path.clone().unwrap()))),
+            prop: MemberProp::Ident(Ident::new(
+                if index == 0 {
+                    "firstChild".into()
+                } else {
+                    "nextSibling".into()
+                },
+                DUMMY_SP,
+            )),
+        }))),
+        definite: false,
+    });
     (expr_id, None)
 }
 fn next_child(child_nodes: &[ImmutableChildTemplateInstantiation], index: usize) -> Option<Expr> {
@@ -606,7 +603,7 @@ fn next_child(child_nodes: &[ImmutableChildTemplateInstantiation], index: usize)
         None
     }
 }
-fn detect_expressions(children: &Vec<&JSXElementChild>, index: usize) -> bool {
+fn detect_expressions(children: &[&JSXElementChild], index: usize) -> bool {
     if index > 0 {
         let node = &children[index - 1];
         if let JSXElementChild::JSXExprContainer(JSXExprContainer {
@@ -614,7 +611,7 @@ fn detect_expressions(children: &Vec<&JSXElementChild>, index: usize) -> bool {
             ..
         }) = node
         {
-            if get_static_expression(&**expr).is_none() {
+            if get_static_expression(expr).is_none() {
                 return true;
             }
         }
@@ -625,14 +622,13 @@ fn detect_expressions(children: &Vec<&JSXElementChild>, index: usize) -> bool {
             }
         }
     }
-    for i in index..children.len() {
-        let child = &children[i];
+    for child in children.iter().skip(index) {
         if let JSXElementChild::JSXExprContainer(JSXExprContainer {
             expr: JSXExpr::Expr(expr),
             ..
         }) = child
         {
-            if get_static_expression(&*expr).is_none() {
+            if get_static_expression(expr).is_none() {
                 return true;
             }
         }
