@@ -89,6 +89,7 @@ enum AttrType<'a> {
     CallAssign(&'a Expr),
     Event(&'a Expr),
     Ref(&'a Expr),
+    Style(&'a Expr),
 }
 
 impl<C> TransformVisitor<C>
@@ -135,7 +136,8 @@ where
                         JSXExpr::JSXEmptyExpr(_) => panic!("Empty expressions are not supported."),
                         JSXExpr::Expr(expr) => match expr.as_ref() {
                             Expr::Lit(_) => AttrType::Literal(Some(value)),
-                            _ if key.starts_with("ref") => AttrType::Ref(expr),
+                            _ if key == "ref" => AttrType::Ref(expr),
+                            _ if key == "style" => AttrType::Style(expr),
                             _ if key.starts_with("on") => AttrType::Event(expr),
                             Expr::Member(_) => AttrType::ExprAssign(expr),
                             Expr::Ident(_) => AttrType::ExprAssign(expr),
@@ -226,6 +228,50 @@ where
                                 span: DUMMY_SP,
                                 params: vec![],
                                 body: Box::new(body.into()),
+                                is_async: false,
+                                is_generator: false,
+                                type_params: None,
+                                return_type: None,
+                            })),
+                        }],
+                        type_args: Default::default(),
+                    }));
+                }
+                AttrType::Style(expr) => {
+                    // todo: when assigning object or string literal, set style directly
+                    let arg = private_ident!("_$p");
+                    results.exprs.push(Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: Callee::Expr(Box::new(Expr::Ident(
+                            self.register_import_method("effect"),
+                        ))),
+                        args: vec![ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Arrow(ArrowExpr {
+                                span: DUMMY_SP,
+                                params: vec![Pat::Ident(BindingIdent{
+                                    id: arg.clone(),
+                                    type_ann: None,
+                                })],
+                                body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
+                                    span: DUMMY_SP,
+                                    callee: Callee::Expr(self.register_import_method("style").into()),
+                                    args: vec![
+                                        ExprOrSpread {
+                                            spread: None,
+                                            expr: Box::new(results.id.clone().unwrap().into()),
+                                        },
+                                        ExprOrSpread {
+                                            spread: None,
+                                            expr: Box::new(expr.clone()),
+                                        },
+                                        ExprOrSpread {
+                                            spread: None,
+                                            expr: Box::new(arg.into()),
+                                        }
+                                    ],
+                                    type_args: None,
+                                })))),
                                 is_async: false,
                                 is_generator: false,
                                 type_params: None,
