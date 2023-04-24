@@ -62,6 +62,9 @@ where
             self.transform_children(node, &mut results);
             results.template += &format!("</{}>", tag_name);
         }
+        if wrap_svg {
+            results.template += "</svg>";
+        }
         results
     }
 }
