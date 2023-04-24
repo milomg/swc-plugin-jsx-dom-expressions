@@ -442,9 +442,9 @@ where
 
         let mut temp_path = results.id.clone();
         let mut next_placeholder = None;
-        for (index, (child1, child2)) in (mutable_child_nodes.iter_mut())
+        let mut index = 0;
+        for (child1, child2) in (mutable_child_nodes.iter_mut())
             .zip(immutable_child_nodes.iter())
-            .enumerate()
         {
             results.template += &child2.template;
 
@@ -473,6 +473,8 @@ where
                 results.post_exprs.append(&mut child1.post_exprs);
                 results.has_custom_element |= child2.has_custom_element;
                 temp_path = Some(id.clone());
+
+                index += 1;
             } else if !child1.exprs.is_empty() {
                 let insert = self.register_import_method("insert");
                 let multi = filtered_children.len() > 1;
@@ -481,7 +483,9 @@ where
                     let (expr_id, content_id) = if let Some(placeholder) = next_placeholder {
                         (placeholder, None)
                     } else {
-                        create_placeholder(results, &temp_path, index, "")
+                        let placeholder= create_placeholder(results, &temp_path, index, "");
+                        index += 1;
+                        placeholder
                     };
                     next_placeholder = Some(expr_id.clone());
                     results.exprs.push(Expr::Call(CallExpr {
