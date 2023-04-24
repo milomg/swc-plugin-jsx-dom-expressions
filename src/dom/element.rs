@@ -92,8 +92,8 @@ enum AttrType<'a> {
 }
 
 impl<C> TransformVisitor<C>
-    where
-        C: Comments,
+where
+    C: Comments,
 {
     fn transform_attributes(&mut self, node: &JSXElement, results: &mut TemplateInstantiation) {
         let elem = &results.id;
@@ -123,7 +123,9 @@ impl<C> TransformVisitor<C>
             let value = &attr.value;
 
             let key = match &attr.name {
-                JSXAttrName::JSXNamespacedName(name) => format!("{}:{}", name.ns.sym, name.name.sym),
+                JSXAttrName::JSXNamespacedName(name) => {
+                    format!("{}:{}", name.ns.sym, name.name.sym)
+                }
                 JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
             };
 
@@ -204,27 +206,32 @@ impl<C> TransformVisitor<C>
                     }));
                 }
                 AttrType::ExprAssign(expr) => {
-                    results.exprs.push(self.attr_assign_expr(results.id.clone().unwrap(), *key, expr.clone()));
+                    results.exprs.push(self.attr_assign_expr(
+                        results.id.clone().unwrap(),
+                        *key,
+                        expr.clone(),
+                    ));
                 }
                 AttrType::CallAssign(expr) => {
-                    let body = self.attr_assign_expr(results.id.clone().unwrap(), *key, expr.clone());
+                    let body =
+                        self.attr_assign_expr(results.id.clone().unwrap(), *key, expr.clone());
                     results.exprs.push(Expr::Call(CallExpr {
                         span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("effect").into()))),
-                        args: vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Arrow(ArrowExpr {
-                                    span: DUMMY_SP,
-                                    params: vec![],
-                                    body: Box::new(body.into()),
-                                    is_async: false,
-                                    is_generator: false,
-                                    type_params: None,
-                                    return_type: None,
-                                })),
-                            },
-                        ],
+                        callee: Callee::Expr(Box::new(Expr::Ident(
+                            self.register_import_method("effect").into(),
+                        ))),
+                        args: vec![ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Arrow(ArrowExpr {
+                                span: DUMMY_SP,
+                                params: vec![],
+                                body: Box::new(body.into()),
+                                is_async: false,
+                                is_generator: false,
+                                type_params: None,
+                                return_type: None,
+                            })),
+                        }],
                         type_args: Default::default(),
                     }));
                 }
@@ -233,7 +240,9 @@ impl<C> TransformVisitor<C>
                         Some(value) => {
                             let expr = match value {
                                 JSXAttrValue::JSXExprContainer(value) => match &value.expr {
-                                    JSXExpr::JSXEmptyExpr(_) => panic!("Empty expression not allowed"),
+                                    JSXExpr::JSXEmptyExpr(_) => {
+                                        panic!("Empty expression not allowed")
+                                    }
                                     JSXExpr::Expr(expr) => match expr.as_ref() {
                                         Expr::Lit(value) => value,
                                         _ => panic!(),
@@ -300,7 +309,9 @@ impl<C> TransformVisitor<C>
         if key == "class" {
             Expr::Call(CallExpr {
                 span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("className").into()))),
+                callee: Callee::Expr(Box::new(Expr::Ident(
+                    self.register_import_method("className").into(),
+                ))),
                 args: vec![
                     ExprOrSpread {
                         spread: None,
@@ -316,7 +327,9 @@ impl<C> TransformVisitor<C>
         } else {
             Expr::Call(CallExpr {
                 span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("setAttribute").into()))),
+                callee: Callee::Expr(Box::new(Expr::Ident(
+                    self.register_import_method("setAttribute").into(),
+                ))),
                 args: vec![
                     ExprOrSpread {
                         spread: None,
