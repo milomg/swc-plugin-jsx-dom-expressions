@@ -1,3 +1,4 @@
+use config::Config;
 use swc_core::{
     common::comments::Comments,
     ecma::{
@@ -36,10 +37,28 @@ where
 
 #[plugin_transform]
 pub fn process_transform(program: Program, metadata: TransformPluginProgramMetadata) -> Program {
-    let config: config::Config = metadata
-        .get_transform_plugin_config()
-        .and_then(|json| serde_json::from_str(&json).ok())
-        .unwrap_or_default();
+    // let config: config::Config = metadata
+    //     .get_transform_plugin_config()
+    //     .and_then(|json| serde_json::from_str(&json).ok())
+    //     .unwrap_or_default();
+
+    // todo!("read config from json");
+    let config = Config {
+        module_name: "r-dom".to_owned(),
+        generate: "dom".to_owned(),
+        hydratable: false,
+        delegate_events: true,
+        delegated_events: vec![],
+        built_ins: vec!["For".to_owned(), "Show".to_owned()],
+        require_import_source: false,
+        wrap_conditionals: true,
+        omit_nested_closing_tags: false,
+        context_to_custom_elements: true,
+        static_marker: "@once".to_owned(),
+        effect_wrapper: "effect".to_owned(),
+        memo_wrapper: "memo".to_owned(),
+        validate: true,
+    };
     program.fold_with(&mut as_folder(TransformVisitor::new(
         config,
         &metadata.comments,

@@ -472,7 +472,7 @@ where
             JSXElementName::Ident(ident) => {
                 let ident = if self
                     .config
-                    .builtins
+                    .built_ins
                     .iter()
                     .any(|builtin| &ident.sym == AsRef::<str>::as_ref(builtin))
                 {

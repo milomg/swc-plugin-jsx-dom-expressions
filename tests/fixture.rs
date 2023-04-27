@@ -30,7 +30,7 @@ fn jsx_dom_expressions_fixture(input: PathBuf) {
                 as_folder(TransformVisitor::new(
                     Config {
                         module_name: "r-dom".to_string(),
-                        builtins: vec!["For".to_string(), "Show".to_string()],
+                        built_ins: vec!["For".to_string(), "Show".to_string()],
                         ..Default::default()
                     },
                     t.comments.clone()
