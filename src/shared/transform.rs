@@ -48,16 +48,7 @@ where
     pub fn transform_node(&mut self, node: &JSXElementChild, info: &TransformInfo) -> TemplateInstantiation {
         let config = &self.config;
         match node {
-            JSXElementChild::JSXElement(node) => self.transform_element(
-                node,
-                &TransformInfo {
-                    top_level: true,
-                    skip_id: false,
-                    component_child: false,
-                    last_element: false, //
-                    fragment_child: false, //
-                },
-            ),
+            JSXElementChild::JSXElement(node) => self.transform_element(node,info),
             JSXElementChild::JSXFragment(node) => {
                 let mut results = TemplateInstantiation {
                     template: "".to_owned(),
