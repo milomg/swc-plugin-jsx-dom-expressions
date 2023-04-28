@@ -31,8 +31,7 @@ where
                         top_level: true,
                         fragment_child: true,
                         last_element: true,
-                        skip_id: false, //
-                        component_child: false, //
+                        ..Default::default()
                     });
                     memo.push(self.create_template(&mut child, true));
                 }

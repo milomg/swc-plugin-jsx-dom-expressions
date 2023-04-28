@@ -11,6 +11,7 @@ use swc_core::{
     ecma::{ast::*, utils::private_ident},
 };
 
+#[derive(Default)]
 pub struct TransformInfo {
     pub top_level: bool,
     pub skip_id: bool,
@@ -25,22 +26,15 @@ where
 {
 
     pub fn transform_jsx(&mut self, node: &JSXElementChild) -> Expr {
-        let mut result = self.transform_node(node, match node {
-            JSXElementChild::JSXFragment(_) => &TransformInfo { 
-                top_level: false, //
-                skip_id: false, //
-                component_child: false, //
-                last_element: false,
-                fragment_child: false, //
-            },
-            _ => &TransformInfo {
+        let info = match node {
+            JSXElementChild::JSXFragment(_) => Default::default(),
+            _ => TransformInfo {
                 top_level: true,
                 last_element: true,
-                skip_id: false, // 
-                component_child: false, //
-                fragment_child: false, //
+                ..Default::default()
             }
-        });
+        };
+        let mut result = self.transform_node(node, &info);
         return self.create_template(&mut result, false);
     }
 
@@ -50,26 +44,7 @@ where
         match node {
             JSXElementChild::JSXElement(node) => self.transform_element(node,info),
             JSXElementChild::JSXFragment(node) => {
-                let mut results = TemplateInstantiation {
-                    template: "".to_owned(),
-                    declarations: vec![],
-                    id: None,//
-                    tag_name: "".to_owned(), // 
-                    decl: VarDecl {
-                        span: DUMMY_SP,
-                        kind: VarDeclKind::Const,
-                        declare: false,
-                        decls: vec![],
-                    }, //
-                    exprs: vec![],
-                    dynamics: vec![],
-                    post_exprs: vec![], //
-                    is_svg: false, // 
-                    is_void: false, //
-                    has_custom_element: false, //
-                    text: false, //
-                    dynamic: false,//
-                };
+                let mut results = TemplateInstantiation::default();
                 self.transform_fragment_children(&node.children, &mut results);
                 results
             }
@@ -82,32 +57,15 @@ where
             node,
             &TransformInfo {
                 top_level: true,
-                skip_id: false,
-                component_child: false,
-                last_element: false, //
-                fragment_child: false, //
+                ..Default::default()
             },
         );
         self.create_template(&mut results, false)
     }
     pub fn transform_jsx_element(&mut self, node: &JSXElement) -> TemplateInstantiation {
-        let info = TransformInfo {
-            top_level: false,
-            skip_id: false,
-            component_child: false,
-            last_element: false, //
-            fragment_child: false, //
-        };
-        self.transform_element(node, &info)
+        self.transform_element(node, &Default::default())
     }
     pub fn transform_jsx_fragment(&mut self, node: &JSXFragment) -> TemplateInstantiation {
-        let info = TransformInfo {
-            top_level: false,
-            skip_id: false,
-            component_child: false,
-            last_element: false, //
-            fragment_child: false, //
-        };
         TemplateInstantiation {
             template: "".into(),
             declarations: vec![], //

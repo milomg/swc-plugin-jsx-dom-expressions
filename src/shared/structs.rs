@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use swc_core::{common::comments::Comments, ecma::ast::*};
+use swc_core::{common::{comments::Comments, DUMMY_SP}, ecma::ast::*};
 
 use crate::config::Config;
 
@@ -32,6 +32,33 @@ pub struct TemplateInstantiation {
     pub text: bool,
     pub dynamic: bool,
 }
+
+impl Default for TemplateInstantiation {
+    fn default() -> Self { 
+        TemplateInstantiation {
+            template: "".to_owned(),
+            declarations: vec![],
+            id: None,
+            tag_name: "".to_owned(),
+            decl: VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Const,
+                declare: false,
+                decls: vec![],
+            },
+            exprs: vec![],
+            dynamics: vec![],
+            post_exprs: vec![],
+            is_svg: false,
+            is_void: false,
+            has_custom_element: false,
+            text: false,
+            dynamic: false,
+        }
+    }
+}
+
+
 
 pub struct MutableChildTemplateInstantiation {
     pub decl: VarDecl,

@@ -398,10 +398,7 @@ where
                     &TransformInfo {
                         skip_id: results.id.is_none()
                             || !detect_expressions(&filtered_children, index),
-                        top_level: false,
-                        component_child: false,
-                        last_element: false, //
-                        fragment_child: false, //
+                        ..Default::default()
                     },
                 );
 

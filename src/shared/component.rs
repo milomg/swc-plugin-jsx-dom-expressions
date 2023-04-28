@@ -379,9 +379,7 @@ where
                             &TransformInfo {
                                 top_level: true,
                                 component_child: true,
-                                skip_id: false,
-                                last_element: false,
-                                fragment_child: false, //
+                                ..Default::default()
                             },
                         );
                         if let Some(mut child) = child {
