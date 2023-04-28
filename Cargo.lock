@@ -480,6 +480,7 @@ name = "jsx-dom-expressions"
 version = "0.1.0"
 dependencies = [
  "html-escape",
+ "regex",
  "serde",
  "serde_json",
  "string_cache",

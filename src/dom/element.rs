@@ -33,6 +33,7 @@ where
         let is_custom_element = tag_name.contains('-');
         let mut results = TemplateInstantiation {
             template: format!("<{}", tag_name),
+            declarations: vec![], //
             id: None,
             tag_name: tag_name.clone(),
             decl: VarDecl {
@@ -399,6 +400,8 @@ where
                             || !detect_expressions(&filtered_children, index),
                         top_level: false,
                         component_child: false,
+                        last_element: false, //
+                        fragment_child: false, //
                     },
                 );
 

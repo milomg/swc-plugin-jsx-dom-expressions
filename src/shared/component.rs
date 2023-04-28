@@ -277,6 +277,7 @@ where
 
         TemplateInstantiation {
             template: "".into(),
+            declarations: vec![], //
             tag_name: "".into(),
             decl: VarDecl {
                 span: DUMMY_SP,
@@ -379,6 +380,8 @@ where
                                 top_level: true,
                                 component_child: true,
                                 skip_id: false,
+                                last_element: false,
+                                fragment_child: false, //
                             },
                         );
                         if let Some(mut child) = child {

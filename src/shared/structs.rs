@@ -19,6 +19,7 @@ pub struct DynamicAttr {
 
 pub struct TemplateInstantiation {
     pub template: String,
+    pub declarations: Vec<VarDeclarator>,
     pub id: Option<Ident>,
     pub tag_name: String,
     pub decl: VarDecl,

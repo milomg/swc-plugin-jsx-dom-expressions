@@ -15,12 +15,77 @@ pub struct TransformInfo {
     pub top_level: bool,
     pub skip_id: bool,
     pub component_child: bool,
+    pub last_element: bool,
+    pub fragment_child: bool
 }
 
 impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
+
+    pub fn transform_jsx(&mut self, node: &JSXElementChild) -> Expr {
+        let mut result = self.transform_node(node, match node {
+            JSXElementChild::JSXFragment(_) => &TransformInfo { 
+                top_level: false, //
+                skip_id: false, //
+                component_child: false, //
+                last_element: false,
+                fragment_child: false, //
+            },
+            _ => &TransformInfo {
+                top_level: true,
+                last_element: true,
+                skip_id: false, // 
+                component_child: false, //
+                fragment_child: false, //
+            }
+        });
+        return self.create_template(&mut result, false);
+    }
+
+    // todo!
+    pub fn transform_node(&mut self, node: &JSXElementChild, info: &TransformInfo) -> TemplateInstantiation {
+        let config = &self.config;
+        match node {
+            JSXElementChild::JSXElement(node) => self.transform_element(
+                node,
+                &TransformInfo {
+                    top_level: true,
+                    skip_id: false,
+                    component_child: false,
+                    last_element: false, //
+                    fragment_child: false, //
+                },
+            ),
+            JSXElementChild::JSXFragment(node) => {
+                let mut results = TemplateInstantiation {
+                    template: "".to_owned(),
+                    declarations: vec![],
+                    id: None,//
+                    tag_name: "".to_owned(), // 
+                    decl: VarDecl {
+                        span: DUMMY_SP,
+                        kind: VarDeclKind::Const,
+                        declare: false,
+                        decls: vec![],
+                    }, //
+                    exprs: vec![],
+                    dynamics: vec![],
+                    post_exprs: vec![], //
+                    is_svg: false, // 
+                    is_void: false, //
+                    has_custom_element: false, //
+                    text: false, //
+                    dynamic: false,//
+                };
+                self.transform_fragment_children(&node.children, &mut results);
+                results
+            }
+            _ => panic!()
+        }
+    }
+
     pub fn transform_jsx_expr(&mut self, node: &mut JSXElement) -> Expr {
         let mut results = self.transform_element(
             node,
@@ -28,6 +93,8 @@ where
                 top_level: true,
                 skip_id: false,
                 component_child: false,
+                last_element: false, //
+                fragment_child: false, //
             },
         );
         self.create_template(&mut results, false)
@@ -37,6 +104,8 @@ where
             top_level: false,
             skip_id: false,
             component_child: false,
+            last_element: false, //
+            fragment_child: false, //
         };
         self.transform_element(node, &info)
     }
@@ -45,9 +114,12 @@ where
             top_level: false,
             skip_id: false,
             component_child: false,
+            last_element: false, //
+            fragment_child: false, //
         };
         TemplateInstantiation {
             template: "".into(),
+            declarations: vec![], //
             id: None,
             tag_name: "".into(),
             decl: VarDecl {
@@ -109,6 +181,7 @@ where
                                 id: None,
                                 tag_name: "".into(),
                                 template: "".into(),
+                                declarations: vec![], //
                                 decl: VarDecl {
                                     span: DUMMY_SP,
                                     kind: VarDeclKind::Const,
@@ -130,6 +203,7 @@ where
                         Some(TemplateInstantiation {
                             id: None,
                             tag_name: "".into(),
+                            declarations: vec![], //
                             template: "".into(),
                             decl: VarDecl {
                                 span: DUMMY_SP,
@@ -164,6 +238,7 @@ where
                     id: None,
                     tag_name: "".into(),
                     template: "".into(),
+                    declarations: vec![], //
                     decl: VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Const,
@@ -198,6 +273,7 @@ where
                     Some(private_ident!("el$"))
                 },
                 tag_name: "".into(),
+                declarations: vec![], //
                 template: text,
                 decl: VarDecl {
                     span: DUMMY_SP,

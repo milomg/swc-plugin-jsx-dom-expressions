@@ -1,4 +1,5 @@
 use crate::TransformVisitor;
+use regex::Regex;
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::{
@@ -177,6 +178,27 @@ pub fn filter_children(c: &JSXElementChild) -> bool {
         }) => false,
         _ => true,
     }
+}
+
+pub fn trim_whitespace(text: &str) -> String {
+    let mut text = Regex::new(r"\r").unwrap().replace_all(text, "").to_string();
+    if text.contains("\n") {
+        let start_space_regex = Regex::new(r"^\s*").unwrap();
+        let space_regex = Regex::new(r"^\s*$").unwrap();
+        text = text
+            .split("\n")
+            .enumerate()
+            .map(|(i, t)| {
+                if i > 0 {
+                    start_space_regex.replace_all(&text, "").to_string()
+                } else {
+                    String::from(t)
+                }
+            })
+            .filter(|s| !space_regex.is_match(s))
+            .fold(String::new(), |cur, nxt| format!("{}{}", cur, nxt));
+    }
+    return Regex::new(r"\s+").unwrap().replace_all(&text, " ").to_string();
 }
 
 pub fn wrapped_by_text(list: &[ImmutableChildTemplateInstantiation], start_index: usize) -> bool {

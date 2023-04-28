@@ -22,9 +22,11 @@ where
         element.visit_mut_children_with(self);
     }
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
-        if let Expr::JSXElement(node) = expr {
-            *expr = self.transform_jsx_expr(node.as_mut());
-        }
+        match expr {
+            Expr::JSXElement(node) => *expr = self.transform_jsx(&JSXElementChild::JSXElement(node.clone())),
+            Expr::JSXFragment(node) => *expr = self.transform_jsx(&JSXElementChild::JSXFragment(node.clone())),
+            _ => {}
+        };
         expr.visit_mut_children_with(self);
     }
     fn visit_mut_module(&mut self, module: &mut Module) {
