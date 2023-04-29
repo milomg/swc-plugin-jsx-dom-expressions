@@ -98,3 +98,10 @@ where
         }
     }
 }
+
+pub struct ProcessSpreadsInfo {
+    pub elem: Option<Ident>,
+    pub is_svg: bool,
+    pub has_children: bool,
+    pub wrap_conditionals: bool
+}

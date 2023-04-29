@@ -65,7 +65,7 @@ where
     pub fn transform_jsx_element(&mut self, node: &JSXElement) -> TemplateInstantiation {
         self.transform_element(node, &Default::default())
     }
-    pub fn transform_jsx_fragment(&mut self, node: &JSXFragment) -> TemplateInstantiation {
+    pub fn transform_jsx_fragment(&mut self, _: &JSXFragment) -> TemplateInstantiation {
         TemplateInstantiation {
             template: "".into(),
             declarations: vec![], //
