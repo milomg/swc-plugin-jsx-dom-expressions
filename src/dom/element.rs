@@ -118,12 +118,103 @@ where
         }
 
         // preprocess styles
+        let style_props = attributes.iter().enumerate().find_map(|(i,a)| {
+            if let JSXAttrOrSpread::JSXAttr(attr) = a {
+                let key = match &attr.name {
+                    JSXAttrName::JSXNamespacedName(name) => {
+                        name.name.sym.as_ref().to_string()
+                    }
+                    JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
+                };
+                if key == "style" {
+                    if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {expr: JSXExpr::Expr(ref expr), ..})) = attr.value {
+                        if let Expr::Object(ObjectLit {ref props, .. }) = **expr {
+                            if !props.iter().any(|p| matches!(p, PropOrSpread::Spread(_))) {
+                                return Some((i, props.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+            return None;
+        });
+        if let Some((style_idx,mut props)) = style_props {
+            let mut i = 0usize;
+            props.retain(|prop| {
+                if let PropOrSpread::Prop(p) = prop {
+                    match **p {
+                        Prop::Shorthand(ref id) => {
+                            i+=1;
+                            attributes.insert(style_idx + i, 
+                                JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                    span: DUMMY_SP, 
+                                    name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("style"), name: id.clone() }), 
+                                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(Expr::Ident(id.clone()))) 
+                                })) }));
+                            return false;
+                        }
+                        Prop::KeyValue(ref kv) => {
+                            match kv.key {
+                                PropName::Ident(ref id) => {
+                                    i+=1;
+                                    attributes.insert(style_idx + i, 
+                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                            span: DUMMY_SP, 
+                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("style"), name: id.clone() }), 
+                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
+                                        })) }));
+                                    return false;
+                                },
+                                PropName::Str(ref s) => {
+                                    i+=1;
+                                    attributes.insert(style_idx + i, 
+                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                            span: DUMMY_SP, 
+                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("style"), name: quote_ident!(s.value.to_string()) }), 
+                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
+                                        })) }));
+                                    return false;
+                                },
+                                PropName::Num(ref n) => {
+                                    i+=1;
+                                    attributes.insert(style_idx + i, 
+                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                            span: DUMMY_SP, 
+                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("style"), name: quote_ident!(n.value.to_string()) }), 
+                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
+                                        })) }));
+                                    return false;
+                                },
+                                PropName::BigInt(ref n) =>  {
+                                    i+=1;
+                                    attributes.insert(style_idx + i, 
+                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                            span: DUMMY_SP, 
+                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("style"), name: quote_ident!(*n.value.to_string()) }), 
+                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
+                                        })) }));
+                                    return false;
+                                },
+                                PropName::Computed(_) => return true,
+                            }
+                        }
+                        _ => panic!("Expect ident or key value prop for style attr")
+                    }
+                }
+                return true;
+            });
+            if props.is_empty() {
+                attributes.remove(style_idx);
+            } else {
+                attributes[style_idx] = JSXAttrOrSpread::JSXAttr(JSXAttr { span: DUMMY_SP, name: JSXAttrName::Ident(quote_ident!("style")), value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit { span: DUMMY_SP, props }))) })) });
+            }
+        }
 
         // preprocess classList
 
         // combine class properties
 
-        for attr in node.opening.attrs.clone() {
+        for attr in &attributes {
             let attr = match attr {
                 JSXAttrOrSpread::JSXAttr(attr) => attr,
                 JSXAttrOrSpread::SpreadElement(_) => panic!("Spread wasn't preprocessed"),
