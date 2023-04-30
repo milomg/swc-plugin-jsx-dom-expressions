@@ -211,8 +211,116 @@ where
         }
 
         // preprocess classList
+        let class_list_props = attributes.iter().enumerate().find_map(|(i,a)| {
+            if let JSXAttrOrSpread::JSXAttr(attr) = a {
+                let key = match &attr.name {
+                    JSXAttrName::JSXNamespacedName(name) => {
+                        name.name.sym.as_ref().to_string()
+                    }
+                    JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
+                };
+                if key == "classList" {
+                    if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {expr: JSXExpr::Expr(ref expr), ..})) = attr.value {
+                        if let Expr::Object(ObjectLit {ref props, .. }) = **expr {
+                            if !props.iter().any(|p| match p {
+                                PropOrSpread::Spread(_) => true,
+                                PropOrSpread::Prop(b) => {
+                                    match **b {
+                                        Prop::KeyValue(ref kv) => {
+                                            match kv.key {
+                                                PropName::Computed(_) => true,
+                                                PropName::Str(ref s) => {
+                                                    let key = s.value.to_string();
+                                                    key.contains(" ") || key.contains(":")
+                                                },
+                                                _ => false,
+                                            }
+                                        },
+                                        _ => false
+                                    }
+                                }
+                            }) {
+                                return Some((i, props.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+            return None;
+        });
 
         // combine class properties
+        if let Some((class_list_idx,mut props)) = class_list_props {
+            let mut i = 0usize;
+            props.retain(|prop| {
+                if let PropOrSpread::Prop(p) = prop {
+                    match **p {
+                        Prop::Shorthand(ref id) => {
+                            i+=1;
+                            attributes.insert(class_list_idx + i, 
+                                JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                    span: DUMMY_SP, 
+                                    name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: id.clone() }), 
+                                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(Expr::Ident(id.clone()))) 
+                                })) }));
+                            return false;
+                        }
+                        Prop::KeyValue(ref kv) => {
+                            match kv.key {
+                                PropName::Ident(ref id) => {
+                                    i+=1;
+                                    attributes.insert(class_list_idx + i, 
+                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                            span: DUMMY_SP, 
+                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: id.clone() }), 
+                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
+                                        })) }));
+                                    return false;
+                                },
+                                PropName::Str(ref s) => {
+                                    i+=1;
+                                    attributes.insert(class_list_idx + i, 
+                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                            span: DUMMY_SP, 
+                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: quote_ident!(s.value.to_string()) }), 
+                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
+                                        })) }));
+                                    return false;
+                                },
+                                PropName::Num(ref n) => {
+                                    i+=1;
+                                    attributes.insert(class_list_idx + i, 
+                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                            span: DUMMY_SP, 
+                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: quote_ident!(n.value.to_string()) }), 
+                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
+                                        })) }));
+                                    return false;
+                                },
+                                PropName::BigInt(ref n) =>  {
+                                    i+=1;
+                                    attributes.insert(class_list_idx + i, 
+                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                            span: DUMMY_SP, 
+                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: quote_ident!(*n.value.to_string()) }), 
+                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
+                                        })) }));
+                                    return false;
+                                },
+                                PropName::Computed(_) => panic!("Can't run to this"),
+                            }
+                        }
+                        _ => panic!("Expect ident or key value prop for style attr")
+                    }
+                }
+                return true;
+            });
+            if props.is_empty() {
+                attributes.remove(class_list_idx);
+            } else {
+                attributes[class_list_idx] = JSXAttrOrSpread::JSXAttr(JSXAttr { span: DUMMY_SP, name: JSXAttrName::Ident(quote_ident!("classList")), value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit { span: DUMMY_SP, props }))) })) });
+            }
+        }
 
         for attr in &attributes {
             let attr = match attr {
