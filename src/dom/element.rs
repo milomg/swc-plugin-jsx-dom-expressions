@@ -6,7 +6,7 @@ use crate::{
             TemplateInstantiation, ProcessSpreadsInfo,
         },
         transform::{is_component, TransformInfo},
-        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, is_dynamic, can_native_spread, convert_jsx_identifier},
+        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, is_dynamic, can_native_spread, convert_jsx_identifier, lit_to_string},
     },
     TransformVisitor,
 };
@@ -249,7 +249,6 @@ where
             return None;
         });
 
-        // combine class properties
         if let Some((class_list_idx,mut props)) = class_list_props {
             let mut i = 0usize;
             props.retain(|prop| {
@@ -319,6 +318,54 @@ where
                 attributes.remove(class_list_idx);
             } else {
                 attributes[class_list_idx] = JSXAttrOrSpread::JSXAttr(JSXAttr { span: DUMMY_SP, name: JSXAttrName::Ident(quote_ident!("classList")), value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit { span: DUMMY_SP, props }))) })) });
+            }
+        }
+
+        // combine class properties
+        let class_attributes: Vec<_> = attributes.iter().enumerate().filter(|(idx, a)| {
+            if let JSXAttrOrSpread::JSXAttr(attr) = a {
+                if let JSXAttrName::Ident(ref id) = attr.name {
+                    let name = id.sym.as_ref().to_string();
+                    if name == "class" || name == "className" {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }).map(|(idx, a)| (idx, a.clone())).collect();
+
+        if class_attributes.len() > 1 {
+            let first = &class_attributes[0];
+            let mut values = vec![];
+            let mut quasis = vec![TplElement { span: DUMMY_SP, tail: true, cooked: None, raw: "".into() }];
+            for (i, (idx, attr)) in class_attributes.iter().enumerate() {
+                let is_last = i == class_attributes.len();
+                if let JSXAttrOrSpread::JSXAttr(attr) = attr {
+                    if let Some(ref v) = attr.value {
+                        if let JSXAttrValue::JSXExprContainer(expr) = v {
+                            if let JSXExpr::Expr(ref ex) = expr.expr {
+                                values.push(Expr::Bin(BinExpr { span: DUMMY_SP, op: BinaryOp::LogicalOr, left: ex.clone(), right: Box::new(Expr::Lit(Lit::Str("".into()))) }));
+                            }
+                            quasis.push(TplElement { span: DUMMY_SP, tail: true, cooked: None, raw: (if is_last { "" } else { " " }).into() });
+                        } else if let JSXAttrValue::Lit(lit) = v {
+                            let prev = quasis.pop();
+                            let raw = format!("{}{}{}",prev.map_or("".to_string(), |prev| prev.raw.to_string()), lit_to_string(lit), if is_last { "" } else { " " });
+                            quasis.push(TplElement { span: DUMMY_SP, tail: true, cooked: None, raw: raw.into() })
+                        }
+                    }
+                }
+                if i > 0 {
+                    attributes.remove(*idx);
+                }
+            }
+            let value;
+            if !values.is_empty() {
+                value = JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(Expr::Tpl(Tpl {span: DUMMY_SP, exprs: values.into_iter().map(Box::new).collect(), quasis: quasis }))) });
+            } else {
+                value = JSXAttrValue::Lit(Lit::Str(quasis[0].clone().raw.into()));
+            }
+            if let JSXAttrOrSpread::JSXAttr(JSXAttr {ref name, ..}) = first.1 {
+                attributes[first.0] = JSXAttrOrSpread::JSXAttr(JSXAttr { span: DUMMY_SP, name: name.clone(), value: Some(value) })
             }
         }
 

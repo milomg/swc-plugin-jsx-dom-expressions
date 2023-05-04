@@ -464,3 +464,11 @@ pub fn can_native_spread(key: &str, check_name_spaces: bool)->bool {
     };
     return true;
 }
+
+pub fn lit_to_string(lit: &Lit) -> String {
+    match lit {
+            Lit::Str(Str { value, .. }) => value.to_string(),
+            Lit::Num(Number { value, .. }) => value.to_string(),
+            _ => panic!("Can't handle this"),
+    }
+}
