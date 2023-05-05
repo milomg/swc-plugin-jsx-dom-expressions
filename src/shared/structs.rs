@@ -15,6 +15,7 @@ pub struct DynamicAttr {
     pub value: Expr,
     pub is_svg: bool,
     pub is_ce: bool,
+    pub tag_name: String
 }
 
 pub struct TemplateInstantiation {

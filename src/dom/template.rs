@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use super::element::{set_attr, AttrOptions};
+use super::element::{AttrOptions};
 use crate::{
     shared::structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
     TransformVisitor,
@@ -300,18 +300,12 @@ where
                         body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
                             span: Default::default(),
                             callee: Callee::Expr(Box::new(
-                                set_attr(
-                                    Some(&dynamics[0].elem),
+                                self.set_attr(
+                                    &dynamics[0].elem,
                                     &dynamics[0].key,
                                     &dynamics[0].value,
-                                    &AttrOptions {
-                                        is_svg: dynamics[0].is_svg,
-                                        is_custom_element: dynamics[0].is_ce,
-                                        dynamic: true,
-                                        prev_id: prev_value,
-                                    },
-                                )
-                                .unwrap(),
+                                    &AttrOptions {is_svg:dynamics[0].is_svg,is_ce:dynamics[0].is_ce,dynamic:true,prev_id:prev_value, tag_name: "".to_string() },
+                                ),
                             )),
                             args: vec![],
                             type_args: None,
@@ -359,7 +353,7 @@ where
             });
 
             if dynamic.key == "classList" || dynamic.key == "style" {
-                let prev = Expr::Member(MemberExpr {
+                let _prev = Expr::Member(MemberExpr {
                     span: Default::default(),
                     obj: (Box::new(Expr::Ident(prev_id.clone()))),
                     prop: MemberProp::Ident(identifier.clone()),
@@ -374,18 +368,18 @@ where
                         }))),
                         op: AssignOp::Assign,
                         right: Box::new(
-                            set_attr(
-                                Some(&dynamic.elem),
+                            self.set_attr(
+                                &dynamic.elem,
                                 &dynamic.key,
                                 &dynamic.value,
                                 &AttrOptions {
                                     is_svg: dynamic.is_svg,
-                                    is_custom_element: dynamic.is_ce,
+                                    is_ce: dynamic.is_ce,
                                     dynamic: true,
                                     prev_id: Some(prev_id.clone()),
+                                    tag_name: "".to_string()
                                 },
-                            )
-                            .unwrap(),
+                            ),
                         ),
                     })),
                 }));
@@ -406,8 +400,9 @@ where
                         })),
                         op: BinaryOp::LogicalAnd,
                         right: Box::new(
-                            set_attr(
-                                Some(&dynamic.elem),
+                            self.set_attr(
+                                
+                                &dynamic.elem,
                                 &dynamic.key,
                                 &Expr::Assign(AssignExpr {
                                     span: Default::default(),
@@ -424,12 +419,12 @@ where
                                 }),
                                 &AttrOptions {
                                     is_svg: dynamic.is_svg,
-                                    is_custom_element: dynamic.is_ce,
+                                    is_ce: dynamic.is_ce,
                                     dynamic: true,
                                     prev_id: None,
+                                    tag_name: "".to_string()
                                 },
-                            )
-                            .unwrap(),
+                            ),
                         ),
                     })),
                 }));

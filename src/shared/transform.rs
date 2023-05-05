@@ -40,7 +40,7 @@ where
 
     // todo!
     pub fn transform_node(&mut self, node: &JSXElementChild, info: &TransformInfo) -> TemplateInstantiation {
-        let config = &self.config;
+        // let config = &self.config;
         match node {
             JSXElementChild::JSXElement(node) => self.transform_element(node,info),
             JSXElementChild::JSXFragment(node) => {

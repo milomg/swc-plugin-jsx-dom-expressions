@@ -99,7 +99,7 @@ where
                             ..
                         })) => {
                             if name == "ref" {
-                                let expr = {
+                                let _expr = {
                                     let mut expr = *expr;
                                     loop {
                                         match expr {

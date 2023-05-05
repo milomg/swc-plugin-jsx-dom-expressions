@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::TransformVisitor;
+use convert_case::{Case, Converter};
 use regex::Regex;
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
@@ -13,6 +14,16 @@ use swc_core::{
 use once_cell::sync::Lazy;
 
 use super::structs::ImmutableChildTemplateInstantiation;
+
+pub static RESERVED_NAME_SPACES: Lazy<HashSet<&str>> = Lazy::new(||{
+    HashSet::from(["class",
+    "on",
+    "oncapture",
+    "style",
+    "use",
+    "prop",
+    "attr"])
+});
 
 static NON_SPREAD_NAME_SPACES: Lazy<HashSet<&str>> = Lazy::new(||{
     HashSet::from(["class", "style", "use", "prop", "attr"])
@@ -418,6 +429,13 @@ pub fn trim_whitespace(text: &str) -> String {
     return Regex::new(r"\s+").unwrap().replace_all(&text, " ").to_string();
 }
 
+pub fn to_property_name(name: &str) -> String {
+    let conv = Converter::new()
+         .from_case(Case::Kebab)
+         .to_case(Case::Camel);
+    conv.convert(name.to_lowercase())
+}
+
 pub fn wrapped_by_text(list: &[ImmutableChildTemplateInstantiation], start_index: usize) -> bool {
     let mut index = start_index;
     let mut wrapped = false;
@@ -451,9 +469,69 @@ pub fn wrapped_by_text(list: &[ImmutableChildTemplateInstantiation], start_index
     false
 }
 
-// pub fn convert_jsx_identifier()-> PropName {
+pub fn escape_backticks(value: &str) -> String {
+    Regex::new(r"`").unwrap().replace_all(value, r"\`").to_string()
+}
 
-// }
+pub fn escape_html(s: &str, attr: bool) -> String {
+    let delim = if attr {"\""} else {"<"};
+    let esc_delim = if attr {"&quot;"} else {"&lt;"};
+    let mut i_delim = s.find(delim).map_or(-1, |i| i as i32);
+    let mut i_amp = s.find("&").map_or(-1, |i| i as i32);
+
+    if i_delim < 0 && i_amp < 0 {
+        return s.to_string();
+    }
+
+    let mut left = 0;
+    let mut out = String::from("");
+
+    while i_delim >=0 && i_amp >= 0 {
+        if i_delim < i_amp {
+            if left < i_delim {
+                out += &s[left as usize..i_delim as usize];
+            }
+            out += esc_delim;
+            left = i_delim + 1;
+            i_delim = s[left as usize..].find(delim).map_or(-1, |i| i as i32);
+        } else {
+            if left < i_amp {
+                out += &s[left as usize..i_amp as usize];
+            }
+            out += "&amp;";
+            left = i_amp + 1;
+            i_amp = s[left as usize..].find("&").map_or(-1, |i| i as i32);
+        }
+    }
+
+    if i_delim >= 0 {
+        loop {
+          if left < i_delim {
+            out += &s[left as usize..i_delim as usize];
+          }
+          out += esc_delim;
+          left = i_delim + 1;
+          i_delim = s[left as usize..].find(delim).map_or(-1, |i| i as i32);
+          if i_delim < 0 {
+            break;
+          }
+        };
+      } else {
+        while i_amp >= 0 {
+            if left < i_amp {
+                out += &s[left as usize..i_amp as usize];
+            }
+          out += "&amp;";
+          left = i_amp + 1;
+          i_amp = s[left as usize..].find("&").map_or(-1, |i| i as i32);
+        }
+      }
+
+    if left < s.len() as i32 { 
+        out += &s[left as usize..];
+    }
+    out
+}
 
 pub fn can_native_spread(key: &str, check_name_spaces: bool)->bool {
     if check_name_spaces && key.contains(":") && NON_SPREAD_NAME_SPACES.contains(key.splitn(1, ":").next().unwrap()) {
@@ -467,8 +545,12 @@ pub fn can_native_spread(key: &str, check_name_spaces: bool)->bool {
 
 pub fn lit_to_string(lit: &Lit) -> String {
     match lit {
-            Lit::Str(Str { value, .. }) => value.to_string(),
-            Lit::Num(Number { value, .. }) => value.to_string(),
-            _ => panic!("Can't handle this"),
+        Lit::Str(value) => value.value.to_string(),
+        Lit::Bool(value) => value.value.to_string(),
+        Lit::Null(_) => "null".to_string(),
+        Lit::Num(value) => value.value.to_string(),
+        Lit::BigInt(value) => value.value.to_string(),
+        Lit::Regex(value) => value.exp.to_string(),
+        Lit::JSXText(value) => value.raw.to_string(),
     }
 }
