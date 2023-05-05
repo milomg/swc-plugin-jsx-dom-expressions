@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::{
     structs::TemplateInstantiation,
     utils::{get_static_expression, is_dynamic},
@@ -17,7 +19,8 @@ pub struct TransformInfo {
     pub skip_id: bool,
     pub component_child: bool,
     pub last_element: bool,
-    pub fragment_child: bool
+    pub fragment_child: bool,
+    pub to_be_closed: Option<HashSet<String>>
 }
 
 impl<C> TransformVisitor<C>
@@ -85,6 +88,7 @@ where
             has_custom_element: false,
             text: false,
             dynamic: false,
+            to_be_closed: HashSet::new()
         }
     }
 
@@ -145,6 +149,7 @@ where
                                 is_void: false,
                                 text: false,
                                 dynamic: false,
+                                to_be_closed: HashSet::new()
                             });
                         }
 
@@ -168,6 +173,7 @@ where
                             is_void: false,
                             text: false,
                             dynamic: true,
+                            to_be_closed: HashSet::new()
                         })
                     }
                 }
@@ -202,6 +208,7 @@ where
                     is_void: false,
                     text: false,
                     dynamic: true,
+                    to_be_closed: HashSet::new()
                 })
             }
         }
@@ -238,6 +245,7 @@ where
                 is_void: false,
                 text: true,
                 dynamic: false,
+                to_be_closed: HashSet::new()
             })
         }
     }

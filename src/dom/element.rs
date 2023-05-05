@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     shared::{
         constants::{ALIASES, CHILD_PROPERTIES, SVG_ELEMENTS, VOID_ELEMENTS, PROPERTIES, DELEGATED_EVENTS, get_prop_alias, SVGNAMESPACE},
@@ -17,6 +19,31 @@ use swc_core::{
     ecma::{ast::*, utils::private_ident},
 };
 use regex::Regex;
+
+use super::constants::{INLINE_ELEMENTS, BLOCK_ELEMENTS};
+
+const ALWAYS_CLOSE: [&str; 20] = [
+  "title",
+  "style",
+  "a",
+  "strong",
+  "small",
+  "b",
+  "u",
+  "i",
+  "em",
+  "s",
+  "code",
+  "object",
+  "table",
+  "button",
+  "textarea",
+  "select",
+  "iframe",
+  "script",
+  "template",
+  "fieldset"
+];
 
 impl<C> TransformVisitor<C>
 where
@@ -51,6 +78,7 @@ where
             has_custom_element: is_custom_element,
             text: false,
             dynamic: false,
+            to_be_closed: HashSet::new()
         };
         if wrap_svg {
             results.template = "<svg>".to_string() + results.template.as_str();
@@ -60,10 +88,27 @@ where
         }
         let mut node = node.clone();
         self.transform_attributes(&mut node, &mut results);
+        if self.config.context_to_custom_elements && (tag_name == "slot" || is_custom_element) {
+            self.context_to_custom_element(&mut results);
+        }
         results.template += ">";
+
         if !void_tag {
+            // always close tags can still be skipped if they have no closing parents and are the last element
+            let to_be_closed = !info.last_element || (info.to_be_closed.is_some() && (!self.config.omit_nested_closing_tags || info.to_be_closed.clone().unwrap().contains(&tag_name)));
+            if to_be_closed {
+                results.to_be_closed = info.to_be_closed.clone().unwrap_or(ALWAYS_CLOSE.iter().map(|x| x.to_string()).collect());
+                results.to_be_closed.insert(tag_name.clone());
+                if INLINE_ELEMENTS.contains(&tag_name.clone().as_str()) {
+                    results.to_be_closed.extend(BLOCK_ELEMENTS.iter().map(|x| x.to_string()));
+                }
+            } else {
+                results.to_be_closed = info.to_be_closed.clone().unwrap_or(HashSet::new());
+            }
             self.transform_children(&node, &mut results);
-            results.template += &format!("</{}>", tag_name);
+            if to_be_closed {
+                results.template += &format!("</{}>", tag_name);
+            }
         }
         results
     }
@@ -1164,6 +1209,24 @@ where
         if !matches!(spread_expr, Expr::Invalid(_)) {
             results.exprs.push(spread_expr);
         }
+    }
+
+    fn context_to_custom_element(&mut self, results: &mut TemplateInstantiation) {
+        results.exprs.push(Expr::Assign(AssignExpr { 
+            span: DUMMY_SP, 
+            op: AssignOp::Assign, 
+            left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr { 
+                span: DUMMY_SP, 
+                obj: Box::new(Expr::Ident(results.id.clone().unwrap())), 
+                prop: MemberProp::Ident(quote_ident!("_$owner")) 
+            }))), 
+            right: Box::new(Expr::Call(CallExpr { 
+                span: DUMMY_SP, 
+                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("getOwner")))), 
+                args: vec![], 
+                type_args: None 
+            }))
+        }))
     }
 
     fn process_spreads(&mut self, attributes: Vec<JSXAttrOrSpread>, info: ProcessSpreadsInfo) -> (Vec<JSXAttrOrSpread>, Expr) {

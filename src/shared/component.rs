@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::TransformVisitor;
 
 use super::{structs::TemplateInstantiation, transform::TransformInfo, utils::is_dynamic};
@@ -336,6 +338,7 @@ where
             has_custom_element: false,
             text: false,
             dynamic: false,
+            to_be_closed: HashSet::new()
         }
     }
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use swc_core::{common::{comments::Comments, DUMMY_SP}, ecma::ast::*};
 
 use crate::config::Config;
@@ -32,6 +32,7 @@ pub struct TemplateInstantiation {
     pub has_custom_element: bool,
     pub text: bool,
     pub dynamic: bool,
+    pub to_be_closed: HashSet<String>
 }
 
 impl Default for TemplateInstantiation {
@@ -55,6 +56,7 @@ impl Default for TemplateInstantiation {
             has_custom_element: false,
             text: false,
             dynamic: false,
+            to_be_closed: HashSet::new()
         }
     }
 }
