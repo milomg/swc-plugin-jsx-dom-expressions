@@ -7,6 +7,7 @@ pub struct TemplateConstruction {
     pub template: String,
     pub id: Ident,
     pub tag_count: f64,
+    pub is_svg: bool,
 }
 
 pub struct DynamicAttr {

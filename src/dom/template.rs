@@ -105,38 +105,45 @@ where
                     .map(|template| {
                         let span = Span::dummy_with_cmt();
                         self.comments.add_pure_comment(span.lo);
+                        let mut args = vec![
+                            ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(
+                                    Tpl {
+                                        span: DUMMY_SP,
+                                        exprs: vec![],
+                                        quasis: vec![TplElement {
+                                            span: DUMMY_SP,
+                                            tail: true,
+                                            cooked: None,
+                                            raw: template.template.into(),
+                                        }],
+                                    }
+                                        .into(),
+                                ),
+                            },
+                            ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Lit(Lit::Num(Number {
+                                    span: DUMMY_SP,
+                                    value: template.tag_count,
+                                    raw: None,
+                                }))),
+                            },
+                        ];
+                        if template.is_svg {
+                            args.push(ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Lit(true.into())),
+                            })
+                        }
                         VarDeclarator {
                             span: DUMMY_SP,
                             name: template.id.into(),
                             init: Some(Box::new(Expr::Call(CallExpr {
                                 span: span,
                                 callee: Callee::Expr(Box::new(Expr::Ident(templ.clone()))),
-                                args: vec![
-                                    ExprOrSpread {
-                                        spread: None,
-                                        expr: Box::new(
-                                            Tpl {
-                                                span: DUMMY_SP,
-                                                exprs: vec![],
-                                                quasis: vec![TplElement {
-                                                    span: DUMMY_SP,
-                                                    tail: true,
-                                                    cooked: None,
-                                                    raw: template.template.into(),
-                                                }],
-                                            }
-                                            .into(),
-                                        ),
-                                    },
-                                    ExprOrSpread {
-                                        spread: None,
-                                        expr: Box::new(Expr::Lit(Lit::Num(Number {
-                                            span: DUMMY_SP,
-                                            value: template.tag_count,
-                                            raw: None,
-                                        }))),
-                                    },
-                                ], // .concat(template.isSVG ? t.booleanLiteral(template.isSVG) : [])
+                                args,
                                 type_args: None,
                             }))),
                             definite: false,
@@ -178,6 +185,7 @@ where
                         id: template_id.clone().unwrap(),
                         template: results.template.clone(),
                         tag_count: results.template.matches('<').count() as f64,
+                        is_svg: results.is_svg,
                     });
                 }
             }
