@@ -578,3 +578,11 @@ pub fn lit_to_string(lit: &Lit) -> String {
         Lit::JSXText(value) => value.raw.to_string(),
     }
 }
+
+pub fn is_l_val(expr: &Expr) -> bool {
+    // todo! 
+    match expr {
+        Expr::Ident(_) | Expr::Member(_) | Expr::Assign(_) | Expr::Array(_) | Expr::Object(_) | Expr::TsAs(_)  | Expr::TsSatisfies(_) | Expr::TsTypeAssertion(_) | Expr::TsNonNull(_) => true,
+        _ => false
+    }
+}

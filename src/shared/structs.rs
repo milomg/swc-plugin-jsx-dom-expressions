@@ -10,7 +10,7 @@ pub struct TemplateConstruction {
     pub is_svg: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DynamicAttr {
     pub elem: Ident,
     pub key: String,
@@ -20,6 +20,7 @@ pub struct DynamicAttr {
     pub tag_name: String
 }
 
+#[derive(Debug)]
 pub struct TemplateInstantiation {
     pub template: String,
     pub declarations: Vec<VarDeclarator>,

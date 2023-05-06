@@ -7,7 +7,7 @@ use crate::{
             TemplateInstantiation, ProcessSpreadsInfo, DynamicAttr,
         },
         transform::{is_component, TransformInfo},
-        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, is_dynamic, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length},
+        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, is_dynamic, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length, is_l_val},
     },
     TransformVisitor,
 };
@@ -812,9 +812,9 @@ where
                     //     JSXExpr::JSXEmptyExpr(_) => break
                     // }
 
-                    let ref_ident = private_ident!("ref");
+                    let ref_ident = private_ident!("_ref$");
                     let el_ident = results.id.clone().unwrap();
-                    if !is_function && matches!(**exp, Expr::Lit(_)) {
+                    if !is_function && is_l_val(exp) {
                         results.decl.decls.insert(0, VarDeclarator {
                             span:DUMMY_SP,
                             name:Pat::Ident(BindingIdent{id:ref_ident.clone(),type_ann:None}), 
