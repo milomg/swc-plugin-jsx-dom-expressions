@@ -4,6 +4,7 @@ use super::{
     structs::TemplateInstantiation,
     utils::{get_static_expression, is_dynamic},
 };
+use crate::shared::utils::{trim_whitespace, escape_backticks, escape_html};
 pub use crate::shared::{
     structs::TransformVisitor,
     utils::{get_tag_name, is_component},
@@ -20,7 +21,8 @@ pub struct TransformInfo {
     pub component_child: bool,
     pub last_element: bool,
     pub fragment_child: bool,
-    pub to_be_closed: Option<HashSet<String>>
+    pub to_be_closed: Option<HashSet<String>>,
+    pub do_not_escape: bool
 }
 
 impl<C> TransformVisitor<C>
@@ -41,18 +43,139 @@ where
         return self.create_template(&mut result.unwrap(), false);
     }
 
-    // todo!
     pub fn transform_node(&mut self, node: &JSXElementChild, info: &TransformInfo) -> Option<TemplateInstantiation> {
-        // let config = &self.config;
-        match node {
-            JSXElementChild::JSXElement(node) => {return Some(self.transform_element(node,info))},
-            JSXElementChild::JSXFragment(node) => {
-                let mut results = TemplateInstantiation::default();
-                self.transform_fragment_children(&node.children, &mut results);
-                return Some(results);
-            },
-            _ => return None
+        if let JSXElementChild::JSXElement(node) = node {
+            return Some(self.transform_element(node,info))
+        } else if let JSXElementChild::JSXFragment(node) = node {
+            let mut results = TemplateInstantiation::default();
+            self.transform_fragment_children(&node.children, &mut results);
+            return Some(results);
+        } else if let JSXElementChild::JSXText(node) = node {
+            let text = trim_whitespace(&node.raw);
+            if text.is_empty() {
+                return None;
+            }
+            let mut results = TemplateInstantiation {
+                template: escape_backticks(&text),
+                text: true,
+                ..TemplateInstantiation::default()
+            };
+            if !info.skip_id {
+                results.id = Some(private_ident!("el$"));
+            }
+            return Some(results);
+        } else if let Some(static_value) = get_static_expression(node) {
+            let text = if info.do_not_escape {
+                static_value
+            } else {
+                escape_html(&static_value, false)
+            };
+            if text.is_empty() {
+                return None;
+            }
+            let mut results = TemplateInstantiation {
+                template: escape_backticks(&text),
+                text: true,
+                ..TemplateInstantiation::default()
+            };
+            if !info.skip_id {
+                results.id = Some(private_ident!("el$"));
+            }
+            return Some(results);
+        } else if let JSXElementChild::JSXExprContainer(JSXExprContainer { expr, .. }) = node {
+            match expr {
+                JSXExpr::JSXEmptyExpr(_) => {
+                    return None;
+                }
+                JSXExpr::Expr(exp) => {
+                    if !is_dynamic(&exp, true, info.component_child, true, !info.component_child) {
+                        return Some(TemplateInstantiation {
+                            exprs: vec![*exp.clone()],
+                            ..Default::default()
+                        });
+                    }
+                    let mut expr = vec![];
+                    if self.config.wrap_conditionals &&( matches!(**exp, Expr::Bin(_)) || matches!(**exp, Expr::Cond(_)) ) {
+                        let mut result = self.transform_condition(*exp.clone(), info.component_child, false);
+                        if result.len() > 1 {
+                            if let (stmt0,Stmt::Expr(ExprStmt {expr: ex1,..})) = (result.remove(0), result.remove(1)) {
+                                expr = vec![Expr::Call(CallExpr { 
+                                    span: DUMMY_SP,
+                                     callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr { 
+                                        span: DUMMY_SP, 
+                                        params: vec![], 
+                                        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt { span: DUMMY_SP, stmts: vec![
+                                            stmt0, 
+                                            Stmt::Return(ReturnStmt { 
+                                                span: DUMMY_SP, 
+                                                arg: Some(Box::new(*ex1)) })] 
+                                            })), 
+                                        is_async: false, 
+                                        is_generator: false, 
+                                        type_params: None, 
+                                        return_type: None }))), 
+                                     args: vec![], 
+                                     type_args: None
+                                })];
+                            } else {
+                                unimplemented!();
+                            }
+                        } else if let Stmt::Expr(ExprStmt {expr: ex0,..}) = result.remove(0) {
+                            expr = vec![*ex0.clone()]
+                        } else {
+                            unimplemented!();
+                        }
+                    } else {
+                        let mut flag = false;
+                        if !info.component_child && info.fragment_child {
+                            if let Expr::Call(CallExpr { callee: Callee::Expr(ref ex) , ref args,.. }) = **exp {
+                                if !matches!(**ex, Expr::Member(_)) && args.is_empty() {
+                                    flag = true;
+                                    expr = vec![*ex.clone()];
+                                }
+                            }
+                        } 
+                        if !flag {
+                            expr = vec![Expr::Arrow(ArrowExpr { 
+                                span: DUMMY_SP, 
+                                params: vec![], 
+                                body: Box::new(BlockStmtOrExpr::Expr(exp.clone())), 
+                                is_async: false, 
+                                is_generator: false, 
+                                type_params: None, 
+                                return_type: None
+                            })];
+                        }
+                    }
+                    return Some(TemplateInstantiation {
+                        exprs: expr,
+                        dynamic: true,
+                        ..Default::default()
+                    });
+
+                },
+            } 
+        } else if let JSXElementChild::JSXSpreadChild(JSXSpreadChild { expr, .. }) = node {
+            if !is_dynamic(expr, true, false, true, !info.component_child) {
+                return Some(TemplateInstantiation {
+                    exprs: vec![*expr.clone()],
+                    ..Default::default()
+                });
+            }
+            return Some(TemplateInstantiation {
+                exprs: vec![Expr::Arrow(ArrowExpr { 
+                    span: DUMMY_SP, 
+                    params: vec![], 
+                    body: Box::new(BlockStmtOrExpr::Expr(expr.clone())), 
+                    is_async: false, 
+                    is_generator: false, 
+                    type_params: None, 
+                    return_type: None })],
+                dynamic: true,
+                ..Default::default()
+            });
         }
+        None
     }
 
     pub fn transform_jsx_expr(&mut self, node: &mut JSXElement) -> Expr {

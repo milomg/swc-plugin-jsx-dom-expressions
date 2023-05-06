@@ -94,7 +94,7 @@ where
         }
     }
 
-    pub fn transform_condition(&mut self, mut node: Expr, inline:bool, deep:bool) -> BlockStmtOrExpr {
+    pub fn transform_condition(&mut self, mut node: Expr, inline:bool, deep:bool) -> Vec<Stmt> {
         let memo_wrapper = self.config.memo_wrapper.clone();
         let memo = self.register_import_method(&memo_wrapper);
         let mut d_test = false;
@@ -135,7 +135,8 @@ where
                         type_args: None }));
 
                     if matches!(*expr.cons, Expr::Cond(_)) || matches!(*expr.cons, Expr::Bin(_)) {
-                        if let BlockStmtOrExpr::Expr(e) = self.transform_condition((*expr.cons).clone(), inline, true) {
+                        let mut result = self.transform_condition((*expr.cons).clone(), inline, true);
+                        if let Stmt::Expr(ExprStmt {expr: e,..}) = result.remove(0) {
                             expr.cons = e;
                         } else {
                             panic!("Can't handle this");
@@ -143,7 +144,8 @@ where
                     }
 
                     if matches!(*expr.alt, Expr::Cond(_)) || matches!(*expr.alt, Expr::Bin(_)) {
-                        if let BlockStmtOrExpr::Expr(e) = self.transform_condition((*expr.alt).clone(), inline, true) {
+                        let mut result = self.transform_condition((*expr.alt).clone(), inline, true);
+                        if let Stmt::Expr(ExprStmt {expr: e,..}) = result.remove(0) {
                             expr.alt = e;
                         } else {
                             panic!("Can't handle this");
@@ -248,7 +250,9 @@ where
                         type_params: None, 
                         return_type: None });
                 return if deep {
-                    BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr { 
+                    vec![Stmt::Expr(ExprStmt { 
+                        span: DUMMY_SP, 
+                        expr: Box::new(Expr::Call(CallExpr { 
                         span: DUMMY_SP, 
                         callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr { 
                             span: DUMMY_SP, 
@@ -262,27 +266,27 @@ where
                                     type_params: None, 
                                     return_type: None }))), 
                         args: vec![], 
-                        type_args: None })))
+                        type_args: None })) })]
                 } else {
-                    BlockStmtOrExpr::BlockStmt(BlockStmt { span: DUMMY_SP, stmts: vec![
+                    vec![
                         stmt1,
                         Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(expr2) })
-                    ] })
+                    ]
                 };
             }
         }
 
         return if deep {
-            BlockStmtOrExpr::Expr(Box::new(node))
+            vec![Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(node) })]
         } else {
-            BlockStmtOrExpr::Expr(Box::new(Expr::Arrow(ArrowExpr { 
+            vec![Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(Expr::Arrow(ArrowExpr { 
                 span: DUMMY_SP, 
                 params: vec![], 
                 body: Box::new(BlockStmtOrExpr::Expr(Box::new(node))), 
                 is_async: false,
                 is_generator: false, 
                 type_params: None, 
-                return_type: None })))
+                return_type: None })) })]
         };
     }
 

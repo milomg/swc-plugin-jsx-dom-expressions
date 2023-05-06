@@ -1304,7 +1304,8 @@ where
                                     flag = true;
                                 }
                                 if flag {
-                                    if let BlockStmtOrExpr::Expr(b) = self.transform_condition(*ex.clone(), true, false) {
+                                    let mut result = self.transform_condition(*ex.clone(), true, false);
+                                    if let Stmt::Expr(ExprStmt {expr: b,..}) = result.remove(0) {
                                         if let Expr::Arrow(arr) = *b {
                                             if let BlockStmtOrExpr::Expr(e) = *arr.body {
                                                 expr = e;
@@ -1314,7 +1315,7 @@ where
                                         } else {
                                             panic!("Can't handle this");
                                         }
-                                    } else {
+                                    }else {
                                         panic!("Can't handle this");
                                     }
                                 }
