@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 
 use crate::TransformVisitor;
 
@@ -338,7 +337,7 @@ where
             has_custom_element: false,
             text: false,
             dynamic: false,
-            to_be_closed: HashSet::new()
+            ..Default::default()
         }
     }
 

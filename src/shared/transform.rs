@@ -61,7 +61,7 @@ where
                 ..TemplateInstantiation::default()
             };
             if !info.skip_id {
-                results.id = Some(private_ident!("el$"));
+                results.id = Some(self.generate_uid_identifier("el$"));
             }
             return Some(results);
         } else if let Some(static_value) = get_static_expression(node) {
@@ -79,7 +79,7 @@ where
                 ..TemplateInstantiation::default()
             };
             if !info.skip_id {
-                results.id = Some(private_ident!("el$"));
+                results.id = Some(self.generate_uid_identifier("el$"));
             }
             return Some(results);
         } else if let JSXElementChild::JSXExprContainer(JSXExprContainer { expr, .. }) = node {
@@ -211,7 +211,7 @@ where
             has_custom_element: false,
             text: false,
             dynamic: false,
-            to_be_closed: HashSet::new()
+            ..Default::default()
         }
     }
 
@@ -272,7 +272,7 @@ where
                                 is_void: false,
                                 text: false,
                                 dynamic: false,
-                                to_be_closed: HashSet::new()
+                                ..Default::default()
                             });
                         }
 
@@ -296,7 +296,7 @@ where
                             is_void: false,
                             text: false,
                             dynamic: true,
-                            to_be_closed: HashSet::new()
+                            ..Default::default()
                         })
                     }
                 }
@@ -331,7 +331,7 @@ where
                     is_void: false,
                     text: false,
                     dynamic: true,
-                    to_be_closed: HashSet::new()
+                    ..Default::default()
                 })
             }
         }
@@ -368,7 +368,7 @@ where
                 is_void: false,
                 text: true,
                 dynamic: false,
-                to_be_closed: HashSet::new()
+                ..Default::default()
             })
         }
     }

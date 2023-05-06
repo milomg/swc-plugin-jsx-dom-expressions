@@ -15,7 +15,7 @@ use crate::{
 use swc_core::ecma::utils::quote_ident;
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
-    ecma::{ast::*, utils::private_ident},
+    ecma::ast::*,
 };
 use regex::Regex;
 
@@ -77,13 +77,14 @@ where
             has_custom_element: is_custom_element,
             text: false,
             dynamic: false,
-            to_be_closed: HashSet::new()
+            to_be_closed: HashSet::new(),
+            skip_template: false
         };
         if wrap_svg {
             results.template = "<svg>".to_string() + results.template.as_str();
         }
         if !info.skip_id {
-            results.id = Some(private_ident!("_el$"));
+            results.id = Some(self.generate_uid_identifier("el$"));
         }
         let mut node = node.clone();
         self.transform_attributes(&mut node, &mut results);
@@ -812,7 +813,7 @@ where
                     //     JSXExpr::JSXEmptyExpr(_) => break
                     // }
 
-                    let ref_ident = private_ident!("_ref$");
+                    let ref_ident = self.generate_uid_identifier("_ref$");
                     let el_ident = results.id.clone().unwrap();
                     if !is_function && is_l_val(exp) {
                         results.decl.decls.insert(0, VarDeclarator {
@@ -1114,7 +1115,7 @@ where
                         return;
                     }
                     if key == "textContent" {
-                        next_elem = private_ident!("el$");
+                        next_elem = self.generate_uid_identifier("el$");
                         children = Some(JSXElementChild::JSXText(JSXText { span: DUMMY_SP, value: " ".into(), raw: " ".into() }));
                         results.declarations.push(VarDeclarator { 
                             span: DUMMY_SP, 
@@ -1484,7 +1485,7 @@ where
                     if let Some(placeholder) = next_placeholder.clone() {
                         expr_id = placeholder;
                     } else {
-                        (expr_id, content_id) = create_placeholder(results, &temp_path, i, "");
+                        (expr_id, content_id) = self.create_placeholder(results, &temp_path, i, "");
                         i+=1;
                     }
                     next_placeholder = Some(expr_id.clone());
@@ -1568,6 +1569,35 @@ where
         });
 
     }
+
+    fn create_placeholder(
+        &mut self,
+        results: &mut TemplateInstantiation,
+        temp_path: &Option<Ident>,
+        index: usize,
+        _char: &str,
+    ) -> (Ident, Option<ExprOrSpread>) {
+        let expr_id = self.generate_uid_identifier("el$");
+        results.template += "<!>";
+        results.declarations.push(VarDeclarator {
+            span: DUMMY_SP,
+            name: Pat::Ident(expr_id.clone().into()),
+            init: Some(Box::new(Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: (Box::new(Expr::Ident(temp_path.clone().unwrap()))),
+                prop: MemberProp::Ident(Ident::new(
+                    if index == 0 {
+                        "firstChild".into()
+                    } else {
+                        "nextSibling".into()
+                    },
+                    DUMMY_SP,
+                )),
+            }))),
+            definite: false,
+        });
+        (expr_id, None)
+    }
 }
 
 fn find_last_element(children: &Vec<JSXElementChild>) -> i32{
@@ -1589,33 +1619,6 @@ fn find_last_element(children: &Vec<JSXElementChild>) -> i32{
     return last_element;
 }
 
-fn create_placeholder(
-    results: &mut TemplateInstantiation,
-    temp_path: &Option<Ident>,
-    index: usize,
-    _char: &str,
-) -> (Ident, Option<ExprOrSpread>) {
-    let expr_id = Ident::new("_el$".into(), DUMMY_SP);
-    results.template += "<!>";
-    results.declarations.push(VarDeclarator {
-        span: DUMMY_SP,
-        name: Pat::Ident(expr_id.clone().into()),
-        init: Some(Box::new(Expr::Member(MemberExpr {
-            span: DUMMY_SP,
-            obj: (Box::new(Expr::Ident(temp_path.clone().unwrap()))),
-            prop: MemberProp::Ident(Ident::new(
-                if index == 0 {
-                    "firstChild".into()
-                } else {
-                    "nextSibling".into()
-                },
-                DUMMY_SP,
-            )),
-        }))),
-        definite: false,
-    });
-    (expr_id, None)
-}
 fn next_child(child_nodes: &Vec<TemplateInstantiation>, index: usize) -> Option<Expr> {
     if index + 1 < child_nodes.len() {
         child_nodes[index + 1]
