@@ -13,7 +13,7 @@ use swc_core::{
 };
 use once_cell::sync::Lazy;
 
-use super::structs::ImmutableChildTemplateInstantiation;
+use super::structs::TemplateInstantiation;
 
 pub static RESERVED_NAME_SPACES: Lazy<HashSet<&str>> = Lazy::new(||{
     HashSet::from(["class",
@@ -368,15 +368,18 @@ impl Visit for DynamicVisitor {
     }
 }
 
-pub fn get_static_expression(expr: &Expr) -> Option<String> {
+pub fn get_static_expression(child: &JSXElementChild) -> Option<String> {
     // only handle simple literals for now
-    match expr {
-        Expr::Lit(lit) => match lit {
-            Lit::Str(Str { value, .. }) => Some(value.to_string()),
-            Lit::Num(Number { value, .. }) => Some(value.to_string()),
+    match child {
+        JSXElementChild::JSXExprContainer(JSXExprContainer { expr: JSXExpr::Expr(ref expr), .. }) => match **expr {
+            Expr::Lit(ref lit) => match lit {
+                    Lit::Str(Str { value, .. }) => Some(value.to_string()),
+                    Lit::Num(Number { value, .. }) => Some(value.to_string()),
+                    _ => None
+                },
             _ => None,
         },
-        _ => None,
+        _ => None
     }
 }
 
@@ -408,6 +411,23 @@ pub fn convert_jsx_identifier(attr_name: &JSXAttrName) -> PropName {
     }
 }
 
+pub fn check_length(children: &Vec<&JSXElementChild>) -> bool {
+    for child in children {
+        if !matches!(child, JSXElementChild::JSXExprContainer(JSXExprContainer { expr: JSXExpr::JSXEmptyExpr(_),.. })) {
+            if let JSXElementChild::JSXText(t) = child {
+                if !Regex::new(r"^\s*$").unwrap().is_match(&t.raw.to_string()) {
+                    return true;
+                } else if Regex::new(r"^ *$").unwrap().is_match(&t.raw.to_string()) {
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+    }
+  return false;
+}
+
 pub fn trim_whitespace(text: &str) -> String {
     let mut text = Regex::new(r"\r").unwrap().replace_all(text, "").to_string();
     if text.contains("\n") {
@@ -436,7 +456,7 @@ pub fn to_property_name(name: &str) -> String {
     conv.convert(name.to_lowercase())
 }
 
-pub fn wrapped_by_text(list: &[ImmutableChildTemplateInstantiation], start_index: usize) -> bool {
+pub fn wrapped_by_text(list: &Vec<TemplateInstantiation>, start_index: usize) -> bool {
     let mut index = start_index;
     let mut wrapped = false;
     while index > 0 {

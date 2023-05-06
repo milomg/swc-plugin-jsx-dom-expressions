@@ -27,13 +27,13 @@ where
                     }
                 },
                 _ => {
-                    let mut child = self.transform_node(node, &TransformInfo {
+                    let child = self.transform_node(node, &TransformInfo {
                         top_level: true,
                         fragment_child: true,
                         last_element: true,
                         ..Default::default()
                     });
-                    memo.push(self.create_template(&mut child, true));
+                    memo.push(self.create_template(&mut child.unwrap(), true));
                 }
             }
             memo

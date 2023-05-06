@@ -10,6 +10,7 @@ pub struct TemplateConstruction {
     pub is_svg: bool,
 }
 
+#[derive(Clone)]
 pub struct DynamicAttr {
     pub elem: Ident,
     pub key: String,
@@ -62,21 +63,6 @@ impl Default for TemplateInstantiation {
     }
 }
 
-
-
-pub struct MutableChildTemplateInstantiation {
-    pub decl: VarDecl,
-    pub exprs: Vec<Expr>,
-    pub dynamics: Vec<DynamicAttr>,
-    pub post_exprs: Vec<Expr>,
-}
-pub struct ImmutableChildTemplateInstantiation {
-    pub template: String,
-    pub id: Option<Ident>,
-    pub tag_name: String,
-    pub has_custom_element: bool,
-    pub text: bool,
-}
 pub struct TransformVisitor<C>
 where
     C: Comments,

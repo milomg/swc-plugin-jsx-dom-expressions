@@ -4,11 +4,10 @@ use crate::{
     shared::{
         constants::{ALIASES, CHILD_PROPERTIES, SVG_ELEMENTS, VOID_ELEMENTS, PROPERTIES, DELEGATED_EVENTS, get_prop_alias, SVGNAMESPACE},
         structs::{
-            ImmutableChildTemplateInstantiation, MutableChildTemplateInstantiation,
             TemplateInstantiation, ProcessSpreadsInfo, DynamicAttr,
         },
         transform::{is_component, TransformInfo},
-        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, is_dynamic, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name},
+        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, is_dynamic, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length},
     },
     TransformVisitor,
 };
@@ -1401,29 +1400,31 @@ where
     C: Comments,
 {
     fn transform_children(&mut self, node: &JSXElement, results: &mut TemplateInstantiation) {
+        let mut temp_path = results.id.clone();
+        let mut next_placeholder = None;
+        let mut i = 0;
         let filtered_children = node
             .children
             .iter()
             .filter(|c| filter_children(c))
             .collect::<Vec<&JSXElementChild>>();
+        let last_element = find_last_element(&node.children);
         let child_nodes = filtered_children.iter().enumerate().fold(
             Vec::<TemplateInstantiation>::new(),
             |mut memo, (index, child)| {
                 if let JSXElementChild::JSXFragment(_) = child {
                     panic!(
                         "Fragments can only be used top level in JSX. Not used under a <{}>.",
-                        get_tag_name(node)
+                        results.tag_name
                     );
                 }
 
-                let transformed = self.transform_jsx_child(
-                    child,
-                    &TransformInfo {
-                        skip_id: results.id.is_none()
-                            || !detect_expressions(&filtered_children, index),
-                        ..Default::default()
-                    },
-                );
+                let transformed = self.transform_node(child, &TransformInfo { 
+                    to_be_closed: Some(results.to_be_closed.clone()),
+                    last_element: index == last_element as usize,
+                    skip_id: results.id.is_none() || !detect_expressions(&filtered_children, index),
+                    ..Default::default()
+                 });
 
                 if let Some(transformed) = transformed {
                     let i = memo.len();
@@ -1439,42 +1440,16 @@ where
             },
         );
 
-        let (mut mutable_child_nodes, immutable_child_nodes): (
-            Vec<MutableChildTemplateInstantiation>,
-            Vec<ImmutableChildTemplateInstantiation>,
-        ) = child_nodes
-            .into_iter()
-            .map(|child| {
-                (
-                    MutableChildTemplateInstantiation {
-                        decl: child.decl,
-                        exprs: child.exprs,
-                        dynamics: child.dynamics,
-                        post_exprs: child.post_exprs,
-                    },
-                    ImmutableChildTemplateInstantiation {
-                        id: child.id,
-                        template: child.template,
-                        tag_name: child.tag_name,
-                        has_custom_element: child.has_custom_element,
-                        text: child.text,
-                    },
-                )
-            })
-            .unzip();
+        child_nodes.iter().enumerate().for_each(|(index, child)| {
+            results.template += &child.template;
+            if child.id.is_some() {
+                if child.tag_name == "head" {
+                    return;
+                }
 
-        let mut temp_path = results.id.clone();
-        let mut next_placeholder = None;
-        for (index, (child1, child2)) in (mutable_child_nodes.iter_mut())
-            .zip(immutable_child_nodes.iter())
-            .enumerate()
-        {
-            results.template += &child2.template;
-
-            if let Some(id) = &child2.id {
                 let walk = Expr::Member(MemberExpr {
                     span: DUMMY_SP,
-                    obj: (Box::new(Expr::Ident(temp_path.unwrap()))),
+                    obj: Box::new(Expr::Ident(temp_path.clone().unwrap())),
                     prop: MemberProp::Ident(Ident::new(
                         if index == 0 {
                             "firstChild".into()
@@ -1484,28 +1459,33 @@ where
                         DUMMY_SP,
                     )),
                 });
-                results.decl.decls.push(VarDeclarator {
+                results.declarations.push(VarDeclarator {
                     span: DUMMY_SP,
-                    name: Pat::Ident(id.clone().into()),
+                    name: Pat::Ident(child.id.clone().unwrap().into()),
                     init: Some(Box::new(walk)),
                     definite: false,
                 });
-                results.decl.decls.append(&mut child1.decl.decls);
-                results.exprs.append(&mut child1.exprs);
-                results.dynamics.append(&mut child1.dynamics);
-                results.post_exprs.append(&mut child1.post_exprs);
-                results.has_custom_element |= child2.has_custom_element;
-                temp_path = Some(id.clone());
-            } else if !child1.exprs.is_empty() {
+                results.declarations.extend(child.declarations.clone().into_iter());
+                results.exprs.extend(child.exprs.clone().into_iter());
+                results.dynamics.extend(child.dynamics.clone().into_iter());
+                results.post_exprs.extend(child.post_exprs.clone().into_iter());
+                results.has_custom_element |= child.has_custom_element;
+                temp_path = child.id.clone();
+                next_placeholder = None;
+                i += 1;
+        } else if !child.exprs.is_empty() {
                 let insert = self.register_import_method("insert");
-                let multi = filtered_children.len() > 1;
+                let multi = check_length(&filtered_children);
 
-                if wrapped_by_text(&immutable_child_nodes, index) {
-                    let (expr_id, content_id) = if let Some(placeholder) = next_placeholder {
-                        (placeholder, None)
+                if wrapped_by_text(&child_nodes, index) {
+                    let expr_id;
+                    let mut content_id = None;
+                    if let Some(placeholder) = next_placeholder.clone() {
+                        expr_id = placeholder;
                     } else {
-                        create_placeholder(results, &temp_path, index, "")
-                    };
+                        (expr_id, content_id) = create_placeholder(results, &temp_path, i, "");
+                        i+=1;
+                    }
                     next_placeholder = Some(expr_id.clone());
                     results.exprs.push(Expr::Call(CallExpr {
                         span: DUMMY_SP,
@@ -1518,7 +1498,7 @@ where
                                 },
                                 ExprOrSpread {
                                     spread: None,
-                                    expr: child1.exprs[0].clone().into(),
+                                    expr: child.exprs[0].clone().into(),
                                 },
                                 ExprOrSpread {
                                     spread: None,
@@ -1534,7 +1514,7 @@ where
                                 },
                                 ExprOrSpread {
                                     spread: None,
-                                    expr: child1.exprs[0].clone().into(),
+                                    expr: child.exprs[0].clone().into(),
                                 },
                                 ExprOrSpread {
                                     spread: None,
@@ -1556,9 +1536,9 @@ where
                             },
                             ExprOrSpread {
                                 spread: None,
-                                expr: child1.exprs[0].clone().into(),
+                                expr: child.exprs[0].clone().into(),
                             },
-                            next_child(&immutable_child_nodes, index)
+                            next_child(&child_nodes, index)
                                 .unwrap_or(Expr::Lit(Lit::Null(Null { span: DUMMY_SP })))
                                 .into(),
                         ],
@@ -1575,7 +1555,7 @@ where
                             },
                             ExprOrSpread {
                                 spread: None,
-                                expr: child1.exprs[0].clone().into(),
+                                expr: child.exprs[0].clone().into(),
                             },
                         ],
                         type_args: Default::default(),
@@ -1584,8 +1564,28 @@ where
             } else {
                 next_placeholder = None;
             }
+        });
+
+    }
+}
+
+fn find_last_element(children: &Vec<JSXElementChild>) -> i32{
+    let mut last_element = -1i32;
+    for i in (0i32..children.len() as i32).rev() {
+        let child = &children[i as usize];
+        if matches!(child, JSXElementChild::JSXText(_)) || get_static_expression(child).is_some() {
+            last_element = i;
+            break;
+        }
+        if let JSXElementChild::JSXElement(element) = child {
+            let tag_name = get_tag_name(element);
+            if !is_component(&tag_name) {
+                last_element = i;
+                break;
+            }
         }
     }
+    return last_element;
 }
 
 fn create_placeholder(
@@ -1596,7 +1596,7 @@ fn create_placeholder(
 ) -> (Ident, Option<ExprOrSpread>) {
     let expr_id = Ident::new("_el$".into(), DUMMY_SP);
     results.template += "<!>";
-    results.decl.decls.push(VarDeclarator {
+    results.declarations.push(VarDeclarator {
         span: DUMMY_SP,
         name: Pat::Ident(expr_id.clone().into()),
         init: Some(Box::new(Expr::Member(MemberExpr {
@@ -1615,7 +1615,7 @@ fn create_placeholder(
     });
     (expr_id, None)
 }
-fn next_child(child_nodes: &[ImmutableChildTemplateInstantiation], index: usize) -> Option<Expr> {
+fn next_child(child_nodes: &Vec<TemplateInstantiation>, index: usize) -> Option<Expr> {
     if index + 1 < child_nodes.len() {
         child_nodes[index + 1]
             .id
@@ -1629,15 +1629,11 @@ fn next_child(child_nodes: &[ImmutableChildTemplateInstantiation], index: usize)
 fn detect_expressions(children: &[&JSXElementChild], index: usize) -> bool {
     if index > 0 {
         let node = &children[index - 1];
-        if let JSXElementChild::JSXExprContainer(JSXExprContainer {
-            expr: JSXExpr::Expr(expr),
-            ..
-        }) = node
-        {
-            if get_static_expression(expr).is_none() {
-                return true;
-            }
+
+        if get_static_expression(node).is_none() {
+            return true;
         }
+
         if let JSXElementChild::JSXElement(e) = node {
             let tag_name = get_tag_name(e);
             if is_component(&tag_name) {
@@ -1646,14 +1642,8 @@ fn detect_expressions(children: &[&JSXElementChild], index: usize) -> bool {
         }
     }
     for child in children.iter().skip(index) {
-        if let JSXElementChild::JSXExprContainer(JSXExprContainer {
-            expr: JSXExpr::Expr(expr),
-            ..
-        }) = child
-        {
-            if get_static_expression(expr).is_none() {
-                return true;
-            }
+        if get_static_expression(child).is_none() {
+            return true;
         }
         if let JSXElementChild::JSXElement(e) = child {
             let tag_name = get_tag_name(e);

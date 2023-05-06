@@ -37,21 +37,21 @@ where
                 ..Default::default()
             }
         };
-        let mut result = self.transform_node(node, &info);
-        return self.create_template(&mut result, false);
+        let result = self.transform_node(node, &info);
+        return self.create_template(&mut result.unwrap(), false);
     }
 
     // todo!
-    pub fn transform_node(&mut self, node: &JSXElementChild, info: &TransformInfo) -> TemplateInstantiation {
+    pub fn transform_node(&mut self, node: &JSXElementChild, info: &TransformInfo) -> Option<TemplateInstantiation> {
         // let config = &self.config;
         match node {
-            JSXElementChild::JSXElement(node) => self.transform_element(node,info),
+            JSXElementChild::JSXElement(node) => {return Some(self.transform_element(node,info))},
             JSXElementChild::JSXFragment(node) => {
                 let mut results = TemplateInstantiation::default();
                 self.transform_fragment_children(&node.children, &mut results);
-                results
-            }
-            _ => panic!()
+                return Some(results);
+            },
+            _ => return None
         }
     }
 
@@ -118,11 +118,11 @@ where
             JSXElementChild::JSXText(node) => {
                 self.transform_text_child(node.value.to_string(), info)
             }
-            JSXElementChild::JSXExprContainer(node) => {
+            con @ JSXElementChild::JSXExprContainer(node) => {
                 match &node.expr {
                     JSXExpr::JSXEmptyExpr(_) => None,
                     JSXExpr::Expr(expr) => {
-                        if let Some(evaluated) = get_static_expression(expr) {
+                        if let Some(evaluated) = get_static_expression(con) {
                             if !info.component_child {
                                 return self.transform_text_child(evaluated, info);
                             }
