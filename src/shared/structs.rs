@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use swc_core::{common::{comments::Comments, DUMMY_SP}, ecma::{ast::*, utils::private_ident}};
+use swc_core::{common::comments::Comments, ecma::{ast::*, utils::private_ident}};
 
 use crate::config::Config;
 
@@ -26,7 +26,6 @@ pub struct TemplateInstantiation {
     pub declarations: Vec<VarDeclarator>,
     pub id: Option<Ident>,
     pub tag_name: String,
-    pub decl: VarDecl,
     pub exprs: Vec<Expr>,
     pub dynamics: Vec<DynamicAttr>,
     pub post_exprs: Vec<Expr>,
@@ -46,12 +45,6 @@ impl Default for TemplateInstantiation {
             declarations: vec![],
             id: None,
             tag_name: "".to_owned(),
-            decl: VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Const,
-                declare: false,
-                decls: vec![],
-            },
             exprs: vec![],
             dynamics: vec![],
             post_exprs: vec![],

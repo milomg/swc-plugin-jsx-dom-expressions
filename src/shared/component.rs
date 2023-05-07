@@ -280,12 +280,6 @@ where
             template: "".into(),
             declarations: vec![], //
             tag_name: "".into(),
-            decl: VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Const,
-                declare: false,
-                decls: vec![],
-            },
             exprs: if exprs.len() > 1 {
                 let ret = exprs.pop();
                 let mut stmts: Vec<Stmt> = exprs

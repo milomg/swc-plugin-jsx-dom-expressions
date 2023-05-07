@@ -22,9 +22,9 @@ where
             if result.exprs.is_empty()
                 && result.dynamics.is_empty()
                 && result.post_exprs.is_empty()
-                && result.decl.decls.len() == 1
+                && result.declarations.len() == 1
             {
-                return *result.decl.decls[0].init.clone().unwrap();
+                return *result.declarations[0].init.clone().unwrap();
             } else {
                 return Expr::Call(CallExpr {
                     span: DUMMY_SP,
@@ -34,7 +34,7 @@ where
                         body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
                             span: DUMMY_SP,
                             stmts: [
-                                Stmt::Decl(Decl::Var(Box::new(result.decl.clone())))]
+                                Stmt::Decl(Decl::Var(Box::new(VarDecl { span: DUMMY_SP, kind: VarDeclKind::Const, declare: false, decls: result.declarations.clone() })))]
                                 .into_iter()
                                 .chain(result.exprs.clone().into_iter().map(|x| {
                                     Stmt::Expr(ExprStmt {
@@ -190,13 +190,6 @@ where
 
                 results.declarations.insert(0, decl);
             }
-        }
-
-        results.decl = VarDecl {
-            declare: false,
-            span: DUMMY_SP,
-            kind: VarDeclKind::Const,
-            decls: results.declarations.clone()
         }
     }
 

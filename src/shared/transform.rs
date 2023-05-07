@@ -197,12 +197,6 @@ where
             declarations: vec![], //
             id: None,
             tag_name: "".into(),
-            decl: VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Const,
-                declare: false,
-                decls: vec![],
-            },
             exprs: vec![],
             post_exprs: vec![],
             dynamics: vec![],
@@ -258,12 +252,6 @@ where
                                 tag_name: "".into(),
                                 template: "".into(),
                                 declarations: vec![], //
-                                decl: VarDecl {
-                                    span: DUMMY_SP,
-                                    kind: VarDeclKind::Const,
-                                    declare: false,
-                                    decls: vec![],
-                                },
                                 exprs: vec![*expr.clone()],
                                 dynamics: vec![],
                                 post_exprs: vec![],
@@ -282,12 +270,6 @@ where
                             tag_name: "".into(),
                             declarations: vec![], //
                             template: "".into(),
-                            decl: VarDecl {
-                                span: DUMMY_SP,
-                                kind: VarDeclKind::Const,
-                                declare: false,
-                                decls: vec![],
-                            },
                             exprs: vec![*expr.clone()],
                             dynamics: vec![],
                             post_exprs: vec![],
@@ -317,12 +299,6 @@ where
                     tag_name: "".into(),
                     template: "".into(),
                     declarations: vec![], //
-                    decl: VarDecl {
-                        span: DUMMY_SP,
-                        kind: VarDeclKind::Const,
-                        declare: false,
-                        decls: vec![],
-                    },
                     exprs: vec![expr],
                     dynamics: vec![],
                     post_exprs: vec![],
@@ -354,12 +330,6 @@ where
                 tag_name: "".into(),
                 declarations: vec![], //
                 template: text,
-                decl: VarDecl {
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Const,
-                    declare: false,
-                    decls: vec![],
-                },
                 exprs: vec![],
                 dynamics: vec![],
                 post_exprs: vec![],

@@ -63,12 +63,6 @@ where
             declarations: vec![], //
             id: None,
             tag_name: tag_name.clone(),
-            decl: VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Const,
-                declare: false,
-                decls: vec![],
-            },
             exprs: vec![],
             dynamics: vec![],
             post_exprs: vec![],
@@ -816,7 +810,7 @@ where
                     let ref_ident = self.generate_uid_identifier("_ref$");
                     let el_ident = results.id.clone().unwrap();
                     if !is_function && is_l_val(exp) {
-                        results.decl.decls.insert(0, VarDeclarator {
+                        results.declarations.insert(0, VarDeclarator {
                             span:DUMMY_SP,
                             name:Pat::Ident(BindingIdent{id:ref_ident.clone(),type_ann:None}), 
                             init: Some(exp.clone()), 
@@ -869,7 +863,7 @@ where
                             type_args: None 
                         }));
                     } else if matches!(**exp, Expr::Call(_)) {
-                        results.decl.decls.insert(0, VarDeclarator {
+                        results.declarations.insert(0, VarDeclarator {
                             span:DUMMY_SP,
                             name:Pat::Ident(BindingIdent{id:ref_ident.clone(),type_ann:None}), 
                             init: Some(exp.clone()), 

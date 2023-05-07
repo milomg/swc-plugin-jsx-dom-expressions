@@ -7,8 +7,7 @@ const Child = (props)=>{
     const [s, set] = createSignal();
     return [
         (()=>{
-            const _el$ = _tmpl$(), _el$2 = _el$.firstChild;
-            const _ref$ = props.ref;
+            const _el$ = _tmpl$(), _ref$ = props.ref, _el$2 = _el$.firstChild;
             typeof _ref$ === "function" ? _$use(_ref$, _el$) : props.ref = _el$;
             _$insert(_el$, ()=>props.name, null);
             return _el$;
