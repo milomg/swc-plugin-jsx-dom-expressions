@@ -96,7 +96,7 @@ where
                     }
                     let mut expr = vec![];
                     if self.config.wrap_conditionals &&( matches!(**exp, Expr::Bin(_)) || matches!(**exp, Expr::Cond(_)) ) {
-                        let mut result = self.transform_condition(*exp.clone(), info.component_child, false);
+                        let result = self.transform_condition(*exp.clone(), info.component_child, false);
                         match result {
                             (Some(stmt0), ex1) => {
                                 expr = vec![Expr::Call(CallExpr { 

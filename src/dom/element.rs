@@ -1281,11 +1281,10 @@ where
                 if flag {
                     if dynamic {
                         let id = convert_jsx_identifier(&attr.name);
-                        let mut expr = Box::new(Expr::Invalid(Invalid { span: DUMMY_SP }));
+                        let expr;
                         if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer{expr:JSXExpr::Expr(ref ex),..})) = attr.value {
-                            let mut flag = false;
                             if info.wrap_conditionals && (matches!(**ex, Expr::Bin(_)) || matches!(**ex, Expr::Cond(_))) {
-                                let (_, mut b) = self.transform_condition(*ex.clone(), true, false);
+                                let (_, b) = self.transform_condition(*ex.clone(), true, false);
                                 if let Expr::Arrow(arr) = b {
                                     if let BlockStmtOrExpr::Expr(e) = *arr.body {
                                         expr = e;
@@ -1295,9 +1294,7 @@ where
                                 } else {
                                     panic!("Can't handle this");
                                 }
-                            }
-                            
-                            if !flag {
+                            } else {
                                 expr = Box::new(*ex.clone());
                             }
 
