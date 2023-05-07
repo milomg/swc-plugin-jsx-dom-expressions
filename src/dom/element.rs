@@ -1284,27 +1284,16 @@ where
                         let mut expr = Box::new(Expr::Invalid(Invalid { span: DUMMY_SP }));
                         if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer{expr:JSXExpr::Expr(ref ex),..})) = attr.value {
                             let mut flag = false;
-                            if info.wrap_conditionals {
-                                if let Expr::Bin(_) = **ex {
-                                    flag = true;
-                                } else if let Expr::Cond(_) = **ex {
-                                    flag = true;
-                                }
-                                if flag {
-                                    let mut result = self.transform_condition(*ex.clone(), true, false);
-                                    if let Stmt::Expr(ExprStmt {expr: b,..}) = result.remove(0) {
-                                        if let Expr::Arrow(arr) = *b {
-                                            if let BlockStmtOrExpr::Expr(e) = *arr.body {
-                                                expr = e;
-                                            } else {
-                                                panic!("Can't handle this");
-                                            }
-                                        } else {
-                                            panic!("Can't handle this");
-                                        }
-                                    }else {
+                            if info.wrap_conditionals && (matches!(**ex, Expr::Bin(_)) || matches!(**ex, Expr::Cond(_))) {
+                                let (_, mut b) = self.transform_condition(*ex.clone(), true, false);
+                                if let Expr::Arrow(arr) = b {
+                                    if let BlockStmtOrExpr::Expr(e) = *arr.body {
+                                        expr = e;
+                                    } else {
                                         panic!("Can't handle this");
                                     }
+                                } else {
+                                    panic!("Can't handle this");
                                 }
                             }
                             

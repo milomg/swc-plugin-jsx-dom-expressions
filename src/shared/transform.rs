@@ -97,8 +97,8 @@ where
                     let mut expr = vec![];
                     if self.config.wrap_conditionals &&( matches!(**exp, Expr::Bin(_)) || matches!(**exp, Expr::Cond(_)) ) {
                         let mut result = self.transform_condition(*exp.clone(), info.component_child, false);
-                        if result.len() > 1 {
-                            if let (stmt0,Stmt::Expr(ExprStmt {expr: ex1,..})) = (result.remove(0), result.remove(1)) {
+                        match result {
+                            (Some(stmt0), ex1) => {
                                 expr = vec![Expr::Call(CallExpr { 
                                     span: DUMMY_SP,
                                      callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr { 
@@ -108,7 +108,7 @@ where
                                             stmt0, 
                                             Stmt::Return(ReturnStmt { 
                                                 span: DUMMY_SP, 
-                                                arg: Some(Box::new(*ex1)) })] 
+                                                arg: Some(Box::new(ex1)) })] 
                                             })), 
                                         is_async: false, 
                                         is_generator: false, 
@@ -117,13 +117,10 @@ where
                                      args: vec![], 
                                      type_args: None
                                 })];
-                            } else {
-                                unimplemented!();
+                            },
+                            (None, ex0) => {
+                                expr = vec![ex0]
                             }
-                        } else if let Stmt::Expr(ExprStmt {expr: ex0,..}) = result.remove(0) {
-                            expr = vec![*ex0.clone()]
-                        } else {
-                            unimplemented!();
                         }
                     } else {
                         let mut flag = false;
