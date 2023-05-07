@@ -258,10 +258,7 @@ where
                         args: vec![], 
                         type_args: None }))
                 } else {
-                    (
-                        Some(stmt1),
-                        expr2
-                    )
+                    (Some(stmt1), expr2)
                 };
             }
         }
