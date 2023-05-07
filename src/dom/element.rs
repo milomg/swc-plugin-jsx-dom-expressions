@@ -60,19 +60,11 @@ where
         let is_custom_element = tag_name.contains('-');
         let mut results = TemplateInstantiation {
             template: format!("<{}", tag_name),
-            declarations: vec![], //
-            id: None,
             tag_name: tag_name.clone(),
-            exprs: vec![],
-            dynamics: vec![],
-            post_exprs: vec![],
             is_svg: wrap_svg,
             is_void: void_tag,
             has_custom_element: is_custom_element,
-            text: false,
-            dynamic: false,
-            to_be_closed: HashSet::new(),
-            skip_template: false
+            ..Default::default()
         };
         if wrap_svg {
             results.template = "<svg>".to_string() + results.template.as_str();

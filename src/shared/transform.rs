@@ -192,21 +192,7 @@ where
         self.transform_element(node, &Default::default())
     }
     pub fn transform_jsx_fragment(&mut self, _: &JSXFragment) -> TemplateInstantiation {
-        TemplateInstantiation {
-            template: "".into(),
-            declarations: vec![], //
-            id: None,
-            tag_name: "".into(),
-            exprs: vec![],
-            post_exprs: vec![],
-            dynamics: vec![],
-            is_svg: false,
-            is_void: false,
-            has_custom_element: false,
-            text: false,
-            dynamic: false,
-            ..Default::default()
-        }
+        Default::default()
     }
 
     pub fn transform_element(
@@ -248,35 +234,13 @@ where
                         if !is_dynamic(expr, true, info.component_child, true, info.component_child)
                         {
                             return Some(TemplateInstantiation {
-                                id: None,
-                                tag_name: "".into(),
-                                template: "".into(),
-                                declarations: vec![], //
                                 exprs: vec![*expr.clone()],
-                                dynamics: vec![],
-                                post_exprs: vec![],
-                                has_custom_element: false,
-                                is_svg: false,
-                                is_void: false,
-                                text: false,
-                                dynamic: false,
                                 ..Default::default()
                             });
                         }
 
-                        // let expr = expr;
                         Some(TemplateInstantiation {
-                            id: None,
-                            tag_name: "".into(),
-                            declarations: vec![], //
-                            template: "".into(),
                             exprs: vec![*expr.clone()],
-                            dynamics: vec![],
-                            post_exprs: vec![],
-                            has_custom_element: false,
-                            is_svg: false,
-                            is_void: false,
-                            text: false,
                             dynamic: true,
                             ..Default::default()
                         })
@@ -295,17 +259,7 @@ where
                     return_type: None,
                 });
                 Some(TemplateInstantiation {
-                    id: None,
-                    tag_name: "".into(),
-                    template: "".into(),
-                    declarations: vec![], //
                     exprs: vec![expr],
-                    dynamics: vec![],
-                    post_exprs: vec![],
-                    has_custom_element: false,
-                    is_svg: false,
-                    is_void: false,
-                    text: false,
                     dynamic: true,
                     ..Default::default()
                 })
@@ -327,17 +281,8 @@ where
                 } else {
                     Some(private_ident!("el$"))
                 },
-                tag_name: "".into(),
-                declarations: vec![], //
                 template: text,
-                exprs: vec![],
-                dynamics: vec![],
-                post_exprs: vec![],
-                has_custom_element: false,
-                is_svg: false,
-                is_void: false,
                 text: true,
-                dynamic: false,
                 ..Default::default()
             })
         }

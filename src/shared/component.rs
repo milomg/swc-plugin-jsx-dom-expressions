@@ -277,9 +277,6 @@ where
         );
 
         TemplateInstantiation {
-            template: "".into(),
-            declarations: vec![], //
-            tag_name: "".into(),
             exprs: if exprs.len() > 1 {
                 let ret = exprs.pop();
                 let mut stmts: Vec<Stmt> = exprs
@@ -323,14 +320,6 @@ where
             } else {
                 exprs
             },
-            dynamics: vec![],
-            post_exprs: vec![],
-            is_svg: false,
-            is_void: false,
-            id: None,
-            has_custom_element: false,
-            text: false,
-            dynamic: false,
             ..Default::default()
         }
     }

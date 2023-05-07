@@ -20,7 +20,7 @@ pub struct DynamicAttr {
     pub tag_name: String
 }
 
-#[derive(Debug)]
+#[derive(Debug,Default)]
 pub struct TemplateInstantiation {
     pub template: String,
     pub declarations: Vec<VarDeclarator>,
@@ -36,27 +36,6 @@ pub struct TemplateInstantiation {
     pub dynamic: bool,
     pub to_be_closed: HashSet<String>,
     pub skip_template: bool
-}
-
-impl Default for TemplateInstantiation {
-    fn default() -> Self { 
-        TemplateInstantiation {
-            template: "".to_owned(),
-            declarations: vec![],
-            id: None,
-            tag_name: "".to_owned(),
-            exprs: vec![],
-            dynamics: vec![],
-            post_exprs: vec![],
-            is_svg: false,
-            is_void: false,
-            has_custom_element: false,
-            text: false,
-            dynamic: false,
-            to_be_closed: HashSet::new(),
-            skip_template: false
-        }
-    }
 }
 
 pub struct TransformVisitor<C>
