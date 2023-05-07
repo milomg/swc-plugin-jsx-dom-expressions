@@ -8,7 +8,7 @@ use swc_core::{
     common::{comments::Comments, Span, DUMMY_SP},
     ecma::{
         ast::*,
-        utils::{prepend_stmt, private_ident},
+        utils::{prepend_stmt, private_ident, quote_ident},
     },
 };
 
@@ -194,7 +194,7 @@ where
             return None;
         }
 
-        let effect_wrapper_id = self.register_import_method("effect");
+        let effect_wrapper_id = self.register_import_method(&self.config.effect_wrapper.clone());
 
         if dynamics.len() == 1 {
             let prev_value = if dynamics[0].key == "classList" || dynamics[0].key == "style" {
@@ -241,7 +241,7 @@ where
                                     &dynamics[0].elem,
                                     &dynamics[0].key,
                                     &dynamics[0].value,
-                                    &AttrOptions {is_svg:dynamics[0].is_svg,is_ce:dynamics[0].is_ce,dynamic:true,prev_id:prev_value, tag_name: "".to_string() },
+                                    &AttrOptions {is_svg:dynamics[0].is_svg,is_ce:dynamics[0].is_ce,dynamic:true,prev_id:prev_value.map(|v| Expr::Ident(v)), tag_name: dynamics[0].tag_name.clone() },
                                 ),
                             )),
                             args: vec![],
@@ -290,37 +290,39 @@ where
             });
 
             if dynamic.key == "classList" || dynamic.key == "style" {
-                let _prev = Expr::Member(MemberExpr {
+                let prev = Expr::Member(MemberExpr {
                     span: Default::default(),
-                    obj: (Box::new(Expr::Ident(prev_id.clone()))),
+                    obj: Box::new(Expr::Ident(prev_id.clone())),
                     prop: MemberProp::Ident(identifier.clone()),
                 });
                 statements.push(Stmt::Expr(ExprStmt {
                     span: Default::default(),
                     expr: Box::new(Expr::Assign(AssignExpr {
                         span: Default::default(),
-                        left: PatOrExpr::Pat(Box::new(Pat::Ident(BindingIdent {
-                            id: identifier.clone(),
-                            type_ann: None,
-                        }))),
+                        left: PatOrExpr::Expr(Box::new(prev.clone())),
                         op: AssignOp::Assign,
                         right: Box::new(
                             self.set_attr(
                                 &dynamic.elem,
                                 &dynamic.key,
-                                &dynamic.value,
+                                &Expr::Ident(identifier),
                                 &AttrOptions {
                                     is_svg: dynamic.is_svg,
                                     is_ce: dynamic.is_ce,
+                                    tag_name: dynamic.tag_name.clone(),
                                     dynamic: true,
-                                    prev_id: Some(prev_id.clone()),
-                                    tag_name: "".to_string()
+                                    prev_id: Some(prev)
                                 },
                             ),
                         ),
                     })),
                 }));
             } else {
+                let prev = if dynamic.key.starts_with("style:") {
+                    Expr::Ident(identifier.clone())
+                } else {
+                    Expr::Ident(quote_ident!("undefined"))
+                };
                 statements.push(Stmt::Expr(ExprStmt {
                     span: Default::default(),
                     expr: Box::new(Expr::Bin(BinExpr {
@@ -338,28 +340,24 @@ where
                         op: BinaryOp::LogicalAnd,
                         right: Box::new(
                             self.set_attr(
-                                
                                 &dynamic.elem,
                                 &dynamic.key,
                                 &Expr::Assign(AssignExpr {
                                     span: Default::default(),
-                                    left: PatOrExpr::Pat(Box::new(Pat::Ident(BindingIdent {
-                                        id: identifier.clone(),
-                                        type_ann: None,
+                                    left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr { 
+                                        span: DUMMY_SP, 
+                                        obj: Box::new(Expr::Ident(prev_id.clone())), 
+                                        prop: MemberProp::Ident(identifier.clone())
                                     }))),
                                     op: AssignOp::Assign,
-                                    right: Box::new(Expr::Member(MemberExpr {
-                                        span: Default::default(),
-                                        obj: Box::new(Expr::Ident(prev_id.clone())),
-                                        prop: MemberProp::Ident(identifier.clone()),
-                                    })),
+                                    right: Box::new(Expr::Ident(identifier)),
                                 }),
                                 &AttrOptions {
                                     is_svg: dynamic.is_svg,
                                     is_ce: dynamic.is_ce,
+                                    tag_name: "".to_string(),
                                     dynamic: true,
-                                    prev_id: None,
-                                    tag_name: "".to_string()
+                                    prev_id: Some(prev)
                                 },
                             ),
                         ),
@@ -414,7 +412,7 @@ where
                             .map(|id| {
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                                     key: PropName::Ident(id.clone()),
-                                    value: Box::new(Expr::Ident(id)),
+                                    value: Box::new(Expr::Ident(quote_ident!("undefined"))),
                                 })))
                             })
                             .collect(),

@@ -212,7 +212,7 @@ where
                         expr: Box::new(Expr::Ident(quote_ident!(name.clone())))
                     },ExprOrSpread {
                         spread: None,
-                        expr: Box::new(options.prev_id.clone().map_or(value.clone(), |v| Expr::Ident(v)))
+                        expr: Box::new(options.prev_id.clone().unwrap_or(value.clone()))
                     }], 
                     type_args: None
                 })), 
@@ -288,7 +288,7 @@ where
                     expr: Box::new(value.clone())
                 },ExprOrSpread {
                     spread: None,
-                    expr: Box::new(Expr::Ident(prev_id))
+                    expr: Box::new(prev_id)
                 }]),
                 type_args: None, 
             });
@@ -327,7 +327,7 @@ where
                     expr: Box::new(value.clone())
                 },ExprOrSpread {
                     spread: None,
-                    expr: Box::new(Expr::Ident(prev_id))
+                    expr: Box::new(prev_id)
                 }]),
                 type_args: None, 
             });
@@ -414,7 +414,7 @@ where
 pub struct AttrOptions {
     pub is_svg: bool,
     pub dynamic: bool,
-    pub prev_id: Option<Ident>,
+    pub prev_id: Option<Expr>,
     pub is_ce: bool,
     pub tag_name: String
 }
