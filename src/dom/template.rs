@@ -122,20 +122,16 @@ where
                                         .into(),
                                 ),
                             },
-                            // ExprOrSpread { // todo
-                            //     spread: None,
-                            //     expr: Box::new(Expr::Lit(Lit::Num(Number {
-                            //         span: DUMMY_SP,
-                            //         value: template.tag_count,
-                            //         raw: None,
-                            //     }))),
-                            // },
                         ];
-                        if template.is_svg {
+                        if template.is_svg || template.is_ce {
                             args.push(ExprOrSpread {
                                 spread: None,
-                                expr: Box::new(Expr::Lit(true.into())),
-                            })
+                                expr: Box::new(Expr::Lit(template.is_ce.into())),
+                            });
+                            args.push(ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Lit(template.is_svg.into())),
+                            });
                         }
                         VarDeclarator {
                             span: DUMMY_SP,
