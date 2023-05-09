@@ -47,9 +47,9 @@ const template = (props)=>{
                 typeof _ref$4 === "function" ? _ref$4(r$) : props.ref = r$;
             },
             get children () {
-                const _el$7 = _tmpl$2();
-                _$insert(_el$7, content);
-                return _el$7;
+                const _el$6 = _tmpl$2();
+                _$insert(_el$6, content);
+                return _el$6;
             }
                 
         })), null);

@@ -1395,7 +1395,7 @@ where
                 let transformed = self.transform_node(child, &TransformInfo { 
                     to_be_closed: Some(results.to_be_closed.clone()),
                     last_element: index == last_element as usize,
-                    skip_id: results.id.is_none() || !detect_expressions(&filtered_children, index),
+                    skip_id: results.id.is_none() || !self.detect_expressions(&filtered_children, index),
                     ..Default::default()
                  });
 
@@ -1569,6 +1569,68 @@ where
         });
         (expr_id, None)
     }
+
+    fn detect_expressions(&self,children: &[&JSXElementChild], index: usize) -> bool {
+        if index > 0 {
+            let node = &children[index - 1];
+    
+            if matches!(node, JSXElementChild::JSXExprContainer(JSXExprContainer { expr: JSXExpr::Expr(_),.. })) && get_static_expression(node).is_none() {
+                return true;
+            }
+    
+            if let JSXElementChild::JSXElement(e) = node {
+                let tag_name = get_tag_name(e);
+                if is_component(&tag_name) {
+                    return true;
+                }
+            }
+        }
+        for child in children.iter().skip(index) {
+            if let JSXElementChild::JSXExprContainer(JSXExprContainer { expr, .. }) = child {
+                if !matches!(expr, JSXExpr::JSXEmptyExpr(_)) && get_static_expression(child).is_none() {
+                    return true;
+                }
+            } else if let JSXElementChild::JSXElement(e) = child {
+                let tag_name = get_tag_name(e);
+                if is_component(&tag_name) {
+                    return true;
+                }
+                if self.config.context_to_custom_elements && (tag_name == "slot" || tag_name.contains("-")) {
+                    return true;
+                }
+                if e.opening.attrs.iter().any(|attr| match attr {
+                    JSXAttrOrSpread::SpreadElement(_) => true,
+                    JSXAttrOrSpread::JSXAttr(attr) => {
+                        (match &attr.name {
+                            JSXAttrName::Ident(i) => ["textContent", "innerHTML", "innerText"]
+                                .contains(&i.to_string().as_str()),
+                            JSXAttrName::JSXNamespacedName(n) => n.ns.to_string() == "use",
+                        } || (if let Some(JSXAttrValue::JSXExprContainer(expr)) = &attr.value {
+                            if let JSXExpr::Expr(expr) = &expr.expr {
+                                !matches!(**expr, Expr::Lit(Lit::Str(_)) | Expr::Lit(Lit::Num(_)))
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }))
+                    }
+                }) {
+                    return true;
+                }
+                let next_children = e
+                    .children
+                    .iter()
+                    .filter(|c| filter_children(c))
+                    .collect::<Vec<&JSXElementChild>>();
+                if !next_children.is_empty() && self.detect_expressions(&next_children, 0) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    
 }
 
 fn find_last_element(children: &Vec<JSXElementChild>) -> i32{
@@ -1600,60 +1662,4 @@ fn next_child(child_nodes: &Vec<TemplateInstantiation>, index: usize) -> Option<
     } else {
         None
     }
-}
-fn detect_expressions(children: &[&JSXElementChild], index: usize) -> bool {
-    if index > 0 {
-        let node = &children[index - 1];
-
-        if get_static_expression(node).is_none() {
-            return true;
-        }
-
-        if let JSXElementChild::JSXElement(e) = node {
-            let tag_name = get_tag_name(e);
-            if is_component(&tag_name) {
-                return true;
-            }
-        }
-    }
-    for child in children.iter().skip(index) {
-        if get_static_expression(child).is_none() {
-            return true;
-        }
-        if let JSXElementChild::JSXElement(e) = child {
-            let tag_name = get_tag_name(e);
-            if is_component(&tag_name) {
-                return true;
-            }
-            if e.opening.attrs.iter().any(|attr| match attr {
-                JSXAttrOrSpread::SpreadElement(_) => true,
-                JSXAttrOrSpread::JSXAttr(attr) => {
-                    (match &attr.name {
-                        JSXAttrName::Ident(i) => ["textContent", "innerHTML", "innerText"]
-                            .contains(&i.to_string().as_str()),
-                        JSXAttrName::JSXNamespacedName(n) => n.ns.to_string() == "use",
-                    } || (if let Some(JSXAttrValue::JSXExprContainer(expr)) = &attr.value {
-                        if let JSXExpr::Expr(expr) = &expr.expr {
-                            !matches!(**expr, Expr::Lit(Lit::Str(_)) | Expr::Lit(Lit::Num(_)))
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }))
-                }
-            }) {
-                return true;
-            }
-            let next_children = e
-                .children
-                .iter()
-                .filter(|c| filter_children(c))
-                .collect::<Vec<&JSXElementChild>>();
-            if !next_children.is_empty() && detect_expressions(&next_children, 0) {
-                return true;
-            }
-        }
-    }
-    false
 }
