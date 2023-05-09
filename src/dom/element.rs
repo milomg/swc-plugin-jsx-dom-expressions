@@ -1098,7 +1098,7 @@ where
                             }], 
                             type_args: None 
                         }));
-                        return;
+                        continue;
                     }
                     if key == "textContent" {
                         next_elem = self.generate_uid_identifier("el$");
@@ -1183,7 +1183,7 @@ where
                         }
                         results.template += &format!(r#"="{}""#, escape_backticks(&escape_html(&text, true)));
                     } else {
-                        return;
+                        continue;
                     }
                 }
             }
@@ -1280,7 +1280,7 @@ where
                 }
                 if flag {
                     if dynamic {
-                        let id = convert_jsx_identifier(&attr.name);
+                        let (id, _ ) = convert_jsx_identifier(&attr.name);
                         let expr;
                         if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer{expr:JSXExpr::Expr(ref ex),..})) = attr.value {
                             if info.wrap_conditionals && (matches!(**ex, Expr::Bin(_)) || matches!(**ex, Expr::Cond(_))) {
@@ -1392,7 +1392,6 @@ where
                         results.tag_name
                     );
                 }
-
                 let transformed = self.transform_node(child, &TransformInfo { 
                     to_be_closed: Some(results.to_be_closed.clone()),
                     last_element: index == last_element as usize,

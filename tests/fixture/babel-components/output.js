@@ -1,7 +1,9 @@
 import { use as _$use } from "r-dom";
 import { template as _$template } from "r-dom";
+import { mergeProps as _$mergeProps } from "r-dom";
 import { insert as _$insert } from "r-dom";
-const _tmpl$ = /*#__PURE__*/ _$template(`<div>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<div>`);
+import { createComponent as _$createComponent } from "r-dom";
+const _tmpl$ = /*#__PURE__*/ _$template(`<div>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<div>`), _tmpl$3 = /*#__PURE__*/ _$template(`<div>From Parent`);
 import { Show } from "somewhere";
 const Child = (props)=>{
     const [s, set] = createSignal();
@@ -13,10 +15,51 @@ const Child = (props)=>{
             return _el$;
         })(),
         (()=>{
-            const _el$3 = _tmpl$2();
-            _$use(set, _el$3);
-            _$insert(_el$3, ()=>props.children);
+            const _el$3 = _tmpl$2(), _ref$2 = set;
+            typeof _ref$2 === "function" ? _$use(_ref$2, _el$3) : set = _el$3;
+            _$insert(_el$3, ()=>props.children, null);
             return _el$3;
         })()
     ];
+};
+const template = (props)=>{
+    let childRef;
+    const { content  } = props;
+    return (()=>{
+        const _el$4 = _tmpl$2();
+        _$insert(_el$4, _$createComponent(Child, _$mergeProps({
+            name: "John"
+        }, props, {
+            ref (r$) {
+                const _ref$3 = childRef;
+                typeof _ref$3 === "function" ? _ref$3(r$) : childRef = r$;
+            },
+            booleanProperty: true,
+            get children () {
+                return _tmpl$3();
+            }
+        })), null);
+        _$insert(_el$4, _$createComponent(Child, _$mergeProps({
+            name: "Jason"
+        }, dynamicSpread, {
+            ref (r$) {
+                const _ref$4 = props.ref;
+                typeof _ref$4 === "function" ? _ref$4(r$) : props.ref = r$;
+            },
+            get children () {
+                const _el$7 = _tmpl$2();
+                _$insert(_el$7, content);
+                return _el$7;
+            }
+                
+        })), null);
+        _$insert(_el$4, _$createComponent(Context.Consumer, {
+            ref (r$) {
+                const _ref$5 = props.consumerRef();
+                typeof _ref$5 === "function" && _ref$5(r$);
+            },
+            children: (context)=>context
+        }), null);
+        return _el$4;
+    })();
 };

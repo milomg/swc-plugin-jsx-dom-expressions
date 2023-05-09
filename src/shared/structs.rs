@@ -22,6 +22,7 @@ pub struct DynamicAttr {
 
 #[derive(Debug,Default)]
 pub struct TemplateInstantiation {
+    pub component: bool,
     pub template: String,
     pub declarations: Vec<VarDeclarator>,
     pub id: Option<Ident>,

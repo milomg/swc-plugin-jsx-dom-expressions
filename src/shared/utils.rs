@@ -385,7 +385,7 @@ pub fn filter_children(c: &JSXElementChild) -> bool {
     }
 }
 
-pub fn convert_jsx_identifier(attr_name: &JSXAttrName) -> PropName {
+pub fn convert_jsx_identifier(attr_name: &JSXAttrName) -> (PropName, String) {
     let name = match &attr_name {
         JSXAttrName::Ident(ident) => ident.sym.to_string(),
         JSXAttrName::JSXNamespacedName(name) => {
@@ -393,12 +393,12 @@ pub fn convert_jsx_identifier(attr_name: &JSXAttrName) -> PropName {
         }
     };
     match Ident::verify_symbol(&name) {
-        Ok(_) => PropName::Ident(Ident::new(name.clone().into(), DUMMY_SP)),
-        Err(_) => PropName::Str(Str {
+        Ok(_) => (PropName::Ident(Ident::new(name.clone().into(), DUMMY_SP)), name),
+        Err(_) => (PropName::Str(Str {
             span: DUMMY_SP,
             value: name.clone().into(),
             raw: None,
-        }),
+        }), name),
     }
 }
 
