@@ -1,7 +1,7 @@
 
 use crate::{TransformVisitor, shared::utils::is_l_val};
 
-use super::{structs::TemplateInstantiation, transform::TransformInfo, utils::{is_dynamic, convert_jsx_identifier, filter_children, trim_whitespace}};
+use super::{structs::TemplateInstantiation, transform::TransformInfo, utils::{convert_jsx_identifier, filter_children, trim_whitespace}};
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::{ast::*, utils::quote_ident},
@@ -46,7 +46,7 @@ where
                         running_objects = vec![];
                     }
 
-                    let expr = if is_dynamic(&node.expr, true, false, true, false) {
+                    let expr = if self.is_dynamic(&node.expr, None, true, false, true, false) {
                         dynamic_spread = true;
                         match *node.expr.clone() {
                             Expr::Call(CallExpr {
@@ -84,7 +84,7 @@ where
                     match attr.value.clone() {
                         Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
                             expr: JSXExpr::Expr(expr),
-                            ..
+                            span
                         })) => {
                             if key == "ref" {
                                 let expr = {
@@ -171,7 +171,7 @@ where
                                             type_params: None, 
                                             return_type: None })
                                     }));
-                                } else if is_function || matches!(expr, Expr::Fn(_)) {
+                                } else if is_function || matches!(expr, Expr::Fn(_) | Expr::Arrow(_)) {
                                     running_objects.push(Prop::KeyValue(KeyValueProp { 
                                         key: PropName::Ident(quote_ident!("ref")), 
                                         value: Box::new(expr) 
@@ -234,7 +234,7 @@ where
                                             return_type: None })
                                     }));
                                 }
-                            } else if is_dynamic(&expr, true, true, true, false) {
+                            } else if self.is_dynamic(&expr, Some(span), true, true, true, false) {
                                 let mut exp;
                                 if self.config.wrap_conditionals && (matches!(*expr, Expr::Bin(_)) || matches!(*expr, Expr::Cond(_))) {
                                     (_, exp) = self.transform_condition(*expr.clone(), true, false);

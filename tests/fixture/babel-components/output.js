@@ -48,10 +48,9 @@ const template = (props)=>{
             },
             get children () {
                 const _el$6 = _tmpl$2();
-                _$insert(_el$6, content);
+                _$insert(_el$6, content, null);
                 return _el$6;
             }
-                
         })), null);
         _$insert(_el$4, _$createComponent(Context.Consumer, {
             ref (r$) {
@@ -63,3 +62,15 @@ const template = (props)=>{
         return _el$4;
     })();
 };
+const template2 = _$createComponent(Child, {
+    name: "Jake",
+    get dynamic () {
+        return state.data;
+    },
+    stale: state.data,
+    handleClick: clickHandler,
+    get "hyphen-ated" () {
+        return state.data;
+    },
+    ref: (el)=>e = el
+});

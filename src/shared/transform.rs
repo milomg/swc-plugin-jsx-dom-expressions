@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use super::{
     structs::TemplateInstantiation,
-    utils::{get_static_expression, is_dynamic},
+    utils::{get_static_expression},
 };
 use crate::shared::utils::{trim_whitespace, escape_backticks, escape_html};
 pub use crate::shared::{
@@ -88,7 +88,7 @@ where
                     return None;
                 }
                 JSXExpr::Expr(exp) => {
-                    if !is_dynamic(&exp, true, info.component_child, true, !info.component_child) {
+                    if !self.is_dynamic(&exp, None, true, info.component_child, true, !info.component_child) {
                         return Some(TemplateInstantiation {
                             exprs: vec![*exp.clone()],
                             ..Default::default()
@@ -153,7 +153,7 @@ where
                 },
             } 
         } else if let JSXElementChild::JSXSpreadChild(JSXSpreadChild { expr, .. }) = node {
-            if !is_dynamic(expr, true, false, true, !info.component_child) {
+            if !self.is_dynamic(expr, None, true, false, true, !info.component_child) {
                 return Some(TemplateInstantiation {
                     exprs: vec![*expr.clone()],
                     ..Default::default()
@@ -228,7 +228,7 @@ where
                             }
                         }
 
-                        if !is_dynamic(expr, true, info.component_child, true, info.component_child)
+                        if !self.is_dynamic(expr, None, true, info.component_child, true, info.component_child)
                         {
                             return Some(TemplateInstantiation {
                                 exprs: vec![*expr.clone()],

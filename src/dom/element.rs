@@ -7,7 +7,7 @@ use crate::{
             TemplateInstantiation, ProcessSpreadsInfo, DynamicAttr,
         },
         transform::{is_component, TransformInfo},
-        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, is_dynamic, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length, is_l_val},
+        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length, is_l_val},
     },
     TransformVisitor,
 };
@@ -840,7 +840,7 @@ where
                                 right: Box::new(Expr::Ident(el_ident))
                             })) 
                         }));
-                    } else if is_function || matches!(**exp, Expr::Fn(_)) {
+                    } else if is_function || matches!(**exp, Expr::Fn(_) | Expr::Arrow(_)) {
                         results.exprs.insert(1, Expr::Call(CallExpr { 
                             span: DUMMY_SP, 
                             callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("use")))), 
@@ -969,7 +969,7 @@ where
                                 }))),
                                 right: arr_lit.elems[0].clone().unwrap().expr.clone()
                             }))
-                        } else if matches!(**exp, Expr::Fn(_)) || resolveable {
+                        } else if matches!(**exp, Expr::Fn(_) | Expr::Arrow(_)) || resolveable {
                             results.exprs.insert(0, Expr::Assign(AssignExpr { 
                                 span: DUMMY_SP,
                                 op: AssignOp::Assign, 
@@ -1043,7 +1043,7 @@ where
                                 }], 
                                 type_args: None
                             }));
-                        } else if matches!(**exp, Expr::Fn(_)) || resolveable {
+                        } else if matches!(**exp, Expr::Fn(_) | Expr::Arrow(_)) || resolveable {
                             results.exprs.insert(0, Expr::Call(CallExpr { 
                                 span: DUMMY_SP, 
                                 callee: Callee::Expr(Box::new(Expr::Member(MemberExpr { 
@@ -1077,7 +1077,7 @@ where
                             }));
                         }
                     }
-                } else if !self.config.effect_wrapper.is_empty() && (is_dynamic(exp, true, false, true, false) 
+                } else if !self.config.effect_wrapper.is_empty() && (self.is_dynamic(exp, None, true, false, true, false) 
                 ||((key == "classList" || key == "style") /*&& !attribute.get("value").get("expression").evaluate().confident)*/)) {
                     let mut next_elem = elem.clone().unwrap();
                     if key == "value" || key == "checked" {
@@ -1232,7 +1232,7 @@ where
                     running_object = vec![];
                 }
 
-                if is_dynamic(&el.expr, true, false, true, false) {
+                if self.is_dynamic(&el.expr, None, true, false, true, false) {
                     dynamic_spread = true;
                     let mut flag = false;
                     if let Expr::Call(ref c) = *el.expr {
@@ -1272,7 +1272,7 @@ where
                     flag = true;
                 } else {
                     if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer{expr:JSXExpr::Expr(ref expr),..})) = attr.value {
-                        dynamic = is_dynamic(expr, true, false, true, false);
+                        dynamic = self.is_dynamic(expr, None, true, false, true, false);
                         if dynamic && can_native_spread(&key, true) {
                             flag = true
                         }

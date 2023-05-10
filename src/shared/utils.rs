@@ -4,7 +4,7 @@ use crate::TransformVisitor;
 use convert_case::{Case, Converter};
 use regex::Regex;
 use swc_core::{
-    common::{comments::Comments, DUMMY_SP},
+    common::{comments::Comments, DUMMY_SP, Span, BytePos},
     ecma::{
         ast::*,
         utils::{prepend_stmt, private_ident},
@@ -101,9 +101,9 @@ where
         let mut cond= Expr::Invalid(Invalid { span: DUMMY_SP });
         let mut id = Expr::Invalid(Invalid { span: DUMMY_SP });
         if let Expr::Cond(ref mut expr) = node {
-            if is_dynamic(&expr.cons, false, true, true, false) ||
-                is_dynamic(&expr.alt, false, true, true, false) {
-                d_test = is_dynamic(&expr.test, true, false, true, false);
+            if self.is_dynamic(&expr.cons, None, false, true, true, false) ||
+            self.is_dynamic(&expr.alt, None, false, true, true, false) {
+                d_test = self.is_dynamic(&expr.test, None, true, false, true, false);
                 if d_test {
                     cond = (*expr.test).clone();
                     if !matches!(cond, Expr::Bin(_)) {
@@ -159,8 +159,8 @@ where
                 }
             }
             if next_path.op == BinaryOp::LogicalAnd {
-                if is_dynamic(&next_path.right, false, true, true, false) {
-                    d_test = is_dynamic(&next_path.left, true, false, true, false);
+                if self.is_dynamic(&next_path.right, None, false, true, true, false) {
+                    d_test = self.is_dynamic(&next_path.left, None, true, false, true, false);
                 }
             }
             if d_test {
@@ -277,41 +277,56 @@ where
         };
     }
 
-}
+    pub fn is_dynamic(
+        &self,
+        expr: &Expr,
+        span: Option<Span>,
+        check_member: bool,
+        check_tags: bool,
+        check_call_expression: bool,
+        native: bool,
+    ) -> bool {
+        if matches!(expr, Expr::Fn(_) | Expr::Arrow(_)) {
+            return false;
+        }
 
-pub fn is_dynamic(
-    expr: &Expr,
-    check_member: bool,
-    check_tags: bool,
-    check_call_expression: bool,
-    native: bool,
-) -> bool {
-    if matches!(expr, Expr::Fn(_) | Expr::Arrow(_)) {
-        return false;
-    }
+        if let Some(span) = span {
+            let pos = span.lo + BytePos(1);
+            if let Some(mut cmts) = self.comments.take_trailing(pos) {
+                if &cmts[0].text.to_string().trim() == &self.config.static_marker {
+                    cmts.remove(0);
+                    self.comments.add_trailing_comments(pos, cmts);
+                    return false;
+                }
 
-    if match expr {
-        Expr::Call(_) => check_call_expression,
-        Expr::Member(_) => check_member,
-        Expr::Bin(BinExpr {
-            op: BinaryOp::In, ..
-        }) => check_member,
-        Expr::JSXElement(_) => check_tags,
-        Expr::JSXFragment(_) => check_tags,
-        _ => false,
-    } {
-        return true;
-    }
+            }
+        }
+    
+        if match expr {
+            Expr::Call(_) => check_call_expression,
+            Expr::Member(_) => check_member,
+            Expr::OptChain(_) => check_member,
+            Expr::Bin(BinExpr {
+                op: BinaryOp::In, ..
+            }) => check_member,
+            Expr::JSXElement(_) => check_tags,
+            Expr::JSXFragment(_) => check_tags,
+            _ => false,
+        } {
+            return true;
+        }
+    
+        let mut dyn_visitor = DynamicVisitor {
+            check_member,
+            check_tags,
+            check_call_expression,
+            native,
+            dynamic: false,
+        };
+        expr.visit_with(&mut dyn_visitor);
+        dyn_visitor.dynamic
+    }    
 
-    let mut dyn_visitor = DynamicVisitor {
-        check_member,
-        check_tags,
-        check_call_expression,
-        native,
-        dynamic: false,
-    };
-    expr.visit_with(&mut dyn_visitor);
-    dyn_visitor.dynamic
 }
 
 struct DynamicVisitor {
