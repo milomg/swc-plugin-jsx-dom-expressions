@@ -233,3 +233,12 @@ const Template17 = _$createComponent(Pre, {
         ];
     }
 });
+const Template18 = _$createComponent(Pre, {
+    get children() {
+        return [
+            _tmpl$7(),
+            _tmpl$8(),
+            _tmpl$9()
+        ];
+    }
+});
