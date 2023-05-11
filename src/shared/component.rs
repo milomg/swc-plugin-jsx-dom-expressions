@@ -313,6 +313,17 @@ where
                                     if let Some(ExprOrSpread { expr, .. }) = args.first() {
                                         if let Expr::Fn(fun) = &**expr {
                                             fun.function.body.clone()
+                                        } else if let Expr::Arrow(arrow) = &**expr {
+                                            match *arrow.body.clone() {
+                                                BlockStmtOrExpr::BlockStmt(b) => Some(b),
+                                                BlockStmtOrExpr::Expr(ex) => Some(BlockStmt { 
+                                                    span: DUMMY_SP, 
+                                                    stmts: vec![Stmt::Return(ReturnStmt { 
+                                                        span: DUMMY_SP, 
+                                                        arg: Some(ex) 
+                                                    })] 
+                                                }),
+                                            }
                                         } else {
                                             None
                                         }

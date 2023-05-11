@@ -234,11 +234,47 @@ const Template17 = _$createComponent(Pre, {
     }
 });
 const Template18 = _$createComponent(Pre, {
-    get children() {
+    get children () {
         return [
             _tmpl$7(),
             _tmpl$8(),
             _tmpl$9()
         ];
+    }
+});
+const Template19 = _$createComponent(Component, _$mergeProps(()=>s.dynamic()));
+const Template20 = _$createComponent(Component, {
+    get "class" () {
+        return prop.red ? "red" : "green";
+    }
+});
+const template21 = _$createComponent(Component, _$mergeProps(()=>({
+        get [key()] () {
+            return props.value;
+        }
+    })));
+const template22 = _$createComponent(Component, {
+    get passObject () {
+        return {
+            ...a
+        };
+    }
+});
+const template23 = _$createComponent(Component, {
+    get disabled () {
+        return "t" in test;
+    },
+    get children () {
+        return "t" in test && "true";
+    }
+});
+const template24 = _$createComponent(Component, {
+    get children () {
+        return state.dynamic;
+    }
+});
+const template25 = _$createComponent(Component, {
+    get children () {
+        return _tmpl$2();
     }
 });
