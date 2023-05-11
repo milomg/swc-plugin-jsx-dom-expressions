@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use super::{
     structs::TemplateInstantiation,
@@ -11,8 +11,92 @@ pub use crate::shared::{
 };
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
-    ecma::{ast::*, utils::private_ident},
+    ecma::{ast::*, utils::private_ident, visit::{VisitMut, Visit, VisitMutWith, VisitWith}},
 };
+
+pub struct ThisBlockVisitor {
+    uid_identifier_map: HashMap<String, usize>
+}
+
+impl ThisBlockVisitor {
+    pub fn new() -> Self {
+        ThisBlockVisitor { uid_identifier_map: HashMap::new() }
+    }
+
+    pub fn generate_uid_identifier(&mut self, name: &str) -> Ident {
+        let name = if name.starts_with("_") {
+            name.to_string()
+        } else {
+            "_".to_string() + name
+        };
+        if let Some(count) = self.uid_identifier_map.get_mut(&name) {
+            *count = *count + 1;
+            return private_ident!(format!("{name}{count}"));
+        } else {
+            self.uid_identifier_map.insert(name.clone(), 1);
+            return private_ident!(name);
+        }
+    }
+}
+
+impl VisitMut for ThisBlockVisitor {
+
+    fn visit_mut_block_stmt(&mut self, block: &mut BlockStmt) {
+        let mut jsx_visitor = JSXVisitor {has_jsx: false };
+        block.visit_children_with(&mut jsx_visitor);
+        if jsx_visitor.has_jsx {
+            let mut this_block_visitor = ThisVisitor {
+                this_id: None,
+                this_block_visitor: self
+            };
+            block.visit_mut_children_with(&mut this_block_visitor);
+            if let Some(id) = this_block_visitor.this_id {
+                block.stmts.insert(0, Stmt::Decl(Decl::Var(Box::new(VarDecl { 
+                    span: DUMMY_SP, 
+                    kind: VarDeclKind::Const, 
+                    declare: false, 
+                    decls: vec![VarDeclarator { 
+                        span: DUMMY_SP, 
+                        name: Pat::Ident(id.into()), 
+                        init: Some(Box::new(Expr::This(ThisExpr { span: DUMMY_SP }))), 
+                        definite: false
+                    }] 
+                }))))
+            }
+        }
+    }
+
+}
+
+struct JSXVisitor {
+    has_jsx: bool
+}
+impl Visit for JSXVisitor {
+    fn visit_jsx_element(&mut self, _: &JSXElement) {
+        self.has_jsx = true;
+    }
+    fn visit_jsx_fragment(&mut self,_: &JSXFragment) {
+        self.has_jsx = true;
+    }
+}
+
+struct ThisVisitor<'a> {
+    this_id: Option<Ident>,
+    this_block_visitor: &'a mut ThisBlockVisitor
+}
+
+impl VisitMut for ThisVisitor<'_> {
+    fn visit_mut_expr(&mut self,n: &mut Expr) {
+        if let Expr::This(_) = n {
+            if self.this_id.is_none() {
+                self.this_id = Some(self.this_block_visitor.generate_uid_identifier("self$"));
+            }
+            *n = Expr::Ident(self.this_id.clone().unwrap());
+        } else {
+            n.visit_mut_children_with(self);
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct TransformInfo {
@@ -30,7 +114,7 @@ where
     C: Comments,
 {
 
-    pub fn transform_jsx(&mut self, node: &JSXElementChild) -> Expr {
+    pub fn transform_jsx(&mut self, node: &mut JSXElementChild) -> Expr {
         let info = match node {
             JSXElementChild::JSXFragment(_) => Default::default(),
             _ => TransformInfo {

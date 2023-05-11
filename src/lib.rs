@@ -1,4 +1,5 @@
 use config::Config;
+use shared::transform::ThisBlockVisitor;
 use swc_core::{
     common::comments::Comments,
     ecma::{
@@ -23,13 +24,14 @@ where
     }
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
         match expr {
-            Expr::JSXElement(node) => *expr = self.transform_jsx(&JSXElementChild::JSXElement(node.clone())),
-            Expr::JSXFragment(node) => *expr = self.transform_jsx(&JSXElementChild::JSXFragment(node.clone())),
+            Expr::JSXElement(node) => *expr = self.transform_jsx(&mut JSXElementChild::JSXElement(node.clone())),
+            Expr::JSXFragment(node) => *expr = self.transform_jsx(&mut JSXElementChild::JSXFragment(node.clone())),
             _ => {}
         };
         expr.visit_mut_children_with(self);
     }
     fn visit_mut_module(&mut self, module: &mut Module) {
+        module.visit_mut_children_with(&mut ThisBlockVisitor::new());
         module.visit_mut_children_with(self);
 
         self.append_templates(module);
