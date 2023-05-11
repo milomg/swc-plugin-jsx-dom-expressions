@@ -219,3 +219,7 @@ const Template14 = _$createComponent(Component, {
     }
 });
 const Template15 = _$createComponent(Component, props);
+const Template16 = _$createComponent(Component, _$mergeProps({
+        something: something
+    }, props)
+);
