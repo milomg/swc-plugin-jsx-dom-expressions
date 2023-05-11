@@ -19,14 +19,12 @@ where
         let mut dynamic_spread = false;
         let has_children = !node.children.is_empty();
 
-        match &tag_id {
-            Expr::Ident(id) => {
-                // !path.scope.hasBinding(tagId.name)
-                if self.config.built_ins.iter().any(|v| v.as_str() == &id.sym) {
+        if let Expr::Ident(id) = &tag_id {
+            if self.config.built_ins.iter().any(|v| v.as_str() == &id.sym) {
+                if id.span.ctxt.as_u32() == 1 {
                     tag_id = Expr::Ident(self.register_import_method(&id.sym.to_string()));
                 }
-            },
-            _ => {}
+            }
         }
 
         for attribute in &node.opening.attrs {

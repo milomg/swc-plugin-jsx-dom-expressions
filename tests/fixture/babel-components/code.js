@@ -35,3 +35,24 @@ const template2 = (
     ref={el => (e = el)}
   />
 );
+
+const template3 = (
+  <Child>
+    <div />
+    <div />
+    <div />
+    After
+  </Child>
+);
+
+const [s, set] = createSignal();
+const template4 = <Child ref={set}>{<div />}</Child>;
+
+const template5 = <Child dynamic={state.dynamic}>{state.dynamic}</Child>;
+
+// builtIns
+const template6 = (
+  <For each={state.list} fallback={<Loading />}>
+    {item => <Show when={state.condition}>{item}</Show>}
+  </For>
+);

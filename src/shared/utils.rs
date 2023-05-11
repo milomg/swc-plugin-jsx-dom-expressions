@@ -317,11 +317,13 @@ where
         }
     
         let mut dyn_visitor = DynamicVisitor {
+            transform_visitor: self,
             check_member,
             check_tags,
             check_call_expression,
             native,
             dynamic: false,
+            is_stop: false
         };
         expr.visit_with(&mut dyn_visitor);
         dyn_visitor.dynamic
@@ -329,47 +331,112 @@ where
 
 }
 
-struct DynamicVisitor {
+struct DynamicVisitor<'a, C> 
+where
+    C: Comments
+{
+    transform_visitor: &'a TransformVisitor<C>,
     check_member: bool,
     check_tags: bool,
     check_call_expression: bool,
     native: bool,
     dynamic: bool,
+    is_stop: bool
 }
 
-impl Visit for DynamicVisitor {
-    fn visit_function(&mut self, _: &Function) {
-        // https://github.com/ryansolid/dom-expressions/blob/main/packages/babel-plugin-jsx-dom-expressions/src/shared/utils.js#L115-L117
-        // if (t.isObjectMethod(p.node) && p.node.computed) {
-        //   dynamic = isDynamic(p.get("key"), { checkMember, checkTags, checkCallExpressions, native });
-        // }
-        // p.skip();
-        unimplemented!();
+impl<C> Visit for DynamicVisitor<'_, C>
+where
+    C: Comments
+{
+    fn visit_method_prop(&mut self,n: &MethodProp) {
+        // self.dynamic = self.transform_visitor.is_dynamic(&n.function, None, self.check_member, self.check_tags, self.check_call_expression, self.native);
+        self.dynamic = false;
     }
-    fn visit_call_expr(&mut self, _: &CallExpr) {
+    fn visit_function(&mut self, _: &Function) {
+        
+    }
+    fn visit_call_expr(&mut self, c: &CallExpr) {
+        if self.is_stop {
+            return;
+        }
         if self.check_call_expression {
             self.dynamic = true;
+            self.is_stop = true;
+        } else {
+            c.visit_children_with(self);
         }
     }
-    fn visit_member_expr(&mut self, _: &MemberExpr) {
+    fn visit_opt_call(&mut self, c: &OptCall) {
+        if self.is_stop {
+            return;
+        }
+        if self.check_call_expression {
+            self.dynamic = true;
+            self.is_stop = true;
+        } else {
+            c.visit_children_with(self);
+        }
+    }
+    fn visit_member_expr(&mut self, e: &MemberExpr) {
+        if self.is_stop {
+            return;
+        }
         if self.check_member {
             self.dynamic = true;
+            self.is_stop = true;
+        } else {
+            e.visit_children_with(self);
+        }
+    }
+    fn visit_opt_chain_expr(&mut self,e: &OptChainExpr) {
+        if self.is_stop {
+            return;
+        }
+        if self.check_member {
+            self.dynamic = true;
+            self.is_stop = true;
+        } else {
+            e.visit_children_with(self);
+        }
+    }
+    fn visit_spread_element(&mut self,s: &SpreadElement) {
+        if self.is_stop {
+            return;
+        }
+        if self.check_member {
+            self.dynamic = true;
+            self.is_stop = true;
+        } else {
+            s.visit_children_with(self);
         }
     }
     fn visit_bin_expr(&mut self, bin_expr: &BinExpr) {
+        if self.is_stop {
+            return;
+        }
         if self.check_member && bin_expr.op == BinaryOp::In {
             self.dynamic = true;
+            self.is_stop = true;
+        } else {
+            bin_expr.visit_children_with(self);
         }
-        bin_expr.visit_children_with(self);
     }
     fn visit_jsx_element(&mut self, _: &JSXElement) {
+        if self.is_stop {
+            return;
+        }
         if self.check_tags {
             self.dynamic = true;
+            self.is_stop = true;
         }
     }
     fn visit_jsx_fragment(&mut self, _: &JSXFragment) {
+        if self.is_stop {
+            return;
+        }
         if self.check_tags {
             self.dynamic = true;
+            self.is_stop = true;
         }
     }
 }
