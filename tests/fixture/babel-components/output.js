@@ -127,3 +127,11 @@ const template7 = _$createComponent(Child, {
         ];
     }
 });
+const template8 = _$createComponent(Child, {
+    get children () {
+        return [
+            (item) => item,
+            (item) => item
+        ];
+    }
+});
