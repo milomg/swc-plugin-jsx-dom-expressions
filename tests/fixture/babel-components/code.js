@@ -124,3 +124,5 @@ class Template13 {
 }
 
 const Template14 = <Component>{data()}</Component>;
+
+const Template15 = <Component {...props}/>

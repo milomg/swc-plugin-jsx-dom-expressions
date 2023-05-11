@@ -7,31 +7,31 @@ import { createComponent as _$createComponent } from "r-dom";
 import { For as _$For } from "r-dom";
 const _tmpl$ = /*#__PURE__*/ _$template(`<div>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<div>`), _tmpl$3 = /*#__PURE__*/ _$template(`<div>From Parent`), _tmpl$4 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | <!> | <!> | `), _tmpl$5 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | `), _tmpl$6 = /*#__PURE__*/ _$template(`<div> | <!> |  |  | <!> | `);
 import { Show } from "somewhere";
-const Child = (props)=>{
+const Child = (props1)=>{
     const [s, set] = createSignal();
     return [
         (()=>{
-            const _el$ = _tmpl$(), _ref$ = props.ref, _el$2 = _el$.firstChild;
-            typeof _ref$ === "function" ? _$use(_ref$, _el$) : props.ref = _el$;
-            _$insert(_el$, ()=>props.name, null);
+            const _el$ = _tmpl$(), _ref$ = props1.ref, _el$2 = _el$.firstChild;
+            typeof _ref$ === "function" ? _$use(_ref$, _el$) : props1.ref = _el$;
+            _$insert(_el$, ()=>props1.name, null);
             return _el$;
         })(),
         (()=>{
             const _el$3 = _tmpl$2(), _ref$2 = set;
             typeof _ref$2 === "function" ? _$use(_ref$2, _el$3) : set = _el$3;
-            _$insert(_el$3, ()=>props.children, null);
+            _$insert(_el$3, ()=>props1.children, null);
             return _el$3;
         })()
     ];
 };
-const template = (props)=>{
+const template = (props1)=>{
     let childRef;
-    const { content  } = props;
+    const { content  } = props1;
     return (()=>{
         const _el$4 = _tmpl$2();
         _$insert(_el$4, _$createComponent(Child, _$mergeProps({
             name: "John"
-        }, props, {
+        }, props1, {
             ref (r$) {
                 const _ref$3 = childRef;
                 typeof _ref$3 === "function" ? _ref$3(r$) : childRef = r$;
@@ -45,8 +45,8 @@ const template = (props)=>{
             name: "Jason"
         }, dynamicSpread, {
             ref (r$) {
-                const _ref$4 = props.ref;
-                typeof _ref$4 === "function" ? _ref$4(r$) : props.ref = r$;
+                const _ref$4 = props1.ref;
+                typeof _ref$4 === "function" ? _ref$4(r$) : props1.ref = r$;
             },
             get children () {
                 const _el$6 = _tmpl$2();
@@ -56,7 +56,7 @@ const template = (props)=>{
         })), null);
         _$insert(_el$4, _$createComponent(Context.Consumer, {
             ref (r$) {
-                const _ref$5 = props.consumerRef();
+                const _ref$5 = props1.consumerRef();
                 typeof _ref$5 === "function" && _ref$5(r$);
             },
             children: (context)=>context
@@ -200,15 +200,15 @@ class Template13 {
                 return _self$.something;
             },
             onClick: ()=>_self$.shouldStay,
-            get children() {
-            return _$createComponent(Nested, {
-                get prop () {
-                    return _self$.data;
-                },
-                get children () {
-                    return _self$.content;
-                }
-            });
+            get children () {
+                return _$createComponent(Nested, {
+                    get prop () {
+                        return _self$.data;
+                    },
+                    get children () {
+                        return _self$.content;
+                    }
+                });
             }
         });
     }
@@ -218,3 +218,4 @@ const Template14 = _$createComponent(Component, {
         return data();
     }
 });
+const Template15 = _$createComponent(Component, props);
