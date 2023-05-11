@@ -1424,7 +1424,7 @@ where
                     span: DUMMY_SP,
                     obj: Box::new(Expr::Ident(temp_path.clone().unwrap())),
                     prop: MemberProp::Ident(Ident::new(
-                        if index == 0 {
+                        if i == 0 {
                             "firstChild".into()
                         } else {
                             "nextSibling".into()
@@ -1546,10 +1546,10 @@ where
         results: &mut TemplateInstantiation,
         temp_path: &Option<Ident>,
         index: usize,
-        _char: &str,
+        char: &str
     ) -> (Ident, Option<ExprOrSpread>) {
         let expr_id = self.generate_uid_identifier("el$");
-        results.template += "<!>";
+        results.template += &format!("<!{}>", char);
         results.declarations.push(VarDeclarator {
             span: DUMMY_SP,
             name: Pat::Ident(expr_id.clone().into()),

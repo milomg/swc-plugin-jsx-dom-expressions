@@ -5,7 +5,7 @@ import { memo as _$memo } from "r-dom";
 import { insert as _$insert } from "r-dom";
 import { createComponent as _$createComponent } from "r-dom";
 import { For as _$For } from "r-dom";
-const _tmpl$ = /*#__PURE__*/ _$template(`<div>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<div>`), _tmpl$3 = /*#__PURE__*/ _$template(`<div>From Parent`);
+const _tmpl$ = /*#__PURE__*/ _$template(`<div>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<div>`), _tmpl$3 = /*#__PURE__*/ _$template(`<div>From Parent`), _tmpl$4 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | <!> | <!> | `);
 import { Show } from "somewhere";
 const Child = (props)=>{
     const [s, set] = createSignal();
@@ -130,11 +130,33 @@ const template7 = _$createComponent(Child, {
 const template8 = _$createComponent(Child, {
     get children () {
         return [
-            (item) => item,
-            (item) => item
+            (item)=>item,
+            (item)=>item
         ];
     }
 });
 const template9 = _$createComponent(_garbage, {
     children: "Hi"
 });
+const template10 = (() => {
+    const _el$12 = _tmpl$4(), _el$13 = _el$12.firstChild, _el$18 = _el$13.nextSibling, _el$14 = _el$18.nextSibling, _el$19 = _el$14.nextSibling, _el$15 = _el$19.nextSibling, _el$20 = _el$15.nextSibling, _el$16 = _el$20.nextSibling, _el$21 = _el$16.nextSibling, _el$17 = _el$21.nextSibling;
+    _$insert(_el$12, _$createComponent(Link, {
+        children: "new"
+    }), _el$13);
+    _$insert(_el$12, _$createComponent(Link, {
+        children: "comments"
+    }), _el$18);
+    _$insert(_el$12, _$createComponent(Link, {
+        children: "show"
+    }), _el$19);
+    _$insert(_el$12, _$createComponent(Link, {
+        children: "ask"
+    }), _el$20);
+    _$insert(_el$12, _$createComponent(Link, {
+        children: "jobs"
+    }), _el$21);
+    _$insert(_el$12, _$createComponent(Link, {
+        children: "submit"
+    }), null);
+    return _el$12;
+})();
