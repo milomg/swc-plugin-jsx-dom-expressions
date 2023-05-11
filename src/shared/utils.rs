@@ -458,7 +458,10 @@ pub fn get_static_expression(child: &JSXElementChild) -> Option<String> {
 
 pub fn filter_children(c: &JSXElementChild) -> bool {
     match c {
-        JSXElementChild::JSXText(t) => !t.raw.trim().is_empty(),
+        JSXElementChild::JSXText(t) => {
+            let regex = Regex::new(r"^[\r\n]\s*$").unwrap();
+            !regex.is_match(&t.raw)
+        },
         JSXElementChild::JSXExprContainer(JSXExprContainer {
             expr: JSXExpr::JSXEmptyExpr(_),
             ..
@@ -502,7 +505,7 @@ pub fn check_length(children: &Vec<&JSXElementChild>) -> bool {
 }
 
 pub fn trim_whitespace(text: &str) -> String {
-    let mut text = Regex::new(r"\r").unwrap().replace_all(text, "").to_string();
+    let mut text = text.replace("\r", "");
     if text.contains("\n") {
         let start_space_regex = Regex::new(r"^\s*").unwrap();
         let space_regex = Regex::new(r"^\s*$").unwrap();
@@ -511,7 +514,7 @@ pub fn trim_whitespace(text: &str) -> String {
             .enumerate()
             .map(|(i, t)| {
                 if i > 0 {
-                    start_space_regex.replace_all(&text, "").to_string()
+                    start_space_regex.replace_all(&t, "").to_string()
                 } else {
                     String::from(t)
                 }

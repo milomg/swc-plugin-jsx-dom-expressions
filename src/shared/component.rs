@@ -461,7 +461,7 @@ where
         let transformed_children: Vec<Expr> = filtered_children.iter().fold(vec![], |mut memo, node| {
             match node {
                 JSXElementChild::JSXText(child) => {
-                    let text = trim_whitespace(child.raw.trim());
+                    let text = trim_whitespace(&child.raw);
                     let decoded = html_escape::decode_html_entities(&text);
                     if decoded.len() > 0 {
                         path_nodes.push(node);

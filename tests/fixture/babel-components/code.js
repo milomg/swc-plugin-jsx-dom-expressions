@@ -128,3 +128,5 @@ const Template14 = <Component>{data()}</Component>;
 const Template15 = <Component {...props}/>
 
 const Template16 = <Component something={something} {...props}/>
+
+const Template17 = <Pre><span>1</span> <span>2</span> <span>3</span></Pre>

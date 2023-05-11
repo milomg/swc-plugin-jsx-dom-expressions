@@ -5,7 +5,7 @@ import { memo as _$memo } from "r-dom";
 import { insert as _$insert } from "r-dom";
 import { createComponent as _$createComponent } from "r-dom";
 import { For as _$For } from "r-dom";
-const _tmpl$ = /*#__PURE__*/ _$template(`<div>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<div>`), _tmpl$3 = /*#__PURE__*/ _$template(`<div>From Parent`), _tmpl$4 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | <!> | <!> | `), _tmpl$5 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | `), _tmpl$6 = /*#__PURE__*/ _$template(`<div> | <!> |  |  | <!> | `);
+const _tmpl$ = /*#__PURE__*/ _$template(`<div>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<div>`), _tmpl$3 = /*#__PURE__*/ _$template(`<div>From Parent`), _tmpl$4 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | <!> | <!> | `), _tmpl$5 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | `), _tmpl$6 = /*#__PURE__*/ _$template(`<div> | <!> |  |  | <!> | `), _tmpl$7 = /*#__PURE__*/ _$template(`<span>1`), _tmpl$8 = /*#__PURE__*/ _$template(`<span>2`), _tmpl$9 = /*#__PURE__*/ _$template(`<span>3`);
 import { Show } from "somewhere";
 const Child = (props1)=>{
     const [s, set] = createSignal();
@@ -220,6 +220,16 @@ const Template14 = _$createComponent(Component, {
 });
 const Template15 = _$createComponent(Component, props);
 const Template16 = _$createComponent(Component, _$mergeProps({
-        something: something
-    }, props)
-);
+    something: something
+}, props));
+const Template17 = _$createComponent(Pre, {
+    get children () {
+        return [
+            _tmpl$7(),
+            " ",
+            _tmpl$8(),
+            " ",
+            _tmpl$9()
+        ];
+    }
+});
