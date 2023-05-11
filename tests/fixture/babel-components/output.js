@@ -1,6 +1,7 @@
 import { use as _$use } from "r-dom";
 import { template as _$template } from "r-dom";
 import { mergeProps as _$mergeProps } from "r-dom";
+import { memo as _$memo } from "r-dom";
 import { insert as _$insert } from "r-dom";
 import { createComponent as _$createComponent } from "r-dom";
 import { For as _$For } from "r-dom";
@@ -117,4 +118,12 @@ const template6 = _$createComponent(_$For, {
             },
             children: item
         })
+});
+const template7 = _$createComponent(Child, {
+    get children () {
+        return [
+            _tmpl$2(),
+            _$memo(()=>state.dynamic)
+        ];
+    }
 });

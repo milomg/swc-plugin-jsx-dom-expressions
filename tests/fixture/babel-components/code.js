@@ -56,3 +56,10 @@ const template6 = (
     {item => <Show when={state.condition}>{item}</Show>}
   </For>
 );
+
+const template7 = (
+  <Child>
+    <div />
+    {state.dynamic}
+  </Child>
+);

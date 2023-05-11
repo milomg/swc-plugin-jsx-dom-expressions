@@ -481,7 +481,7 @@ where
                     if let Some(mut child) = child {
                         dynamic = dynamic || child.dynamic;
 
-                        if is_filtered_children_plural && child.dynamic {
+                        if self.config.generate == "ssr" && is_filtered_children_plural && child.dynamic {
                             if let Some(Expr::Arrow(ArrowExpr { body, .. })) =
                                 child.exprs.first()
                             {

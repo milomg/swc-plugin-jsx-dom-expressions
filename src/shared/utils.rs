@@ -284,7 +284,7 @@ where
         check_member: bool,
         check_tags: bool,
         check_call_expression: bool,
-        native: bool,
+        _native: bool,
     ) -> bool {
         if matches!(expr, Expr::Fn(_) | Expr::Arrow(_)) {
             return false;
@@ -317,11 +317,11 @@ where
         }
     
         let mut dyn_visitor = DynamicVisitor {
-            transform_visitor: self,
+            _transform_visitor: self,
             check_member,
             check_tags,
             check_call_expression,
-            native,
+            // native,
             dynamic: false,
             is_stop: false
         };
@@ -335,11 +335,11 @@ struct DynamicVisitor<'a, C>
 where
     C: Comments
 {
-    transform_visitor: &'a TransformVisitor<C>,
+    _transform_visitor: &'a TransformVisitor<C>,
     check_member: bool,
     check_tags: bool,
     check_call_expression: bool,
-    native: bool,
+    // native: bool,
     dynamic: bool,
     is_stop: bool
 }
@@ -348,7 +348,7 @@ impl<C> Visit for DynamicVisitor<'_, C>
 where
     C: Comments
 {
-    fn visit_method_prop(&mut self,n: &MethodProp) {
+    fn visit_method_prop(&mut self, _n: &MethodProp) {
         // self.dynamic = self.transform_visitor.is_dynamic(&n.function, None, self.check_member, self.check_tags, self.check_call_expression, self.native);
         self.dynamic = false;
     }
