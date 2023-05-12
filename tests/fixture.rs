@@ -44,7 +44,7 @@ fn jsx_dom_expressions_fixture(input: PathBuf) {
 }
 
 #[fixture("tests/fixture/babel-components/code.js")]
-fn jsx_dom_expressions_fixture1(input: PathBuf) {
+fn jsx_dom_expressions_fixture_babel(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
 
     test_fixture(

@@ -17,9 +17,9 @@ const Child = (props1)=>{
             return _el$;
         })(),
         (()=>{
-            const _el$3 = _tmpl$2(), _ref$2 = set;
-            typeof _ref$2 === "function" ? _$use(_ref$2, _el$3) : set = _el$3;
-            _$insert(_el$3, ()=>props1.children, null);
+            const _el$3 = _tmpl$2();
+            _$use(set, _el$3);
+            _$insert(_el$3, ()=>props1.children);
             return _el$3;
         })()
     ];
@@ -50,7 +50,7 @@ const template = (props1)=>{
             },
             get children () {
                 const _el$6 = _tmpl$2();
-                _$insert(_el$6, content, null);
+                _$insert(_el$6, content);
                 return _el$6;
             }
         })), null);
@@ -88,10 +88,7 @@ const template3 = _$createComponent(Child, {
 });
 const [s, set] = createSignal();
 const template4 = _$createComponent(Child, {
-    ref (r$) {
-        const _ref$6 = set;
-        typeof _ref$6 === "function" ? _ref$6(r$) : set = r$;
-    },
+    ref: set,
     get children () {
         return _tmpl$2();
     }

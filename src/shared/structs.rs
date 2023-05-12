@@ -3,6 +3,8 @@ use swc_core::{common::comments::Comments, ecma::{ast::*, utils::private_ident}}
 
 use crate::config::Config;
 
+use super::transform::VarBindingCollector;
+
 pub struct TemplateConstruction {
     pub template: String,
     pub id: Ident,
@@ -48,6 +50,7 @@ where
     pub templates: Vec<TemplateConstruction>,
     pub imports: HashMap<String, Ident>,
     pub comments: C,
+    pub binding_collector: VarBindingCollector,
     uid_identifier_map: HashMap<String, usize>
 }
 
@@ -62,6 +65,7 @@ where
             template: None,
             imports: HashMap::new(),
             comments,
+            binding_collector: VarBindingCollector::new(),
             uid_identifier_map: HashMap::new()
         }
     }

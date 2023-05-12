@@ -10,17 +10,73 @@ pub use crate::shared::{
     utils::{get_tag_name, is_component},
 };
 use swc_core::{
-    common::{comments::Comments, DUMMY_SP},
+    common::{comments::Comments, DUMMY_SP, collections::{AHashSet, AHashMap}},
     ecma::{ast::*, utils::private_ident, visit::{VisitMut, Visit, VisitMutWith, VisitWith}},
 };
 
+pub struct VarBindingCollector {
+    pub const_var_bindings: AHashMap<Id,Option<Expr>>,
+    pub function_bindings: AHashSet<Id>
+}
+
+impl VarBindingCollector {
+
+    pub fn new() -> Self {
+        return Self {
+            const_var_bindings: Default::default(),
+            function_bindings: Default::default()
+        };
+    }
+
+    fn collect_pat(&mut self, pat: &Pat, init: Option<Expr>) {
+        match pat {
+            Pat::Ident(id) => { self.const_var_bindings.insert(id.to_id(), init);},
+            Pat::Array(a) => {
+                for e in &a.elems {
+                    if let Some(p) = e {
+                        self.collect_pat(p, None);
+                    }
+                }
+            },
+            Pat::Rest(rest) => self.collect_pat(&rest.arg, None),
+            _ => {},
+        };
+    }
+}
+
+impl Visit for VarBindingCollector {
+
+    fn visit_import_decl(&mut self, import_dect: &ImportDecl) {
+        for spec in &import_dect.specifiers {
+            match spec {
+                ImportSpecifier::Named(s) => self.const_var_bindings.insert(s.local.to_id(), None),
+                ImportSpecifier::Default(s) => self.const_var_bindings.insert(s.local.to_id(), None),
+                ImportSpecifier::Namespace(s) => self.const_var_bindings.insert(s.local.to_id(), None),
+            };
+        }
+    }
+
+    fn visit_var_decl(&mut self, n: &VarDecl) {
+        if n.kind == VarDeclKind::Const{
+            for decl in &n.decls {
+                self.collect_pat(&decl.name, decl.init.clone().map(|v| *v));
+            }
+        }
+        n.visit_children_with(self);
+    }
+
+    fn visit_fn_decl(&mut self, f: &FnDecl) {
+        self.function_bindings.insert(f.ident.to_id());
+    }
+
+}
 pub struct ThisBlockVisitor {
     uid_identifier_map: HashMap<String, usize>
 }
 
 impl ThisBlockVisitor {
     pub fn new() -> Self {
-        ThisBlockVisitor { uid_identifier_map: HashMap::new() }
+        Self { uid_identifier_map: HashMap::new() }
     }
 
     pub fn generate_uid_identifier(&mut self, name: &str) -> Ident {

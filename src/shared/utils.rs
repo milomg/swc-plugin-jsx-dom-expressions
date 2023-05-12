@@ -488,20 +488,21 @@ pub fn convert_jsx_identifier(attr_name: &JSXAttrName) -> (PropName, String) {
 }
 
 pub fn check_length(children: &Vec<&JSXElementChild>) -> bool {
+    let mut i = 0;
     for child in children {
         if !matches!(child, JSXElementChild::JSXExprContainer(JSXExprContainer { expr: JSXExpr::JSXEmptyExpr(_),.. })) {
             if let JSXElementChild::JSXText(t) = child {
                 if !Regex::new(r"^\s*$").unwrap().is_match(&t.raw.to_string()) {
-                    return true;
+                    i+=1;
                 } else if Regex::new(r"^ *$").unwrap().is_match(&t.raw.to_string()) {
-                    return true;
+                    i+=1;
                 }
             } else {
-                return true;
+                i+=1;
             }
         }
     }
-  return false;
+  return i > 1;
 }
 
 pub fn trim_whitespace(text: &str) -> String {

@@ -1,10 +1,10 @@
 use config::Config;
-use shared::transform::ThisBlockVisitor;
+use shared::transform::{ThisBlockVisitor};
 use swc_core::{
     common::comments::Comments,
     ecma::{
         ast::*,
-        visit::{as_folder, FoldWith, VisitMut, VisitMutWith},
+        visit::{as_folder, FoldWith, VisitMut, VisitMutWith, VisitWith},
     },
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
@@ -32,6 +32,7 @@ where
     }
     fn visit_mut_module(&mut self, module: &mut Module) {
         module.visit_mut_children_with(&mut ThisBlockVisitor::new());
+        module.visit_children_with(&mut self.binding_collector);
         module.visit_mut_children_with(self);
 
         self.append_templates(module);

@@ -423,6 +423,24 @@ impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
+
+    fn detect_resolvable_event_handler(&self,handler: &Expr) -> bool {
+        if let Expr::Ident(id) = handler {
+            if let Some(init) = self.binding_collector.const_var_bindings.get(&id.to_id()) {
+                if let Some(init) = init {
+                    return self.detect_resolvable_event_handler(&init.clone());
+                } else {
+                    return false;
+                }
+            } else if self.binding_collector.function_bindings.contains(&id.to_id()) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        return matches!(handler, Expr::Fn(_) | Expr::Arrow(_));
+    }
+
     fn transform_attributes(&mut self,node: &mut JSXElement, results: &mut TemplateInstantiation) {
         let elem = &results.id;
         let mut children = None;
@@ -779,26 +797,11 @@ where
                             _ => break
                         }
                     }
-
-                    // let binding = false;
-                    let is_function = false;
-                    // let binding,
-                    //     isFunction =
-                    //     t.isIdentifier(value.expression) &&
-                    //     (binding = path.scope.getBinding(value.expression.name)) &&
-                    //     binding.kind === "const";
-                    // match expr {
-                    //     JSXExpr::Expr(exp) => {
-                    //         match **exp {
-                    //             Expr::Ident(ref id) => {
-
-                    //             },
-                    //             _ => break
-                    //         }
-                    //     },
-                    //     JSXExpr::JSXEmptyExpr(_) => break
-                    // }
-
+                    let is_function = if let Expr::Ident(ref id) = **exp {
+                        self.binding_collector.const_var_bindings.contains_key(&id.to_id())
+                    } else {
+                        false
+                    };
                     let ref_ident = self.generate_uid_identifier("_ref$");
                     let el_ident = results.id.clone().unwrap();
                     if !is_function && is_l_val(exp) {
@@ -841,7 +844,7 @@ where
                             })) 
                         }));
                     } else if is_function || matches!(**exp, Expr::Fn(_) | Expr::Arrow(_)) {
-                        results.exprs.insert(1, Expr::Call(CallExpr { 
+                        results.exprs.insert(0, Expr::Call(CallExpr { 
                             span: DUMMY_SP, 
                             callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("use")))), 
                             args: vec![ExprOrSpread {
@@ -944,7 +947,7 @@ where
                         //   (attribute.scope.getProgramParent().data.events = new Set());
                         // events.add(ev);
                         let el_ident = results.id.clone().unwrap();
-                        let resolveable = false;
+                        let resolveable = self.detect_resolvable_event_handler(&exp);
                         // const resolveable = detectResolvableEventHandler(attribute, handler);
                         if let Expr::Array(ref arr_lit) = **exp {
                             if arr_lit.elems.len() > 1 {
@@ -1000,7 +1003,8 @@ where
                                 type_args: None }))
                         }
                     } else {
-                        let resolveable = false;
+                        // let resolveable = false;
+                        let resolveable = self.detect_resolvable_event_handler(&exp);
                         // const resolveable = detectResolvableEventHandler(attribute, handler);
                         let handler;
                         if let Expr::Array(ref arr_lit) = **exp {
