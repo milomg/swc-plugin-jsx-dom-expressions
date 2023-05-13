@@ -43,7 +43,7 @@ fn jsx_dom_expressions_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/babel-components/code.js")]
+#[fixture("tests/fixture/babel/**/code.js")]
 fn jsx_dom_expressions_fixture_babel(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
 

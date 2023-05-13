@@ -1,10 +1,11 @@
+#![feature(box_patterns)]
 use config::Config;
 use shared::transform::{ThisBlockVisitor};
 use swc_core::{
     common::comments::Comments,
     ecma::{
         ast::*,
-        visit::{as_folder, FoldWith, VisitMut, VisitMutWith, VisitWith},
+        visit::{as_folder, FoldWith, VisitMut, VisitMutWith, VisitWith}, minifier::{eval::Evaluator, marks::Marks},
     },
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
@@ -32,6 +33,7 @@ where
     }
     fn visit_mut_module(&mut self, module: &mut Module) {
         module.visit_mut_children_with(&mut ThisBlockVisitor::new());
+        self.evaluator = Some(Evaluator::new(module.clone(), Marks::new()));
         module.visit_children_with(&mut self.binding_collector);
         module.visit_mut_children_with(self);
 

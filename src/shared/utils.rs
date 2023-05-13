@@ -640,6 +640,32 @@ pub fn can_native_spread(key: &str, check_name_spaces: bool)->bool {
     return true;
 }
 
+pub fn is_static_expr(expr: &Expr) -> bool {
+    if let Expr::Object(ObjectLit { props, .. }) = expr {
+        for prop in props {
+            match prop {
+                PropOrSpread::Spread(_) => return false,
+                PropOrSpread::Prop(box p) => {
+                    match p {
+                        Prop::Shorthand(_) => {},
+                        Prop::KeyValue(ref kv) => {
+                            if !is_static_expr(&kv.value) {
+                                return false;
+                            }
+                        },
+                        Prop::Assign(_) | Prop::Getter(_) | Prop::Setter(_) | Prop::Method(_) => return false
+                    }
+                },
+            }
+        }
+        return true;
+    } else if let Expr::Lit(_) = expr {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 pub fn lit_to_string(lit: &Lit) -> String {
     match lit {
         Lit::Str(value) => value.value.to_string(),

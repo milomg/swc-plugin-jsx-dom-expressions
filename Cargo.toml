@@ -18,6 +18,7 @@ swc_atoms = "0.5"
 swc_core = { version = "0.75", features = [
   "ecma_plugin_transform",
   "ecma_utils",
+  "ecma_minifier",
   "ecma_visit",
   "ecma_ast",
   "common",

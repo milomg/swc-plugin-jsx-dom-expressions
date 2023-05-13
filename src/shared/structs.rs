@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
-use swc_core::{common::comments::Comments, ecma::{ast::*, utils::private_ident}};
+use std::{collections::{HashMap, HashSet}, fmt::Debug};
+use swc_core::{common::comments::Comments, ecma::{ast::*,minifier::eval::Evaluator, utils::private_ident}};
 
 use crate::config::Config;
 
@@ -37,7 +37,7 @@ pub struct TemplateInstantiation {
     pub has_custom_element: bool,
     pub text: bool,
     pub dynamic: bool,
-    pub to_be_closed: HashSet<String>,
+    pub to_be_closed: Option<HashSet<String>>,
     pub skip_template: bool
 }
 
@@ -50,6 +50,7 @@ where
     pub templates: Vec<TemplateConstruction>,
     pub imports: HashMap<String, Ident>,
     pub comments: C,
+    pub evaluator: Option<Evaluator>,
     pub binding_collector: VarBindingCollector,
     uid_identifier_map: HashMap<String, usize>
 }
@@ -65,6 +66,7 @@ where
             template: None,
             imports: HashMap::new(),
             comments,
+            evaluator: Default::default(),
             binding_collector: VarBindingCollector::new(),
             uid_identifier_map: HashMap::new()
         }
@@ -84,6 +86,7 @@ where
             return private_ident!(name);
         }
     }
+
 }
 
 pub struct ProcessSpreadsInfo {

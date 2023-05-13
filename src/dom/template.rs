@@ -234,19 +234,14 @@ where
                                 })]
                             })
                             .unwrap_or_default(),
-                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
-                            span: Default::default(),
-                            callee: Callee::Expr(Box::new(
-                                self.set_attr(
-                                    &dynamics[0].elem,
-                                    &dynamics[0].key,
-                                    &dynamics[0].value,
-                                    &AttrOptions {is_svg:dynamics[0].is_svg,is_ce:dynamics[0].is_ce,dynamic:true,prev_id:prev_value.map(|v| Expr::Ident(v)), tag_name: dynamics[0].tag_name.clone() },
-                                ),
-                            )),
-                            args: vec![],
-                            type_args: None,
-                        })))),
+                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(
+                            self.set_attr(
+                                &dynamics[0].elem,
+                                &dynamics[0].key,
+                                &dynamics[0].value,
+                                &AttrOptions {is_svg:dynamics[0].is_svg,is_ce:dynamics[0].is_ce,dynamic:true,prev_id:prev_value.map(|v| Expr::Ident(v)), tag_name: dynamics[0].tag_name.clone() },
+                            ),
+                        ))),
                         is_async: false,
                         is_generator: false,
                         type_params: None,

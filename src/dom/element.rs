@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::{
     shared::{
         constants::{ALIASES, CHILD_PROPERTIES, SVG_ELEMENTS, VOID_ELEMENTS, PROPERTIES, DELEGATED_EVENTS, get_prop_alias, SVGNAMESPACE},
@@ -7,12 +5,12 @@ use crate::{
             TemplateInstantiation, ProcessSpreadsInfo, DynamicAttr,
         },
         transform::{is_component, TransformInfo},
-        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length, is_l_val},
+        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length, is_l_val, is_static_expr},
     },
     TransformVisitor,
 };
 
-use swc_core::ecma::utils::quote_ident;
+use swc_core::ecma::{utils::quote_ident, minifier::eval::EvalResult};
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::ast::*,
@@ -83,13 +81,19 @@ where
             // always close tags can still be skipped if they have no closing parents and are the last element
             let to_be_closed = !info.last_element || (info.to_be_closed.is_some() && (!self.config.omit_nested_closing_tags || info.to_be_closed.clone().unwrap().contains(&tag_name)));
             if to_be_closed {
-                results.to_be_closed = info.to_be_closed.clone().unwrap_or(ALWAYS_CLOSE.iter().map(|x| x.to_string()).collect());
-                results.to_be_closed.insert(tag_name.clone());
-                if INLINE_ELEMENTS.contains(&tag_name.clone().as_str()) {
-                    results.to_be_closed.extend(BLOCK_ELEMENTS.iter().map(|x| x.to_string()));
+                if let Some(v) = info.to_be_closed.clone() {
+                    results.to_be_closed = Some(v);
+                } else {
+                    results.to_be_closed = Some(ALWAYS_CLOSE.iter().map(|x| x.to_string()).collect())
+                }
+                if let Some(ref mut v) = results.to_be_closed.as_mut() {
+                    v.insert(tag_name.clone());
+                    if INLINE_ELEMENTS.contains(&tag_name.clone().as_str()) {
+                        v.extend(BLOCK_ELEMENTS.iter().map(|x| x.to_string()));
+                    }
                 }
             } else {
-                results.to_be_closed = info.to_be_closed.clone().unwrap_or(HashSet::new());
+                results.to_be_closed = info.to_be_closed.clone();
             }
             self.transform_children(&node, &mut results);
             if to_be_closed {
@@ -372,7 +376,7 @@ where
             name = name.to_lowercase();
         }
         if is_name_spaced && SVGNAMESPACE.contains_key(name.split_once(":").unwrap().0) {
-            let ns = SVGNAMESPACE.get(name.split_once(":").unwrap().0).unwrap().clone();
+            let ns = SVGNAMESPACE.get(name.split_once(":").unwrap().0).unwrap();
             return Expr::Call(CallExpr { 
                 span: DUMMY_SP,
                 callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("setAttributeNS")))),
@@ -381,7 +385,7 @@ where
                     expr: Box::new(Expr::Ident(elem.clone()))
                 },ExprOrSpread {
                     spread: None,
-                    expr: Box::new(Expr::Lit(Lit::Str(ns.into())))
+                    expr: Box::new(Expr::Lit(Lit::Str(ns.to_string().into())))
                 },ExprOrSpread {
                     spread: None,
                     expr: Box::new(Expr::Lit(Lit::Str(name.into())))
@@ -730,16 +734,16 @@ where
                 }
             };
 
-            // if (t.isJSXExpressionContainer(value) && !key.startsWith("use:")) {
-            //     const evaluated = attribute.get("value").get("expression").evaluate().value;
-            //     let type;
-            //     if (
-            //       evaluated !== undefined &&
-            //       ((type = typeof evaluated) === "string" || type === "number")
-            //     ) {
-            //       value = t.stringLiteral(String(evaluated));
-            //     }
-            // }
+            if !key.starts_with("use:") {
+                if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { expr: JSXExpr::Expr(ref expr),.. })) = attribute.value {
+                    match self.evaluator.as_mut().unwrap().eval(&expr) {
+                        Some(EvalResult::Lit(lit)) => {
+                            attribute.value = Some(JSXAttrValue::Lit(lit))
+                        },
+                        _ => {},
+                    };
+                }
+            }
 
             if let Some(ref mut value) = attribute.value {
                 if reserved_name_space {
@@ -948,7 +952,6 @@ where
                         // events.add(ev);
                         let el_ident = results.id.clone().unwrap();
                         let resolveable = self.detect_resolvable_event_handler(&exp);
-                        // const resolveable = detectResolvableEventHandler(attribute, handler);
                         if let Expr::Array(ref arr_lit) = **exp {
                             if arr_lit.elems.len() > 1 {
                                 results.exprs.insert(0, Expr::Assign(AssignExpr { 
@@ -1003,9 +1006,7 @@ where
                                 type_args: None }))
                         }
                     } else {
-                        // let resolveable = false;
                         let resolveable = self.detect_resolvable_event_handler(&exp);
-                        // const resolveable = detectResolvableEventHandler(attribute, handler);
                         let handler;
                         if let Expr::Array(ref arr_lit) = **exp {
                             if arr_lit.elems.len() > 1 {
@@ -1082,7 +1083,7 @@ where
                         }
                     }
                 } else if !self.config.effect_wrapper.is_empty() && (self.is_dynamic(exp, None, true, false, true, false) 
-                ||((key == "classList" || key == "style") /*&& !attribute.get("value").get("expression").evaluate().confident)*/)) {
+                ||((key == "classList" || key == "style") && !(matches!(self.evaluator.as_mut().unwrap().eval(exp), Some(EvalResult::Lit(_))) || is_static_expr(exp)))) {
                     let mut next_elem = elem.clone().unwrap();
                     if key == "value" || key == "checked" {
                         results.post_exprs.push(Expr::Call(CallExpr { 
@@ -1238,18 +1239,21 @@ where
 
                 if self.is_dynamic(&el.expr, None, true, false, true, false) {
                     dynamic_spread = true;
-                    let mut flag = false;
-                    if let Expr::Call(ref c) = *el.expr {
-                        if c.args.is_empty() {
+                    if !match *el.expr {
+                        Expr::Call(ref c) if c.args.is_empty() => {
                             if let Callee::Expr(ref e) = c.callee {
                                 if !matches!(**e, Expr::Call(_)) && !matches!(**e, Expr::Member(_)) {
                                     spread_args.push(*e.clone());
-                                    flag = true;
+                                    true
+                                } else {
+                                    false
                                 }
+                            } else {
+                                false
                             }
-                        }
-                    }
-                    if !flag {
+                        },
+                        _ => false
+                    } {
                         spread_args.push(Expr::Arrow(ArrowExpr {
                             span: DUMMY_SP,
                             params: vec![],
@@ -1264,27 +1268,20 @@ where
                     spread_args.push(*el.expr.clone());
                 }
             } else if let JSXAttrOrSpread::JSXAttr(attr) = attribute {
-                let key = match &attr.name {
-                        JSXAttrName::Ident(ident) => ident.sym.to_string(),
-                        JSXAttrName::JSXNamespacedName(name) => {
-                            format!("{}:{}", name.ns.sym, name.name.sym)
-                        }
-                    };
+                let (prop, key) = convert_jsx_identifier(&attr.name);
                 let mut flag = false;
                 let mut dynamic = false;
                 if first_spread {
                     flag = true;
-                } else {
-                    if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer{expr:JSXExpr::Expr(ref expr),..})) = attr.value {
-                        dynamic = self.is_dynamic(expr, None, true, false, true, false);
-                        if dynamic && can_native_spread(&key, true) {
-                            flag = true
-                        }
+                }
+                if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer{expr:JSXExpr::Expr(ref expr),..})) = attr.value {
+                    dynamic = self.is_dynamic(expr, None, true, false, true, false);
+                    if dynamic && can_native_spread(&key, true) {
+                        flag = true
                     }
                 }
                 if flag {
                     if dynamic {
-                        let (id, _ ) = convert_jsx_identifier(&attr.name);
                         let expr;
                         if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer{expr:JSXExpr::Expr(ref ex),..})) = attr.value {
                             if info.wrap_conditionals && (matches!(**ex, Expr::Bin(_)) || matches!(**ex, Expr::Cond(_))) {
@@ -1304,7 +1301,7 @@ where
 
                             running_object.push(PropOrSpread::Prop(Box::new(Prop::Getter(GetterProp { 
                                 span: DUMMY_SP, 
-                                key: id, 
+                                key: prop, 
                                 type_ann: None, 
                                 body: Some(BlockStmt { span: DUMMY_SP, stmts: vec![Stmt::Return(ReturnStmt { span: DUMMY_SP, arg: Some(expr) })] }) 
                             }))));
@@ -1331,11 +1328,7 @@ where
                             }
                         };
                         running_object.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp { 
-                            key: PropName::Str(Str {
-                                span: DUMMY_SP,
-                                value: key.into(),
-                                raw: None,
-                            }), 
+                            key: prop, 
                             value: Box::new(value) }))))
                     }
                 } else {
@@ -1386,7 +1379,7 @@ where
             .iter()
             .filter(|c| filter_children(c))
             .collect::<Vec<&JSXElementChild>>();
-        let last_element = find_last_element(&node.children);
+        let last_element = find_last_element(&filtered_children);
         let child_nodes = filtered_children.iter().enumerate().fold(
             Vec::<TemplateInstantiation>::new(),
             |mut memo, (index, child)| {
@@ -1397,7 +1390,7 @@ where
                     );
                 }
                 let transformed = self.transform_node(child, &TransformInfo { 
-                    to_be_closed: Some(results.to_be_closed.clone()),
+                    to_be_closed: results.to_be_closed.clone(),
                     last_element: index == last_element as usize,
                     skip_id: results.id.is_none() || !self.detect_expressions(&filtered_children, index),
                     ..Default::default()
@@ -1607,7 +1600,7 @@ where
                     JSXAttrOrSpread::JSXAttr(attr) => {
                         (match &attr.name {
                             JSXAttrName::Ident(i) => ["textContent", "innerHTML", "innerText"]
-                                .contains(&i.to_string().as_str()),
+                                .contains(&i.sym.as_ref()),
                             JSXAttrName::JSXNamespacedName(n) => n.ns.to_string() == "use",
                         } || (if let Some(JSXAttrValue::JSXExprContainer(expr)) = &attr.value {
                             if let JSXExpr::Expr(expr) = &expr.expr {
@@ -1637,7 +1630,7 @@ where
     
 }
 
-fn find_last_element(children: &Vec<JSXElementChild>) -> i32{
+fn find_last_element(children: &Vec<&JSXElementChild>) -> i32{
     let mut last_element = -1i32;
     for i in (0i32..children.len() as i32).rev() {
         let child = &children[i as usize];
