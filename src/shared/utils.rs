@@ -647,13 +647,12 @@ pub fn is_static_expr(expr: &Expr) -> bool {
                 PropOrSpread::Spread(_) => return false,
                 PropOrSpread::Prop(box p) => {
                     match p {
-                        Prop::Shorthand(_) => {},
                         Prop::KeyValue(ref kv) => {
                             if !is_static_expr(&kv.value) {
                                 return false;
                             }
                         },
-                        Prop::Assign(_) | Prop::Getter(_) | Prop::Setter(_) | Prop::Method(_) => return false
+                        _ => return false
                     }
                 },
             }
