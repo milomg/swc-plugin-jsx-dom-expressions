@@ -38,64 +38,64 @@ const template3 = (
   />
 );
 
-// const template4 = <div class="hi" className={state.class} classList={{ "ccc:ddd": true }} />;
+const template4 = <div class="hi" className={state.class} classList={{ "ccc:ddd": true }} />;
 
-// const template5 = <div class="a" className="b"></div>;
+const template5 = <div class="a" className="b"></div>;
 
-// const template6 = <div style={someStyle()} textContent="Hi" />;
+const template6 = <div style={someStyle()} textContent="Hi" />;
 
-// let undefVar;
-// const template7 = (
-//   <div
-//     style={{ "background-color": color(), "margin-right": "40px", ...props.style }}
-//     style:padding-top={props.top}
-//     class:my-class={props.active}
-//     class:other-class={undefVar}
-//     classList={{ 'other-class2': undefVar}}
-//   />
-// );
+let undefVar;
+const template7 = (
+  <div
+    style={{ "background-color": color(), "margin-right": "40px", ...props.style }}
+    style:padding-top={props.top}
+    class:my-class={props.active}
+    class:other-class={undefVar}
+    classList={{ 'other-class2': undefVar}}
+  />
+);
 
-// let refTarget;
-// const template8 = <div ref={refTarget} />;
+let refTarget;
+const template8 = <div ref={refTarget} />;
 
-// const template9 = <div ref={e => console.log(e)} />;
+const template9 = <div ref={e => console.log(e)} />;
 
-// const template10 = <div ref={refFactory()} />;
+const template10 = <div ref={refFactory()} />;
 
-// const template11 = <div use:something use:another={thing} use:zero={0} />;
+const template11 = <div use:something use:another={thing} use:zero={0} />;
 
-// const template12 = <div prop:htmlFor={thing} />;
+const template12 = <div prop:htmlFor={thing} />;
 
-// const template13 = <input type="checkbox" checked={true} />;
+const template13 = <input type="checkbox" checked={true} />;
 
-// const template14 = <input type="checkbox" checked={state.visible} />;
+const template14 = <input type="checkbox" checked={state.visible} />;
 
-// const template15 = <div class="`a">`$`</div>;
+const template15 = <div class="`a">`$`</div>;
 
-// const template16 = (
-//   <button
-//     class="static"
-//     classList={{
-//       hi: "k"
-//     }}
-//     type="button"
-//   >
-//     Write
-//   </button>
-// );
+const template16 = (
+  <button
+    class="static"
+    classList={{
+      hi: "k"
+    }}
+    type="button"
+  >
+    Write
+  </button>
+);
 
-// const template17 = (
-//   <button
-//     classList={{
-//       a: true,
-//       b: true,
-//       c: true
-//     }}
-//     onClick={increment}
-//   >
-//     Hi
-//   </button>
-// );
+const template17 = (
+  <button
+    classList={{
+      a: true,
+      b: true,
+      c: true
+    }}
+    onClick={increment}
+  >
+    Hi
+  </button>
+);
 
 // const template18 = (
 //   <div

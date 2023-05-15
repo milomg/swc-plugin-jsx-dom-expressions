@@ -8,7 +8,7 @@ use swc_core::{
     common::{comments::Comments, Span, DUMMY_SP},
     ecma::{
         ast::*,
-        utils::{prepend_stmt, private_ident, quote_ident},
+        utils::{prepend_stmt, quote_ident},
     },
 };
 
@@ -258,7 +258,7 @@ where
         let prev_id = Ident::new("_p$".into(), DUMMY_SP);
 
         for dynamic in dynamics {
-            let identifier = private_ident!(format!("v${}", identifiers.len()));
+            let identifier = self.generate_uid_identifier("v$");
             if dynamic.key.starts_with("class:")
                 && !matches!(dynamic.value, Expr::Lit(Lit::Bool(_)))
                 && !dynamic.value.is_unary()
