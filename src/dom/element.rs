@@ -743,9 +743,10 @@ where
                             } else {
                                 false
                             };
-                            let ref_ident = self.generate_uid_identifier("_ref$");
+                            
                             let el_ident = results.id.clone().unwrap();
                             if !is_function && is_l_val(expr) {
+                                let ref_ident = self.generate_uid_identifier("_ref$");
                                 results.declarations.insert(0, VarDeclarator {
                                     span:DUMMY_SP,
                                     name:Pat::Ident(BindingIdent{id:ref_ident.clone(),type_ann:None}), 
@@ -799,6 +800,7 @@ where
                                     type_args: None
                                 }));
                             } else if matches!(expr, Expr::Call(_)) {
+                                let ref_ident = self.generate_uid_identifier("_ref$");
                                 results.declarations.insert(0, VarDeclarator {
                                     span:DUMMY_SP,
                                     name:Pat::Ident(BindingIdent{id:ref_ident.clone(),type_ann:None}), 

@@ -33,8 +33,8 @@ const template = (props1)=>{
             name: "John"
         }, props1, {
             ref (r$) {
-                const _ref$3 = childRef;
-                typeof _ref$3 === "function" ? _ref$3(r$) : childRef = r$;
+                const _ref$2 = childRef;
+                typeof _ref$2 === "function" ? _ref$2(r$) : childRef = r$;
             },
             booleanProperty: true,
             get children () {
@@ -45,8 +45,8 @@ const template = (props1)=>{
             name: "Jason"
         }, dynamicSpread, {
             ref (r$) {
-                const _ref$4 = props1.ref;
-                typeof _ref$4 === "function" ? _ref$4(r$) : props1.ref = r$;
+                const _ref$3 = props1.ref;
+                typeof _ref$3 === "function" ? _ref$3(r$) : props1.ref = r$;
             },
             get children () {
                 const _el$6 = _tmpl$2();
@@ -56,8 +56,8 @@ const template = (props1)=>{
         })), null);
         _$insert(_el$4, _$createComponent(Context.Consumer, {
             ref (r$) {
-                const _ref$5 = props1.consumerRef();
-                typeof _ref$5 === "function" && _ref$5(r$);
+                const _ref$4 = props1.consumerRef();
+                typeof _ref$4 === "function" && _ref$4(r$);
             },
             children: (context)=>context
         }), null);
