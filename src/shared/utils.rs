@@ -126,98 +126,95 @@ where
         let mut d_test = false;
         let mut cond= Expr::Invalid(Invalid { span: DUMMY_SP });
         let mut id = Expr::Invalid(Invalid { span: DUMMY_SP });
-        if let Expr::Cond(ref mut expr) = node {
-            if self.is_dynamic(&expr.cons, None, false, true, true, false) ||
-            self.is_dynamic(&expr.alt, None, false, true, true, false) {
-                d_test = self.is_dynamic(&expr.test, None, true, false, true, false);
-                if d_test {
-                    cond = (*expr.test).clone();
-                    if !matches!(cond, Expr::Bin(_)) {
-                        cond = Expr::Unary(UnaryExpr { span: DUMMY_SP, op: UnaryOp::Bang, arg: Box::new(Expr::Unary(UnaryExpr { span: DUMMY_SP, op: UnaryOp::Bang, arg: Box::new(cond) })) })
-                    }
-                    id = if inline {
-                        Expr::Call(CallExpr { 
-                            span: DUMMY_SP, 
-                            callee: Callee::Expr(Box::new(Expr::Ident(memo.clone()))), 
-                            args: vec![ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Arrow(ArrowExpr { 
-                                    span: DUMMY_SP, 
-                                    params: vec![], 
-                                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond.clone()))), 
-                                    is_async: false, 
-                                    is_generator: false, 
-                                    type_params: None, 
-                                    return_type: None }))}], 
-                            type_args: None })
-                    } else {
-                        Expr::Ident(self.generate_uid_identifier("_c$"))
-                    };
+        match node {
+            Expr::Cond(ref mut expr) => {
+                if self.is_dynamic(&expr.cons, None, false, true, true, false) ||
+                self.is_dynamic(&expr.alt, None, false, true, true, false) {
+                    d_test = self.is_dynamic(&expr.test, None, true, false, true, false);
+                    if d_test {
+                        cond = *expr.test.clone();
+                        if !is_binary_expression(&cond) {
+                            cond = Expr::Unary(UnaryExpr { span: DUMMY_SP, op: UnaryOp::Bang, arg: Box::new(Expr::Unary(UnaryExpr { span: DUMMY_SP, op: UnaryOp::Bang, arg: Box::new(cond) })) })
+                        }
+                        id = if inline {
+                            Expr::Call(CallExpr { 
+                                span: DUMMY_SP, 
+                                callee: Callee::Expr(Box::new(Expr::Ident(memo.clone()))), 
+                                args: vec![ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Arrow(ArrowExpr { 
+                                        span: DUMMY_SP, 
+                                        params: vec![], 
+                                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond.clone()))), 
+                                        is_async: false, 
+                                        is_generator: false, 
+                                        type_params: None, 
+                                        return_type: None }))}], 
+                                type_args: None })
+                        } else {
+                            Expr::Ident(self.generate_uid_identifier("_c$"))
+                        };
 
-                    expr.test = Box::new(Expr::Call(CallExpr { 
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(id.clone())), 
-                        args: vec![], 
-                        type_args: None }));
+                        expr.test = Box::new(Expr::Call(CallExpr { 
+                            span: DUMMY_SP,
+                            callee: Callee::Expr(Box::new(id.clone())), 
+                            args: vec![], 
+                            type_args: None }));
 
-                    if matches!(*expr.cons, Expr::Cond(_)) || matches!(*expr.cons, Expr::Bin(_)) {
-                        let (_, e) = self.transform_condition((*expr.cons).clone(), inline, true);
-                        expr.cons = Box::new(e);
-                    }
+                        if matches!(*expr.cons, Expr::Cond(_)) || matches!(*expr.cons, Expr::Bin(_)) {
+                            let (_, e) = self.transform_condition((*expr.cons).clone(), inline, true);
+                            expr.cons = Box::new(e);
+                        }
 
-                    if matches!(*expr.alt, Expr::Cond(_)) || matches!(*expr.alt, Expr::Bin(_)) {
-                        let (_, e) = self.transform_condition((*expr.alt).clone(), inline, true);
-                        expr.alt = Box::new(e);
+                        match *expr.cons {
+                            Expr::Paren(ParenExpr {expr: box ref mut ex, ..}) 
+                                if (matches!(ex, Expr::Cond(_)) || matches!(ex, Expr::Bin(_))) => {
+                                let (_, e) = self.transform_condition(ex.clone(), inline, true);
+                                *ex = e;
+                            }
+                            _ => {}
+                        }
+
+                        if matches!(*expr.alt, Expr::Cond(_)) || matches!(*expr.alt, Expr::Bin(_)) {
+                            let (_, e) = self.transform_condition(*expr.alt.clone(), inline, true);
+                            expr.alt = Box::new(e);
+                        }
+
+                        match *expr.alt {
+                            Expr::Paren(ParenExpr {expr: box ref mut ex, ..}) 
+                                if (matches!(ex, Expr::Cond(_)) || matches!(ex, Expr::Bin(_))) => {
+                                let (_, e) = self.transform_condition(ex.clone(), inline, true);
+                                *ex = e;
+                            }
+                            _ => {}
+                        }
                     }
-                }
-            } 
-        } else if let Expr::Bin(ref mut expr) = node {
-            let mut next_path = expr;
-            loop {
-                if next_path.op != BinaryOp::LogicalAnd {
-                    if let Expr::Bin(ref mut left) = *next_path.left {
-                        next_path = left;
-                    } else {
+                } 
+            },
+            Expr::Bin(ref mut expr) if is_logical_op(&expr) => {
+                let mut next_path = expr;
+                loop {
+                    if next_path.op == BinaryOp::LogicalAnd {
+                        self.transform_condition_left_logical(next_path, &mut d_test,&mut cond, &mut id, inline, &memo);
                         break;
                     }
-                } else {
-                    break;
+
+                    if let Expr::Paren(ParenExpr {box ref expr, .. }) = *next_path.left {
+                        *next_path.left = expr.clone();
+                    }
+                    if let Expr::Bin(ref mut left) = *next_path.left {
+                        if !is_logical_op(&left) {
+                            self.transform_condition_left_logical(left, &mut d_test,&mut cond, &mut id, inline,  &memo);
+                            break;
+                        }
+                        next_path = left;
+                    } else {
+                        self.transform_condition_left_logical(next_path, &mut d_test,&mut cond, &mut id, inline, &memo);
+                        break;
+                    }
                 }
-            }
-            if next_path.op == BinaryOp::LogicalAnd {
-                if self.is_dynamic(&next_path.right, None, false, true, true, false) {
-                    d_test = self.is_dynamic(&next_path.left, None, true, false, true, false);
-                }
-            }
-            if d_test {
-                cond = *next_path.left.clone();
-                if !matches!(cond, Expr::Bin(_)) {
-                    cond = Expr::Unary(UnaryExpr { span: DUMMY_SP, op: UnaryOp::Bang, arg: Box::new(Expr::Unary(UnaryExpr { span: DUMMY_SP, op: UnaryOp::Bang, arg: Box::new(cond) })) });
-                }
-                id = if inline {
-                    Expr::Call(CallExpr { 
-                        span: DUMMY_SP, 
-                        callee: Callee::Expr(Box::new(Expr::Ident(memo.clone()))), 
-                        args: vec![ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Arrow(ArrowExpr { 
-                                span: DUMMY_SP, 
-                                params: vec![], 
-                                body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond.clone()))), 
-                                is_async: false, 
-                                is_generator: false, 
-                                type_params: None, 
-                                return_type: None }))}], 
-                        type_args: None })
-                } else {
-                    Expr::Ident(self.generate_uid_identifier("_c$"))
-                };
-                next_path.left = Box::new(Expr::Call(CallExpr { 
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(id.clone())), 
-                    args: vec![], 
-                    type_args: None }));
-            }
+            },
+            _ => {}
         }
         if d_test && !inline {
             if let Expr::Ident(ref ident) = id {
@@ -303,6 +300,43 @@ where
         };
     }
 
+    fn transform_condition_left_logical(&mut self, next_path: &mut BinExpr, d_test:&mut bool, cond: &mut Expr, id: &mut Expr, inline: bool, memo: &Ident) {
+        if next_path.op == BinaryOp::LogicalAnd {
+            if self.is_dynamic(&next_path.right, None, false, true, true, false) {
+                *d_test = self.is_dynamic(&next_path.left.clone(), None, true, false, true, false);
+            }
+        }
+        if *d_test {
+            *cond = *next_path.left.clone();
+            if !is_binary_expression(&cond) {
+                *cond = Expr::Unary(UnaryExpr { span: DUMMY_SP, op: UnaryOp::Bang, arg: Box::new(Expr::Unary(UnaryExpr { span: DUMMY_SP, op: UnaryOp::Bang, arg: Box::new(cond.clone()) })) });
+            }
+            *id = if inline {
+                Expr::Call(CallExpr { 
+                    span: DUMMY_SP, 
+                    callee: Callee::Expr(Box::new(Expr::Ident(memo.clone()))), 
+                    args: vec![ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Arrow(ArrowExpr { 
+                            span: DUMMY_SP, 
+                            params: vec![], 
+                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond.clone()))), 
+                            is_async: false, 
+                            is_generator: false, 
+                            type_params: None, 
+                            return_type: None }))}], 
+                    type_args: None })
+            } else {
+                Expr::Ident(self.generate_uid_identifier("_c$"))
+            };
+            next_path.left = Box::new(Expr::Call(CallExpr { 
+                span: DUMMY_SP,
+                callee: Callee::Expr(Box::new(id.clone())), 
+                args: vec![], 
+                type_args: None }));
+        }
+    }
+
     pub fn is_dynamic(
         &self,
         expr: &Expr,
@@ -353,7 +387,7 @@ where
         };
         expr.visit_with(&mut dyn_visitor);
         dyn_visitor.dynamic
-    }    
+    }
 
 }
 
@@ -710,4 +744,17 @@ pub fn is_l_val(expr: &Expr) -> bool {
         Expr::Ident(_) | Expr::Member(_) | Expr::Assign(_) | Expr::Array(_) | Expr::Object(_) | Expr::TsAs(_)  | Expr::TsSatisfies(_) | Expr::TsTypeAssertion(_) | Expr::TsNonNull(_) => true,
         _ => false
     }
+}
+
+pub fn is_logical_op(b: &BinExpr) -> bool {
+    b.op == BinaryOp::LogicalOr || b.op == BinaryOp::LogicalAnd || b.op == BinaryOp::NullishCoalescing
+}
+
+pub fn is_binary_expression(expr: &Expr) -> bool {
+    if let Expr::Bin(b) = expr {
+        if !is_logical_op(b) {
+            return true;
+        }
+    }
+    return false;
 }
