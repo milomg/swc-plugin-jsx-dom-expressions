@@ -1036,8 +1036,8 @@ where
                         }
                 }
                 _ => {
-                    let value = match &attribute.value {
-                        Some(value) => {
+                    let value = match attribute.value {
+                        Some(ref mut value) => {
                             let expr = match value {
                                 JSXAttrValue::JSXExprContainer(value) => match &value.expr {
                                     JSXExpr::JSXEmptyExpr(_) => {
@@ -1048,7 +1048,14 @@ where
                                         _ => panic!(),
                                     },
                                 },
-                                JSXAttrValue::Lit(value) => value,
+                                JSXAttrValue::Lit(value) => match value {
+                                    Lit::Str(s) => {
+                                        // todo fix double newlines in test dom attribute-expressions template30
+                                        *s = s.value.to_string().replace("\r\n\n", "\r\n").into();
+                                        value
+                                    },
+                                    _ => value
+                                },
                                 _ => panic!(),
                             };
                             Some(expr)

@@ -547,7 +547,8 @@ pub fn trim_whitespace(text: &str) -> String {
                 }
             })
             .filter(|s| !space_regex.is_match(s))
-            .fold(String::new(), |cur, nxt| format!("{}{}", cur, nxt));
+            .reduce(|cur, nxt| format!("{} {}", cur, nxt))
+            .unwrap_or("".to_owned());
     }
     return Regex::new(r"\s+").unwrap().replace_all(&text, " ").to_string();
 }
@@ -616,14 +617,14 @@ pub fn escape_html(s: &str, attr: bool) -> String {
             }
             out += esc_delim;
             left = i_delim + 1;
-            i_delim = s[left as usize..].find(delim).map_or(-1, |i| i as i32);
+            i_delim = s[left as usize..].find(delim).map_or(-1, |i| i as i32 + left);
         } else {
             if left < i_amp {
                 out += &s[left as usize..i_amp as usize];
             }
             out += "&amp;";
             left = i_amp + 1;
-            i_amp = s[left as usize..].find("&").map_or(-1, |i| i as i32);
+            i_amp = s[left as usize..].find("&").map_or(-1, |i| i as i32 + left);
         }
     }
 
@@ -634,7 +635,7 @@ pub fn escape_html(s: &str, attr: bool) -> String {
           }
           out += esc_delim;
           left = i_delim + 1;
-          i_delim = s[left as usize..].find(delim).map_or(-1, |i| i as i32);
+          i_delim = s[left as usize..].find(delim).map_or(-1, |i| i as i32 + left);
           if i_delim < 0 {
             break;
           }
@@ -646,7 +647,7 @@ pub fn escape_html(s: &str, attr: bool) -> String {
             }
           out += "&amp;";
           left = i_amp + 1;
-          i_amp = s[left as usize..].find("&").map_or(-1, |i| i as i32);
+          i_amp = s[left as usize..].find("&").map_or(-1, |i| i as i32 + left);
         }
       }
 

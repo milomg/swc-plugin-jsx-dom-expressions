@@ -3,14 +3,14 @@ import { template as _$template } from "r-dom";
 import { style as _$style } from "r-dom";
 import { spread as _$spread } from "r-dom";
 import { setAttribute as _$setAttribute } from "r-dom";
-import { delegateEvents as _$delegateEvents } from "r-dom";
 import { mergeProps as _$mergeProps } from "r-dom";
-import { effect as _$effect } from "r-dom";
-import { classList as _$classList } from "r-dom";
-import { insert as _$insert } from "r-dom";
 import { memo as _$memo } from "r-dom";
-import { addEventListener as _$addEventListener } from "r-dom";
+import { insert as _$insert } from "r-dom";
+import { effect as _$effect } from "r-dom";
+import { delegateEvents as _$delegateEvents } from "r-dom";
 import { className as _$className } from "r-dom";
+import { classList as _$classList } from "r-dom";
+import { addEventListener as _$addEventListener } from "r-dom";
 const _tmpl$ = /*#__PURE__*/ _$template(`<div id="main"><h1 class="base" id="my-h1"><a href="/">Welcome`), _tmpl$2 = /*#__PURE__*/ _$template(`<div><div></div><div> </div><div>`), _tmpl$3 = /*#__PURE__*/ _$template(`<div foo>`), _tmpl$4 = /*#__PURE__*/ _$template(`<div>`), _tmpl$5 = /*#__PURE__*/ _$template(`<div class="a b">`), _tmpl$6 = /*#__PURE__*/ _$template(`<input type="checkbox">`), _tmpl$7 = /*#__PURE__*/ _$template(`<div class="\`a">\`$\``), _tmpl$8 = /*#__PURE__*/ _$template(`<button class="static hi" type="button">Write`), _tmpl$9 = /*#__PURE__*/ _$template(`<button class="a b c">Hi`), _tmpl$10 = /*#__PURE__*/ _$template(`<div class="bg-red-500 flex flex-col">`), _tmpl$11 = /*#__PURE__*/ _$template(`<div><input readonly=""><input>`), _tmpl$12 = /*#__PURE__*/ _$template(`<div data="&quot;hi&quot;" data2="&quot;">`), _tmpl$13 = /*#__PURE__*/ _$template(`<a>`), _tmpl$14 = /*#__PURE__*/ _$template(`<div><a>`), _tmpl$15 = /*#__PURE__*/ _$template(`<div start="Hi">Hi`), _tmpl$16 = /*#__PURE__*/ _$template(`<label><span>Input is </span><input><div>`), _tmpl$17 = /*#__PURE__*/ _$template(`<div class="class1 class2 class3 class4 class5 class6" style="color:red;background-color:blue !important;border:1px solid black;font-size:12px;" random="random1 random2
     random3 random4">`);
 const selected = true;
@@ -181,109 +181,75 @@ const template20 = (()=>{
     _$effect(()=>_el$28.checked = s2());
     return _el$26;
 })();
-// const template21 = (()=>{
-//     const _el$29 = _tmpl$4();
-//     _$effect(_$p =>
-//         _$style(
-//             _el$29,
-//             {
-//                 a: "static",
-//                 ...rest
-//             },
-//             _$p
-//         )
-//     );
-//     return _el$29;
-// })();
-// const template22 = _tmpl$12();
-// const template23 = (()=>{
-//     const _el$31 = _tmpl$4();
-//     _$insert(_el$31, ()=>"t" in test && "true");
-//     _$effect(()=>(_el$31.disabled = "t" in test));
-//     return _el$31;
-// })();
-// const template24 = (()=>{
-//     const _el$32 = _tmpl$13();
-//     _$spread(
-//         _el$32,
-//         _$mergeProps(props, {
-//             something: ""
-//         }),
-//         false,
-//         false
-//     );
-//     return _el$32;
-// })();
-// const template25 = (()=>{
-//     const _el$33 = _tmpl$14(),
-//         _el$34 = _el$33.firstChild;
-//     _$insert(_el$33, ()=>props.children, _el$34);
-//     _$spread(
-//         _el$34,
-//         _$mergeProps(props, {
-//             something: ""
-//         }),
-//         false,
-//         false
-//     );
-//     return _el$33;
-// })();
-// const template26 = (()=>{
-//     const _el$35 = _tmpl$15();
-//     _$setAttribute(_el$35, "middle", middle);
-//     _$spread(_el$35, spread, false, true);
-//     return _el$35;
-// })();
-// const template27 = (()=>{
-//     const _el$36 = _tmpl$15();
-//     _$spread(
-//         _el$36,
-//         _$mergeProps(
-//             first,
-//             {
-//                 middle: middle
-//             },
-//             second
-//         ),
-//         false,
-//         true
-//     );
-//     return _el$36;
-// })();
-// const template28 = (()=>{
-//     const _el$37 = _tmpl$16(),
-//         _el$38 = _el$37.firstChild,
-//         _el$39 = _el$38.firstChild,
-//         _el$40 = _el$38.nextSibling,
-//         _el$41 = _el$40.nextSibling;
-//     _$spread(_el$37, _$mergeProps(api), false, true);
-//     _$spread(_el$38, _$mergeProps(api), false, true);
-//     _$insert(_el$38, ()=>(api() ? "checked" : "unchecked"), null);
-//     _$spread(_el$40, _$mergeProps(api), false, false);
-//     _$spread(_el$41, _$mergeProps(api), false, false);
-//     return _el$37;
-// })();
-// const template29 = (()=>{
-//     const _el$42 = _tmpl$4();
-//     _$setAttribute(_el$42, "attribute", !!someValue);
-//     _$insert(_el$42, !!someValue);
-//     return _el$42;
-// })();
-// const template30 = _tmpl$17();
-// const template31 = (()=>{
-//     const _el$44 = _tmpl$4();
-//     _$effect(() =>
-//         getStore.itemProperties.color != null
-//             ? _el$44.style.setProperty("background-color", getStore.itemProperties.color)
-//             : _el$44.style.removeProperty("background-color")
-//     );
-//     return _el$44;
-// })();
-// const template32 = (()=>{
-//     const _el$45 = _tmpl$4();
-//     _el$45.style.removeProperty("background-color");
-//     return _el$45;
-// })();
+const template21 = (()=>{
+    const _el$29 = _tmpl$4();
+    _$effect((_$p)=>_$style(_el$29, {
+            a: "static",
+            ...rest
+        }, _$p));
+    return _el$29;
+})();
+const template22 = _tmpl$12();
+const template23 = (()=>{
+    const _el$31 = _tmpl$4();
+    _$insert(_el$31, ()=>"t" in test && "true");
+    _$effect(()=>_el$31.disabled = "t" in test);
+    return _el$31;
+})();
+const template24 = (()=>{
+    const _el$32 = _tmpl$13();
+    _$spread(_el$32, _$mergeProps(props, {
+        something: ""
+    }), false, false);
+    return _el$32;
+})();
+const template25 = (()=>{
+    const _el$33 = _tmpl$14(), _el$34 = _el$33.firstChild;
+    _$insert(_el$33, ()=>props.children, _el$34);
+    _$spread(_el$34, _$mergeProps(props, {
+        something: ""
+    }), false, false);
+    return _el$33;
+})();
+const template26 = (()=>{
+    const _el$35 = _tmpl$15();
+    _$setAttribute(_el$35, "middle", middle);
+    _$spread(_el$35, spread, false, true);
+    return _el$35;
+})();
+const template27 = (()=>{
+    const _el$36 = _tmpl$15();
+    _$spread(_el$36, _$mergeProps(first, {
+        middle: middle
+    }, second), false, true);
+    return _el$36;
+})();
+const template28 = (()=>{
+    const _el$37 = _tmpl$16(), _el$38 = _el$37.firstChild, _el$39 = _el$38.firstChild, _el$40 = _el$38.nextSibling, _el$41 = _el$40.nextSibling;
+    _$spread(_el$37, _$mergeProps(api), false, true);
+    _$spread(_el$38, _$mergeProps(api), false, true);
+    _$insert(_el$38, ()=>api() ? "checked" : "unchecked", null);
+    _$spread(_el$40, _$mergeProps(api), false, false);
+    _$spread(_el$41, _$mergeProps(api), false, false);
+    return _el$37;
+})();
+const template29 = (()=>{
+    const _el$42 = _tmpl$4();
+    _$setAttribute(_el$42, "attribute", !!someValue);
+    _$insert(_el$42, !!someValue);
+    return _el$42;
+})();
+const template30 = _tmpl$17();
+const template31 = (()=>{
+    const _el$44 = _tmpl$4();
+    _$effect(()=>getStore.itemProperties.color != null ? _el$44.style.setProperty("background-color", getStore.itemProperties.color) : _el$44.style.removeProperty("background-color"));
+    return _el$44;
+})();
+const template32 = (()=>{
+    const _el$45 = _tmpl$4();
+    _el$45.style.removeProperty("background-color");
+    return _el$45;
+})();
 _$delegateEvents([
     "click",
     "input"
