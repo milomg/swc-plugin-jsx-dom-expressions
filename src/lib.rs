@@ -38,6 +38,7 @@ where
         module.visit_mut_children_with(self);
 
         self.append_templates(module);
+        self.insert_events(module);
         self.insert_imports(module);
     }
 }

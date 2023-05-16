@@ -10,7 +10,7 @@ use crate::{
     TransformVisitor,
 };
 
-use swc_core::ecma::{utils::quote_ident, minifier::eval::EvalResult};
+use swc_core::{ecma::{utils::quote_ident, minifier::eval::EvalResult}, common::Span};
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::ast::*,
@@ -81,17 +81,11 @@ where
             // always close tags can still be skipped if they have no closing parents and are the last element
             let to_be_closed = !info.last_element || (info.to_be_closed.is_some() && (!self.config.omit_nested_closing_tags || info.to_be_closed.clone().unwrap().contains(&tag_name)));
             if to_be_closed {
-                if let Some(v) = info.to_be_closed.clone() {
-                    results.to_be_closed = Some(v);
-                } else {
-                    results.to_be_closed = Some(ALWAYS_CLOSE.iter().map(|x| x.to_string()).collect())
+                let mut v = info.to_be_closed.clone().unwrap_or_else(|| ALWAYS_CLOSE.iter().map(|x| x.to_string()).collect());                    v.insert(tag_name.clone());
+                if INLINE_ELEMENTS.contains(&tag_name.clone().as_str()) {
+                    v.extend(BLOCK_ELEMENTS.iter().map(|x| x.to_string()));
                 }
-                if let Some(ref mut v) = results.to_be_closed.as_mut() {
-                    v.insert(tag_name.clone());
-                    if INLINE_ELEMENTS.contains(&tag_name.clone().as_str()) {
-                        v.extend(BLOCK_ELEMENTS.iter().map(|x| x.to_string()));
-                    }
-                }
+                results.to_be_closed = Some(v)
             } else {
                 results.to_be_closed = info.to_be_closed.clone();
             }
@@ -501,13 +495,11 @@ where
                 if let PropOrSpread::Prop(p) = prop {
                     return match **p {
                         Prop::Shorthand(ref id) => handle(id.clone(), Expr::Ident(id.clone())),
-                        Prop::KeyValue(ref kv) => {
-                            match kv.key {
-                                PropName::Ident(ref id) => handle(id.clone(), Expr::Ident(id.clone())),
-                                PropName::Str(ref s) => handle( quote_ident!(s.value.to_string()), *kv.value.clone()),
-                                PropName::Computed(_) => true,
-                                _ => panic!(),
-                            }
+                        Prop::KeyValue(ref kv) => match kv.key {
+                            PropName::Ident(ref id) => handle(id.clone(), *kv.value.clone()),
+                            PropName::Str(ref s) => handle( quote_ident!(s.value.to_string()), *kv.value.clone()),
+                            PropName::Computed(_) => true,
+                            _ => panic!(),
                         }
                         _ => panic!("Expect ident or key value prop for style attr")
                     }
@@ -522,105 +514,71 @@ where
         }
 
         // preprocess classList
-        let class_list_props = attributes.iter().enumerate().find_map(|(i,a)| {
-            if let JSXAttrOrSpread::JSXAttr(attr) = a {
-                let key = match &attr.name {
-                    JSXAttrName::JSXNamespacedName(name) => {
-                        name.name.sym.as_ref().to_string()
-                    }
-                    JSXAttrName::Ident(name) => name.sym.as_ref().to_string(),
-                };
-                if key == "classList" {
-                    if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {expr: JSXExpr::Expr(ref expr), ..})) = attr.value {
-                        if let Expr::Object(ObjectLit {ref props, .. }) = **expr {
-                            if !props.iter().any(|p| match p {
-                                PropOrSpread::Spread(_) => true,
-                                PropOrSpread::Prop(b) => {
-                                    match **b {
-                                        Prop::KeyValue(ref kv) => {
-                                            match kv.key {
-                                                PropName::Computed(_) => true,
-                                                PropName::Str(ref s) => {
-                                                    let key = s.value.to_string();
-                                                    key.contains(" ") || key.contains(":")
-                                                },
-                                                _ => false,
-                                            }
-                                        },
-                                        _ => false
-                                    }
-                                }
-                            }) {
-                                return Some((i, props.clone()));
+        let class_list_props: Option<(usize, Vec<PropOrSpread>, Span)> = attributes.iter().enumerate().find_map(|(i,a)| {
+            match a { 
+                JSXAttrOrSpread::JSXAttr(attr) if matches!(&attr.name, JSXAttrName::Ident(name) if &name.sym == "classList") => {
+                    if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                        expr: JSXExpr::Expr(box Expr::Object(ObjectLit {ref props, .. })), 
+                        span
+                    })) = attr.value {
+                        if !props.iter().any(|p| match p {
+                            PropOrSpread::Spread(_) => true,
+                            PropOrSpread::Prop(box b) => match b {
+                                Prop::KeyValue(kv) => match &kv.key {
+                                    PropName::Computed(_) => true,
+                                    PropName::Str(s) => s.value.contains(" ") || s.value.contains(":"),
+                                    _ => false
+                                },
+                                _ => false
                             }
+                        }) {
+                            return Some((i, props.clone(), span));
                         }
                     }
-                }
+                    None
+                },
+                _ => None
             }
-            return None;
         });
 
-        if let Some((class_list_idx,mut props)) = class_list_props {
+        if let Some((class_list_idx,mut props, span)) = class_list_props {
             let mut i = 0usize;
             props.retain(|prop| {
-                if let PropOrSpread::Prop(p) = prop {
-                    match **p {
-                        Prop::Shorthand(ref id) => {
-                            i+=1;
+                let mut handle = |name: Ident, value: Expr| {
+                    i+=1;
+                    match self.evaluator.as_mut().unwrap().eval(&value) {
+                        Some(EvalResult::Lit(_)) => {
                             attributes.insert(class_list_idx + i, 
                                 JSXAttrOrSpread::JSXAttr(JSXAttr { 
                                     span: DUMMY_SP, 
-                                    name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: id.clone() }), 
-                                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(Expr::Ident(id.clone()))) 
+                                    name: JSXAttrName::Ident(quote_ident!("class")), 
+                                    value: Some(JSXAttrValue::Lit(Lit::Str(name.sym.to_string().into())))
+                                }));
+                        },
+                        _ => {
+                            attributes.insert(class_list_idx + i, 
+                                JSXAttrOrSpread::JSXAttr(JSXAttr { 
+                                    span: DUMMY_SP, 
+                                    name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name}), 
+                                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span, expr: JSXExpr::Expr(Box::new(value)) 
                                 })) }));
-                            return false;
-                        }
+                        },
+                    }
+                    
+                    false
+                };
+
+                if let PropOrSpread::Prop(box p) = prop {
+                    return match p {
+                        Prop::Shorthand(ref id) => handle(id.clone(), Expr::Ident(id.clone())),
                         Prop::KeyValue(ref kv) => {
                             match kv.key {
-                                PropName::Ident(ref id) => {
-                                    i+=1;
-                                    attributes.insert(class_list_idx + i, 
-                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
-                                            span: DUMMY_SP, 
-                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: id.clone() }), 
-                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
-                                        })) }));
-                                    return false;
-                                },
-                                PropName::Str(ref s) => {
-                                    i+=1;
-                                    attributes.insert(class_list_idx + i, 
-                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
-                                            span: DUMMY_SP, 
-                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: quote_ident!(s.value.to_string()) }), 
-                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
-                                        })) }));
-                                    return false;
-                                },
-                                PropName::Num(ref n) => {
-                                    i+=1;
-                                    attributes.insert(class_list_idx + i, 
-                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
-                                            span: DUMMY_SP, 
-                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: quote_ident!(n.value.to_string()) }), 
-                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
-                                        })) }));
-                                    return false;
-                                },
-                                PropName::BigInt(ref n) =>  {
-                                    i+=1;
-                                    attributes.insert(class_list_idx + i, 
-                                        JSXAttrOrSpread::JSXAttr(JSXAttr { 
-                                            span: DUMMY_SP, 
-                                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName { ns: quote_ident!("class"), name: quote_ident!(*n.value.to_string()) }), 
-                                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(*kv.value.clone())) 
-                                        })) }));
-                                    return false;
-                                },
-                                PropName::Computed(_) => panic!("Can't run to this"),
+                                PropName::Ident(ref id) => handle(id.clone(), *kv.value.clone()),
+                                PropName::Str(ref s) => handle( quote_ident!(s.value.to_string()), *kv.value.clone()),
+                                _ => true,
                             }
                         }
-                        _ => panic!("Expect ident or key value prop for style attr")
+                        _ => true
                     }
                 }
                 return true;
@@ -644,9 +602,9 @@ where
             }
             return false;
         }).map(|(idx, a)| (idx, a.clone())).collect();
-
         if class_attributes.len() > 1 {
             let first = &class_attributes[0];
+            let mut subtract = 0;
             let mut values = vec![];
             let mut quasis = vec![TplElement { span: DUMMY_SP, tail: true, cooked: None, raw: "".into() }];
             for (i, (idx, attr)) in class_attributes.iter().enumerate() {
@@ -666,7 +624,8 @@ where
                     }
                 }
                 if i > 0 {
-                    attributes.remove(*idx);
+                    attributes.remove(*idx - subtract);
+                    subtract += 1;
                 }
             }
             let value;
@@ -676,7 +635,7 @@ where
                 value = JSXAttrValue::Lit(Lit::Str(quasis[0].clone().raw.into()));
             }
             if let JSXAttrOrSpread::JSXAttr(JSXAttr {ref name, ..}) = first.1 {
-                attributes[first.0] = JSXAttrOrSpread::JSXAttr(JSXAttr { span: DUMMY_SP, name: name.clone(), value: Some(value) })
+                attributes[first.0] = JSXAttrOrSpread::JSXAttr(JSXAttr { span: DUMMY_SP, name: name.clone(), value: Some(value) });
             }
         }
 
@@ -868,7 +827,7 @@ where
                             children = Some(JSXElementChild::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(expr.clone())) }));
                         } else if key.starts_with("on") {
                             let el_ident = results.id.clone().unwrap();
-                            let ev = key.strip_prefix("on").unwrap();
+                            let ev = key.strip_prefix("on").unwrap().to_lowercase();
                             if key.starts_with("on:") || key.starts_with("oncapture:") {
                                 let mut listener_options = vec![
                                     ExprOrSpread {
@@ -894,12 +853,8 @@ where
                                     }, 
                                     type_args: None
                                 }))
-                            } else if self.config.delegate_events && (DELEGATED_EVENTS.contains(ev) || self.config.delegated_events.contains(&ev.to_string())) {
-                                // hasHydratableEvent = true;
-                                // const events =
-                                //   attribute.scope.getProgramParent().data.events ||
-                                //   (attribute.scope.getProgramParent().data.events = new Set());
-                                // events.add(ev);
+                            } else if self.config.delegate_events && (DELEGATED_EVENTS.contains(&ev.as_ref()) || self.config.delegated_events.contains(&ev.to_string())) {
+                                self.events.insert(ev.clone());
                                 let el_ident = results.id.clone().unwrap();
                                 let resolveable = self.detect_resolvable_event_handler(&expr);
                                 if let Expr::Array(ref arr_lit) = expr {

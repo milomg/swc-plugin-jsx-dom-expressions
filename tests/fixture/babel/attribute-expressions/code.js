@@ -97,15 +97,15 @@ const template17 = (
   </button>
 );
 
-// const template18 = (
-//   <div
-//     {...{
-//       get [key()]() {
-//         return props.value;
-//       }
-//     }}
-//   />
-// );
+const template18 = (
+  <div
+    {...{
+      get [key()]() {
+        return props.value;
+      }
+    }}
+  />
+);
 
 // const template19 = <div classList={{ "bg-red-500": true }} class="flex flex-col" />;
 

@@ -94,6 +94,29 @@ where
         }
     }
 
+    pub fn insert_events(&mut self, module: &mut Module) {
+        if self.events.len() > 0 {
+            module.body.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt { 
+                span: DUMMY_SP, 
+                expr: Box::new(Expr::Call(CallExpr { 
+                    span: DUMMY_SP, 
+                    callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("delegateEvents")))), 
+                    args: vec![ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Array(ArrayLit { 
+                            span: DUMMY_SP, 
+                            elems: self.events.drain().map(|v| Some(ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Lit(Lit::Str(v.into())))
+                            })).collect()
+                        }))
+                    }], 
+                    type_args: None 
+                }))
+            })))
+        }
+    }
+
     pub fn transform_condition(&mut self, mut node: Expr, inline:bool, deep:bool) -> (Option<Stmt>, Expr) {
         let memo_wrapper = self.config.memo_wrapper.clone();
         let memo = self.register_import_method(&memo_wrapper);

@@ -149,20 +149,15 @@ const template17 = (()=>{
     _$addEventListener(_el$23, "click", increment, true);
     return _el$23;
 })();
-// const template18 = (()=>{
-//     const _el$24 = _tmpl$4();
-//     _$spread(
-//         _el$24,
-//         _$mergeProps(()=>({
-//             get [key()]() {
-//                 return props.value;
-//             }
-//         })),
-//         false,
-//         false
-//     );
-//     return _el$24;
-// })();
+const template18 = (()=>{
+    const _el$24 = _tmpl$4();
+    _$spread(_el$24, _$mergeProps(()=>({
+            get [key()] () {
+                return props.value;
+            }
+        })), false, false);
+    return _el$24;
+})();
 // const template19 = _tmpl$10();
 // const template20 = (()=>{
 //     const _el$26 = _tmpl$11(),
@@ -297,4 +292,4 @@ const template17 = (()=>{
 //     _el$45.style.removeProperty("background-color");
 //     return _el$45;
 // })();
-// _$delegateEvents(["click", "input"]);
+_$delegateEvents(["click", "input"]);
