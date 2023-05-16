@@ -14,15 +14,15 @@ pub static PROP_ALIASES_OBJ: Lazy<HashMap<&str, HashMap<&str, &str>>> = Lazy::ne
             ("IMG", "1")
         ])),
         ("nomodule", HashMap::from([
-            ("$", "nomodule"),
+            ("$", "noModule"),
             ("SCRIPT", "1")
         ])),
         ("playsinline", HashMap::from([
-            ("$", "playsinline"),
+            ("$", "playsInline"),
             ("VIDEO", "1")
         ])),
         ("readonly", HashMap::from([
-            ("$", "readonly"),
+            ("$", "readOnly"),
             ("INPUT", "1"),
             ("TEXTAREA", "1")
         ])),

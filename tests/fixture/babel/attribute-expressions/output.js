@@ -158,37 +158,29 @@ const template18 = (()=>{
         })), false, false);
     return _el$24;
 })();
-// const template19 = _tmpl$10();
-// const template20 = (()=>{
-//     const _el$26 = _tmpl$11(),
-//         _el$27 = _el$26.firstChild,
-//         _el$28 = _el$27.nextSibling;
-//     _$addEventListener(_el$27, "input", doSomething, true);
-//     _$addEventListener(_el$28, "input", doSomethingElse, true);
-//     _el$28.readOnly = value;
-//     _$effect(
-//         _p$=>{
-//             const _v$4 = min(),
-//                 _v$5 = max(),
-//                 _v$6 = min(),
-//                 _v$7 = max();
-//             _v$4 !== _p$._v$4 && _$setAttribute(_el$27, "min", (_p$._v$4 = _v$4));
-//             _v$5 !== _p$._v$5 && _$setAttribute(_el$27, "max", (_p$._v$5 = _v$5));
-//             _v$6 !== _p$._v$6 && _$setAttribute(_el$28, "min", (_p$._v$6 = _v$6));
-//             _v$7 !== _p$._v$7 && _$setAttribute(_el$28, "max", (_p$._v$7 = _v$7));
-//             return _p$;
-//         },
-//         {
-//             _v$4: undefined,
-//             _v$5: undefined,
-//             _v$6: undefined,
-//             _v$7: undefined
-//         }
-//     );
-//     _$effect(()=>(_el$27.value = s()));
-//     _$effect(()=>(_el$28.checked = s2()));
-//     return _el$26;
-// })();
+const template19 = _tmpl$10();
+const template20 = (()=>{
+    const _el$26 = _tmpl$11(), _el$27 = _el$26.firstChild, _el$28 = _el$27.nextSibling;
+    _$addEventListener(_el$27, "input", doSomething, true);
+    _$addEventListener(_el$28, "input", doSomethingElse, true);
+    _el$28.readOnly = value;
+    _$effect((_p$)=>{
+        const _v$4 = min(), _v$5 = max(), _v$6 = min(), _v$7 = max();
+        _v$4 !== _p$._v$4 && _$setAttribute(_el$27, "min", _p$._v$4 = _v$4);
+        _v$5 !== _p$._v$5 && _$setAttribute(_el$27, "max", _p$._v$5 = _v$5);
+        _v$6 !== _p$._v$6 && _$setAttribute(_el$28, "min", _p$._v$6 = _v$6);
+        _v$7 !== _p$._v$7 && _$setAttribute(_el$28, "max", _p$._v$7 = _v$7);
+        return _p$;
+    }, {
+        _v$4: undefined,
+        _v$5: undefined,
+        _v$6: undefined,
+        _v$7: undefined
+    });
+    _$effect(()=>_el$27.value = s());
+    _$effect(()=>_el$28.checked = s2());
+    return _el$26;
+})();
 // const template21 = (()=>{
 //     const _el$29 = _tmpl$4();
 //     _$effect(_$p =>
@@ -292,4 +284,7 @@ const template18 = (()=>{
 //     _el$45.style.removeProperty("background-color");
 //     return _el$45;
 // })();
-_$delegateEvents(["click", "input"]);
+_$delegateEvents([
+    "click",
+    "input"
+]);
