@@ -161,28 +161,28 @@ where
                             args: vec![], 
                             type_args: None }));
 
-                        if matches!(*expr.cons, Expr::Cond(_)) || matches!(*expr.cons, Expr::Bin(_)) {
-                            let (_, e) = self.transform_condition((*expr.cons).clone(), inline, true);
+                        if matches!(*expr.cons, Expr::Cond(_)) || is_logical_expression(&expr.cons) {
+                            let (_, e) = self.transform_condition(*expr.cons.clone(), inline, true);
                             expr.cons = Box::new(e);
                         }
 
                         match *expr.cons {
                             Expr::Paren(ParenExpr {expr: box ref mut ex, ..}) 
-                                if (matches!(ex, Expr::Cond(_)) || matches!(ex, Expr::Bin(_))) => {
+                                if (matches!(ex, Expr::Cond(_)) || is_logical_expression(ex)) => {
                                 let (_, e) = self.transform_condition(ex.clone(), inline, true);
                                 *ex = e;
                             }
                             _ => {}
                         }
 
-                        if matches!(*expr.alt, Expr::Cond(_)) || matches!(*expr.alt, Expr::Bin(_)) {
+                        if matches!(*expr.alt, Expr::Cond(_)) || is_logical_expression(&expr.alt) {
                             let (_, e) = self.transform_condition(*expr.alt.clone(), inline, true);
                             expr.alt = Box::new(e);
                         }
 
                         match *expr.alt {
                             Expr::Paren(ParenExpr {expr: box ref mut ex, ..}) 
-                                if (matches!(ex, Expr::Cond(_)) || matches!(ex, Expr::Bin(_))) => {
+                                if (matches!(ex, Expr::Cond(_)) || is_logical_expression(ex)) => {
                                 let (_, e) = self.transform_condition(ex.clone(), inline, true);
                                 *ex = e;
                             }
@@ -748,6 +748,15 @@ pub fn is_l_val(expr: &Expr) -> bool {
 
 pub fn is_logical_op(b: &BinExpr) -> bool {
     b.op == BinaryOp::LogicalOr || b.op == BinaryOp::LogicalAnd || b.op == BinaryOp::NullishCoalescing
+}
+
+pub fn is_logical_expression(expr: &Expr) -> bool {
+    if let Expr::Bin(b) = expr {
+        if is_logical_op(b) {
+            return true;
+        }
+    }
+    return false;
 }
 
 pub fn is_binary_expression(expr: &Expr) -> bool {

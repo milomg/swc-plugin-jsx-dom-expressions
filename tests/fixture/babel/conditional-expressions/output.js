@@ -63,7 +63,7 @@ const template9 = (()=>{
     const _el$9 = _tmpl$();
     _$insert(_el$9, (()=>{
         const _c$6 = _$memo(()=>!!state.dynamic);
-        return ()=>(_c$6() && good()) || bad;
+        return ()=>_c$6() && good() || bad;
     })()
     );
     return _el$9;
@@ -78,11 +78,10 @@ const template11 = (()=>{
     _$insert(_el$11, (()=>{
         const _c$7 = _$memo(()=>!!state.a);
         return ()=>_c$7() ? a() : (()=>{
-                    const _c$8 = _$memo(()=>!!state.b);
-                    return ()=>(_c$8() ? b() : state.c ? "c" : "fallback");
-                })();
-    })()
-    );
+                const _c$8 = _$memo(()=>!!state.b);
+                return ()=>_c$8() ? b() : state.c ? "c" : "fallback";
+            })();
+    })());
     return _el$11;
 })();
 const template12 = _$createComponent(Comp, {
@@ -131,7 +130,7 @@ const template20 = (()=>{
     const _el$13 = _tmpl$();
     _$insert(_el$13, (()=>{
         const _c$9 = _$memo(()=>!!state.dynamic);
-        return ()=>(_c$9() ? _$createComponent(Comp, {}) : _$createComponent(Comp, {}));
+        return ()=>_c$9() ? _$createComponent(Comp, {}) : _$createComponent(Comp, {});
     })());
     return _el$13;
 })();
@@ -180,8 +179,7 @@ const template29 = (()=>{
     _$insert(_el$18, (()=>{
         const _c$10 = _$memo(()=>!!thing());
         return ()=>(_c$10() && thing1()) ?? thing2() ?? thing3();
-    })()
-    );
+    })());
     return _el$18;
 })();
 const template30 = (()=>{
@@ -191,7 +189,7 @@ const template30 = (()=>{
 })();
 const template31 = _$createComponent(Comp, {
     get value () {
-        return _$memo(()=>!!count())() ? (_$memo(()=>!!count())() ? count() : count()) : count();
+        return _$memo(()=>!!count())() ? _$memo(()=>!!count())() ? count() : count() : count();
     }
 });
 const template32 = (()=>{
