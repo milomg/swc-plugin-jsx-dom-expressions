@@ -28,7 +28,6 @@ fn default_module_name() -> String {
 
 impl Default for Config {
     fn default() -> Self {
-        // todo!("change default");
         Config {
             module_name: "dom".to_owned(),
             generate: "dom".to_owned(),

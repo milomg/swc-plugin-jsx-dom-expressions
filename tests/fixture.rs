@@ -56,6 +56,7 @@ fn jsx_dom_expressions_fixture_babel(input: PathBuf) {
                     Config {
                         module_name: "r-dom".to_string(),
                         built_ins: vec!["For".to_string(), "Show".to_string()],
+                        context_to_custom_elements: true,
                         ..Default::default()
                     },
                     t.comments.clone()
