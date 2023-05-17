@@ -120,7 +120,8 @@ where
             match value {
                 Expr::Lit(lit) => {
                     match lit {
-                        Lit::Str(_) => {
+                        Lit::Str(_) | Lit::Num(_) => {
+                            let value = lit_to_string(lit);
                             return Expr::Call(CallExpr { 
                                 span: DUMMY_SP, 
                                 callee: Callee::Expr(Box::new(Expr::Member(MemberExpr { 
@@ -137,7 +138,7 @@ where
                                     expr: name
                                 },ExprOrSpread {
                                     spread: None,
-                                    expr: Box::new(value.clone())
+                                    expr: Box::new(Expr::Lit(Lit::Str(value.into())))
                                 }], 
                                 type_args: None
                             });
@@ -445,7 +446,7 @@ where
         let mut children = None;
         let mut spread_expr = Expr::Invalid(Invalid { span: DUMMY_SP });
         let mut attributes = node.opening.attrs.clone();
-        let is_svg = results.is_svg;
+        let is_svg = SVG_ELEMENTS.contains(&results.tag_name.as_str());
         let is_ce = results.tag_name.contains('-');
         let has_children = !node.children.is_empty();
 
