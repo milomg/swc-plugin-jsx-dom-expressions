@@ -222,20 +222,20 @@ where
                 results.id = Some(self.generate_uid_identifier("el$"));
             }
             return Some(results);
-        } else if let JSXElementChild::JSXExprContainer(JSXExprContainer { expr, .. }) = node {
+        } else if let JSXElementChild::JSXExprContainer(JSXExprContainer { expr, span }) = node {
             match expr {
                 JSXExpr::JSXEmptyExpr(_) => {
                     return None;
                 }
                 JSXExpr::Expr(exp) => {
-                    if !self.is_dynamic(&exp, None, true, info.component_child, true, !info.component_child) {
+                    if !self.is_dynamic(&exp, Some(span.clone()), true, info.component_child, true, !info.component_child) {
                         return Some(TemplateInstantiation {
                             exprs: vec![*exp.clone()],
                             ..Default::default()
                         });
                     }
                     let mut expr = vec![];
-                    if self.config.wrap_conditionals &&( matches!(**exp, Expr::Bin(_)) || matches!(**exp, Expr::Cond(_)) ) {
+                    if self.config.wrap_conditionals && self.config.generate != "ssr" && (matches!(**exp, Expr::Bin(_)) || matches!(**exp, Expr::Cond(_)) ) {
                         let result = self.transform_condition(*exp.clone(), info.component_child, false);
                         match result {
                             (Some(stmt0), ex1) => {
@@ -264,7 +264,7 @@ where
                         }
                     } else {
                         let mut flag = false;
-                        if !info.component_child && info.fragment_child {
+                        if !info.component_child && (self.config.generate != "ssr" || info.fragment_child) {
                             if let Expr::Call(CallExpr { callee: Callee::Expr(ref ex) , ref args,.. }) = **exp {
                                 if !matches!(**ex, Expr::Member(_)) && args.is_empty() {
                                     flag = true;

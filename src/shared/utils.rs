@@ -44,12 +44,15 @@ pub fn get_tag_name(element: &JSXElement) -> String {
         JSXElementName::JSXMemberExpr(member) => {
             let mut name = member.prop.sym.to_string();
             let mut obj = &member.obj;
-            while let JSXObject::JSXMemberExpr(member) = obj {
-                name = format!("{}.{}", member.prop.sym, name);
-                obj = &member.obj;
-            }
-            name = format!("{}.{}", member.prop.sym, name);
-            name
+            let o = loop {
+                if let JSXObject::JSXMemberExpr(member) = obj {
+                    name = format!("{}.{}", member.prop.sym, name);
+                    obj = &member.obj;
+                } else if let JSXObject::Ident(id) = obj {
+                    break id.sym.to_string();
+                }
+            };
+            format!("{}.{}", o, name)
         }
         JSXElementName::JSXNamespacedName(name) => {
             format!("{}:{}", name.ns.sym, name.name.sym)

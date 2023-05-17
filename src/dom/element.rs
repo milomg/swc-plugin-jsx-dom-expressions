@@ -824,7 +824,7 @@ where
                                 _ => {}
                             };
                         } else if key == "children" {
-                            children = Some(JSXElementChild::JSXExprContainer(JSXExprContainer { span: DUMMY_SP, expr: JSXExpr::Expr(Box::new(expr.clone())) }));
+                            children = Some(JSXElementChild::JSXExprContainer(JSXExprContainer { span, expr: JSXExpr::Expr(Box::new(expr.clone())) }));
                         } else if key.starts_with("on") {
                             let el_ident = results.id.clone().unwrap();
                             let ev = key.strip_prefix("on").unwrap().to_lowercase();

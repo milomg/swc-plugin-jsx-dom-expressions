@@ -571,8 +571,8 @@ where
         match node {
             JSXElementName::Ident(ident) => {
                 match Ident::verify_symbol(&ident.sym) {
-                    Ok(_) =>Expr::Ident(ident.clone()),
-                    Err(_) =>  Expr::Lit(Lit::Str(ident.sym.to_string().into()))
+                    Ok(_) => Expr::Ident(ident.clone()),
+                    Err(_) => Expr::Lit(Lit::Str(ident.sym.to_string().into()))
                 }
             }
             JSXElementName::JSXMemberExpr(member) => {
@@ -581,7 +581,7 @@ where
                     span: DUMMY_SP, 
                     obj: Box::new(self.get_component_identifier(&match &member.obj {
                         JSXObject::Ident(id) => JSXElementName::Ident(id.clone()),
-                        JSXObject::JSXMemberExpr(_) => JSXElementName::JSXMemberExpr(member.clone())
+                        JSXObject::JSXMemberExpr(box member) => JSXElementName::JSXMemberExpr(member.clone())
                     })), 
                     prop: match prop {
                         Expr::Ident(id) => MemberProp::Ident(id),
