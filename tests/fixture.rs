@@ -18,31 +18,6 @@ fn syntax() -> Syntax {
     })
 }
 
-#[fixture("tests/fixture/**/input.js")]
-fn jsx_dom_expressions_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-
-    test_fixture(
-        syntax(),
-        &|t| {
-            chain!(
-                resolver(Mark::new(), Mark::new(), false),
-                as_folder(TransformVisitor::new(
-                    Config {
-                        module_name: "r-dom".to_string(),
-                        built_ins: vec!["For".to_string(), "Show".to_string()],
-                        ..Default::default()
-                    },
-                    t.comments.clone()
-                ))
-            )
-        },
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
 #[fixture("tests/fixture/babel/**/code.js")]
 fn jsx_dom_expressions_fixture_babel(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");

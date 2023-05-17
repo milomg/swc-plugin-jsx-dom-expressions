@@ -946,7 +946,7 @@ where
                                             prop: MemberProp::Ident(quote_ident!("addEventListener")) }))), 
                                         args: vec![ExprOrSpread {
                                             spread: None,
-                                            expr: Box::new(Expr::Ident(quote_ident!(ev)))
+                                            expr: Box::new(Expr::Lit(Lit::Str(ev.into())))
                                         },ExprOrSpread {
                                             spread: None,
                                             expr: Box::new(handler)
@@ -962,7 +962,7 @@ where
                                             prop: MemberProp::Ident(quote_ident!("addEventListener")) }))), 
                                         args: vec![ExprOrSpread {
                                             spread: None,
-                                            expr: Box::new(Expr::Ident(quote_ident!(ev)))
+                                            expr: Box::new(Expr::Lit(Lit::Str(ev.into())))
                                         },ExprOrSpread {
                                             spread: None,
                                             expr: Box::new(expr.clone())
@@ -978,7 +978,7 @@ where
                                             expr: Box::new(Expr::Ident(el_ident.clone())), 
                                         },ExprOrSpread {
                                             spread: None,
-                                            expr: Box::new(Expr::Ident(quote_ident!(ev)))
+                                            expr: Box::new(Expr::Lit(Lit::Str(ev.into())))
                                         },ExprOrSpread {
                                             spread: None,
                                             expr: Box::new(expr.clone())
