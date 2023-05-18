@@ -1,34 +1,33 @@
-use crate::TransformVisitor;
+use crate::{TransformVisitor, shared::utils::is_l_val};
 
-use super::{structs::TemplateInstantiation, transform::TransformInfo, utils::is_dynamic};
+use super::{structs::TemplateInstantiation, transform::TransformInfo, utils::{convert_jsx_identifier, filter_children, jsx_text_to_str}};
+
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::{ast::*, utils::quote_ident},
 };
 
-enum TagId {
-    Ident(Ident),
-    StringLiteral(Str),
-    MemberExpr(Box<MemberExpr>),
-}
-
 impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
-    pub fn transform_component(&mut self, expr: &JSXElement) -> TemplateInstantiation {
-        let name = &expr.opening.name;
-        let tag_id = self.get_component_identifier(name);
-
-        let has_children = !expr.children.is_empty();
-
+    pub fn transform_component(&mut self, node: &JSXElement) -> TemplateInstantiation {
         let mut exprs: Vec<Expr> = vec![];
-
+        let mut tag_id = self.get_component_identifier(&node.opening.name);
         let mut props = vec![];
         let mut running_objects = vec![];
-        let mut has_dynamic_spread = false;
+        let mut dynamic_spread = false;
+        let has_children = !node.children.is_empty();
 
-        for attribute in &expr.opening.attrs {
+        if let Expr::Ident(id) = &tag_id {
+            if self.config.built_ins.iter().any(|v| v.as_str() == &id.sym) {
+                if id.span.ctxt.as_u32() == 1 {
+                    tag_id = Expr::Ident(self.register_import_method(&id.sym.to_string()));
+                }
+            }
+        }
+
+        for attribute in &node.opening.attrs {
             match attribute {
                 JSXAttrOrSpread::SpreadElement(node) => {
                     if !running_objects.is_empty() {
@@ -45,8 +44,8 @@ where
                         running_objects = vec![];
                     }
 
-                    let expr = if is_dynamic(&node.expr, true, false, true, false) {
-                        has_dynamic_spread = true;
+                    let expr = if self.is_dynamic(&node.expr, None, true, false, true, false) {
+                        dynamic_spread = true;
                         match *node.expr.clone() {
                             Expr::Call(CallExpr {
                                 callee: Callee::Expr(callee_expr),
@@ -74,31 +73,18 @@ where
                     props.push(expr);
                 }
                 JSXAttrOrSpread::JSXAttr(attr) => {
-                    let name = match &attr.name {
-                        JSXAttrName::Ident(ident) => ident.sym.to_string(),
-                        JSXAttrName::JSXNamespacedName(name) => {
-                            format!("{}:{}", name.ns.sym, name.name.sym)
-                        }
-                    };
-                    let key = match Ident::verify_symbol(&name) {
-                        Ok(_) => PropName::Ident(Ident::new(name.clone().into(), DUMMY_SP)),
-                        Err(_) => PropName::Str(Str {
-                            span: DUMMY_SP,
-                            value: name.clone().into(),
-                            raw: None,
-                        }),
-                    };
-
-                    if has_children && name == "children" {
+                    let (id, key) = convert_jsx_identifier(&attr.name);
+                    
+                    if has_children && key == "children" {
                         continue;
                     }
 
-                    let prop = match attr.value.clone() {
+                    match attr.value.clone() {
                         Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
                             expr: JSXExpr::Expr(expr),
-                            ..
+                            span
                         })) => {
-                            if name == "ref" {
+                            if key == "ref" {
                                 let expr = {
                                     let mut expr = *expr;
                                     loop {
@@ -115,57 +101,208 @@ where
                                     }
                                     expr
                                 };
-                                todo!("handle ref")
-                            } else if is_dynamic(expr.as_ref(), true, true, true, false) {
-                                // TODO: add wrapConditionals support
-                                GetterProp {
+                                let is_function = if let Expr::Ident(ref id) = expr {
+                                    self.binding_collector.const_var_bindings.contains_key(&id.to_id())
+                                } else {
+                                    false
+                                };
+                                if !is_function && is_l_val(&expr) {
+                                    let ref_identifier = self.generate_uid_identifier("_ref$");
+                                    running_objects.push(Prop::Method(MethodProp { 
+                                        key: PropName::Ident(quote_ident!("ref")), 
+                                        function: Box::new(Function { 
+                                            params: vec![Param {
+                                                span: DUMMY_SP,
+                                                decorators: vec![],
+                                                pat: Pat::Ident(quote_ident!("r$").into())
+                                            }], 
+                                            decorators: vec![], 
+                                            span: DUMMY_SP, 
+                                            body: Some(BlockStmt { 
+                                                span: DUMMY_SP,
+                                                stmts: vec![Stmt::Decl(Decl::Var(Box::new(VarDecl { 
+                                                    span: DUMMY_SP, 
+                                                    kind: VarDeclKind::Const, 
+                                                    declare: false, 
+                                                    decls: vec![VarDeclarator {
+                                                        definite: false,
+                                                        span: DUMMY_SP,
+                                                        name: Pat::Ident(ref_identifier.clone().into()),
+                                                        init: Some(Box::new(expr.clone()))
+                                                    }] 
+                                                }))),
+                                                Stmt::Expr(ExprStmt { 
+                                                    span: DUMMY_SP, 
+                                                    expr: Box::new(Expr::Cond(CondExpr { 
+                                                        span: DUMMY_SP, 
+                                                        test: Box::new(Expr::Bin(BinExpr { 
+                                                            span: DUMMY_SP, 
+                                                            op: BinaryOp::EqEqEq, 
+                                                            left: Box::new(Expr::Unary(UnaryExpr { 
+                                                                span: DUMMY_SP, 
+                                                                op: UnaryOp::TypeOf, 
+                                                                arg: Box::new(Expr::Ident(ref_identifier.clone()))
+                                                            })), 
+                                                            right: Box::new(Expr::Lit(Lit::Str("function".into()))) 
+                                                        })), 
+                                                        cons: Box::new(Expr::Call(CallExpr { 
+                                                            span: DUMMY_SP, 
+                                                            callee: Callee::Expr(Box::new(Expr::Ident(ref_identifier.clone()))), 
+                                                            args: vec![ExprOrSpread {
+                                                                spread: None,
+                                                                expr: Box::new(Expr::Ident(quote_ident!("r$")))
+                                                            }], 
+                                                            type_args: None 
+                                                        })),
+                                                        alt: Box::new(Expr::Assign(AssignExpr { 
+                                                            span: DUMMY_SP, 
+                                                            op: AssignOp::Assign, 
+                                                            left: PatOrExpr::Expr(Box::new(expr)), 
+                                                            right: Box::new(Expr::Ident(quote_ident!("r$"))) 
+                                                        }))
+                                                    })) 
+                                                })] 
+                                            }), 
+                                            is_generator: false, 
+                                            is_async: false, 
+                                            type_params: None, 
+                                            return_type: None })
+                                    }));
+                                } else if is_function || matches!(expr, Expr::Fn(_) | Expr::Arrow(_)) {
+                                    running_objects.push(Prop::KeyValue(KeyValueProp { 
+                                        key: PropName::Ident(quote_ident!("ref")), 
+                                        value: Box::new(expr) 
+                                    }))
+                                } else if matches!(expr, Expr::Call(_)) {
+                                    let ref_identifier = self.generate_uid_identifier("_ref$");
+                                    running_objects.push(Prop::Method(MethodProp { 
+                                        key: PropName::Ident(quote_ident!("ref")), 
+                                        function: Box::new(Function { 
+                                            params: vec![Param {
+                                                span: DUMMY_SP,
+                                                decorators: vec![],
+                                                pat: Pat::Ident(quote_ident!("r$").into())
+                                            }], 
+                                            decorators: vec![], 
+                                            span: DUMMY_SP, 
+                                            body: Some(BlockStmt { 
+                                                span: DUMMY_SP,
+                                                stmts: vec![Stmt::Decl(Decl::Var(Box::new(VarDecl { 
+                                                    span: DUMMY_SP, 
+                                                    kind: VarDeclKind::Const, 
+                                                    declare: false, 
+                                                    decls: vec![VarDeclarator {
+                                                        definite: false,
+                                                        span: DUMMY_SP,
+                                                        name: Pat::Ident(ref_identifier.clone().into()),
+                                                        init: Some(Box::new(expr))
+                                                    }] 
+                                                }))),
+                                                Stmt::Expr(ExprStmt { 
+                                                    span: DUMMY_SP, 
+                                                    expr: Box::new(Expr::Bin(BinExpr { 
+                                                        span: DUMMY_SP, 
+                                                        op: BinaryOp::LogicalAnd, 
+                                                        left: Box::new(Expr::Bin(BinExpr { 
+                                                            span: DUMMY_SP, 
+                                                            op: BinaryOp::EqEqEq, 
+                                                            left: Box::new(Expr::Unary(UnaryExpr { 
+                                                                span: DUMMY_SP, 
+                                                                op: UnaryOp::TypeOf, 
+                                                                arg: Box::new(Expr::Ident(ref_identifier.clone()))
+                                                            })), 
+                                                            right: Box::new(Expr::Lit(Lit::Str("function".into()))) 
+                                                        })), 
+                                                        right: Box::new(Expr::Call(CallExpr { 
+                                                            span: DUMMY_SP, 
+                                                            callee: Callee::Expr(Box::new(Expr::Ident(ref_identifier.clone()))), 
+                                                            args: vec![ExprOrSpread {
+                                                                spread: None,
+                                                                expr: Box::new(Expr::Ident(quote_ident!("r$")))
+                                                            }], 
+                                                            type_args: None 
+                                                        })) 
+                                                    })) 
+                                                })] 
+                                            }), 
+                                            is_generator: false, 
+                                            is_async: false, 
+                                            type_params: None, 
+                                            return_type: None })
+                                    }));
+                                }
+                            } else if self.is_dynamic(&expr, Some(span), true, true, true, false) {
+                                let mut exp;
+                                if self.config.wrap_conditionals && (matches!(*expr, Expr::Bin(_)) || matches!(*expr, Expr::Cond(_))) {
+                                    (_, exp) = self.transform_condition(*expr.clone(), true, false);
+                                    if let Expr::Arrow(ArrowExpr {body, ..}) = exp {
+                                        match *body {
+                                            BlockStmtOrExpr::Expr(ex) => exp = *ex,
+                                            BlockStmtOrExpr::BlockStmt(_) => panic!(),
+                                        }
+                                    } else {
+                                        panic!()
+                                    }
+                                } else {
+                                    exp = *expr;
+                                }
+                                
+                                running_objects.push(GetterProp {
                                     span: DUMMY_SP,
-                                    key,
+                                    key: id,
                                     type_ann: None,
                                     body: Some(BlockStmt {
                                         span: DUMMY_SP,
                                         stmts: vec![Stmt::Return(ReturnStmt {
                                             span: DUMMY_SP,
-                                            arg: Some(expr),
+                                            arg: Some(Box::new(exp)),
                                         })],
                                     }),
-                                }
-                                .into()
+                                }.into());
                             } else {
-                                Prop::KeyValue(KeyValueProp { key, value: expr })
+                                running_objects.push(Prop::KeyValue(KeyValueProp { key: id, value: expr }));
                             }
                         }
-                        Some(JSXAttrValue::Lit(lit)) => Prop::KeyValue(KeyValueProp {
-                            key,
-                            value: lit.into(),
-                        }),
-                        Some(JSXAttrValue::JSXElement(el)) => Prop::KeyValue(KeyValueProp {
-                            key,
+                        Some(JSXAttrValue::Lit(lit)) => {
+                            let lit = match lit {
+                                Lit::Str(s)=> Lit::Str(html_escape::decode_html_entities(&s.value).into()),
+                                _ => lit
+                            };
+                            running_objects.push(Prop::KeyValue(KeyValueProp {
+                                key: id,
+                                value: lit.into(),
+                            }));
+                        },
+                        Some(JSXAttrValue::JSXElement(el)) => {
+                            running_objects.push(Prop::KeyValue(KeyValueProp {
+                                key: id,
                             value: Box::new(Expr::JSXElement(el)),
-                        }),
-                        Some(JSXAttrValue::JSXFragment(frag)) => Prop::KeyValue(KeyValueProp {
-                            key,
+                            }));
+                        },
+                        Some(JSXAttrValue::JSXFragment(frag)) => {
+                            running_objects.push(Prop::KeyValue(KeyValueProp {
+                            key: id,
                             value: Box::new(Expr::JSXFragment(frag)),
-                        }),
+                        }));
+                        },
                         None
                         | Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
                             expr: JSXExpr::JSXEmptyExpr(_),
                             ..
-                        })) => Prop::KeyValue(KeyValueProp {
-                            key,
+                        })) => running_objects.push(Prop::KeyValue(KeyValueProp {
+                            key: id,
                             value: Lit::Bool(Bool {
                                 span: DUMMY_SP,
                                 value: true,
                             })
                             .into(),
-                        }),
+                        })),
                     };
-                    running_objects.push(prop);
                 }
             }
         }
 
-        let child_result = self.transform_component_children(&expr.children);
+        let child_result = self.transform_component_children(&node.children);
 
         match child_result {
             Some((expr, true)) => {
@@ -179,6 +316,17 @@ where
                                     if let Some(ExprOrSpread { expr, .. }) = args.first() {
                                         if let Expr::Fn(fun) = &**expr {
                                             fun.function.body.clone()
+                                        } else if let Expr::Arrow(arrow) = &**expr {
+                                            match *arrow.body.clone() {
+                                                BlockStmtOrExpr::BlockStmt(b) => Some(b),
+                                                BlockStmtOrExpr::Expr(ex) => Some(BlockStmt { 
+                                                    span: DUMMY_SP, 
+                                                    stmts: vec![Stmt::Return(ReturnStmt { 
+                                                        span: DUMMY_SP, 
+                                                        arg: Some(ex) 
+                                                    })] 
+                                                }),
+                                            }
                                         } else {
                                             None
                                         }
@@ -225,7 +373,7 @@ where
             None => (),
         }
 
-        if !running_objects.is_empty() && props.is_empty() {
+        if !running_objects.is_empty() || props.is_empty() {
             props.push(
                 ObjectLit {
                     span: DUMMY_SP,
@@ -235,55 +383,31 @@ where
             )
         }
 
-        let singularized_prop = if props.len() > 1 || has_dynamic_spread {
-            Some(
-                CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(self.register_import_method("mergeProps").into()),
-                    args: props.into_iter().map(|p| p.into()).collect(),
-                    type_args: None,
-                }
-                .into(),
-            )
-        } else {
-            props.pop()
-        };
+        if props.len() > 1 || dynamic_spread {
+            props = vec![Expr::Call(CallExpr {
+                span: DUMMY_SP,
+                callee: Callee::Expr(self.register_import_method("mergeProps").into()),
+                args: props.into_iter().map(|p| p.into()).collect(),
+                type_args: None,
+            })];
+        }
+
+        let component_args = vec![tag_id, props.remove(0)];
 
         exprs.push(
             CallExpr {
                 span: DUMMY_SP,
                 callee: Callee::Expr(self.register_import_method("createComponent").into()),
-                args: vec![
-                    match tag_id {
-                        TagId::Ident(ident) => Expr::Ident(ident),
-                        TagId::StringLiteral(lit) => Expr::Lit(lit.into()),
-                        TagId::MemberExpr(expr) => Expr::Member(*expr),
-                    }
-                    .into(),
-                    singularized_prop
-                        .unwrap_or(
-                            ObjectLit {
-                                span: DUMMY_SP,
-                                props: vec![],
-                            }
-                            .into(),
-                        )
-                        .into(),
-                ],
+                args: component_args.into_iter().map(|v| ExprOrSpread { 
+                    spread: None,
+                    expr: Box::new(v)
+                }).collect(),
                 type_args: None,
             }
             .into(),
         );
 
         TemplateInstantiation {
-            template: "".into(),
-            tag_name: "".into(),
-            decl: VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Const,
-                declare: false,
-                decls: vec![],
-            },
             exprs: if exprs.len() > 1 {
                 let ret = exprs.pop();
                 let mut stmts: Vec<Stmt> = exprs
@@ -327,14 +451,8 @@ where
             } else {
                 exprs
             },
-            dynamics: vec![],
-            post_exprs: vec![],
-            is_svg: false,
-            is_void: false,
-            id: None,
-            has_custom_element: false,
-            text: false,
-            dynamic: false,
+            component: true,
+            ..Default::default()
         }
     }
 
@@ -344,102 +462,87 @@ where
     ) -> Option<(Expr, bool)> {
         let filtered_children = children
             .iter()
-            .filter(|child| match child {
-                JSXElementChild::JSXElement(_)
-                | JSXElementChild::JSXFragment(_)
-                | JSXElementChild::JSXSpreadChild(_) => true,
-                JSXElementChild::JSXText(child) => child.raw.chars().any(|c| !c.is_whitespace()),
-                JSXElementChild::JSXExprContainer(container) => match container.expr {
-                    JSXExpr::Expr(_) => true,
-                    JSXExpr::JSXEmptyExpr(_) => false,
-                },
-            })
+            .filter(|child| filter_children(&child))
             .collect::<Vec<_>>();
         if filtered_children.is_empty() {
             return None;
         }
 
         let mut dynamic = false;
+        let mut path_nodes = vec![];
         let is_filtered_children_plural = filtered_children.len() > 1;
 
-        let transformed_children: Vec<Expr> = filtered_children
-            .iter()
-            .filter_map(|child| {
-                match child {
-                    JSXElementChild::JSXText(child) => {
-                        let decoded = html_escape::decode_html_entities(child.raw.trim());
-                        if decoded.len() > 0 {
-                            return Some(Lit::Str(decoded.to_string().into()).into());
-                        }
+        let transformed_children: Vec<Expr> = filtered_children.iter().fold(vec![], |mut memo, node| {
+            match node {
+                JSXElementChild::JSXText(child) => {
+                    let value = jsx_text_to_str(&child.value);
+                    if value.len() > 0 {
+                        path_nodes.push(node);
+                        memo.push(Lit::Str(value.into()).into());
                     }
-                    node => {
-                        let child = self.transform_jsx_child(
-                            node,
-                            &TransformInfo {
-                                top_level: true,
-                                component_child: true,
-                                skip_id: false,
-                            },
-                        );
-                        if let Some(mut child) = child {
-                            dynamic = dynamic || child.dynamic;
+                }
+                node => {
+                    let child = self.transform_node(
+                        node,
+                        &TransformInfo {
+                            top_level: true,
+                            component_child: true,
+                            last_element: true,
+                            ..Default::default()
+                        },
+                    );
+                    if let Some(mut child) = child {
+                        dynamic = dynamic || child.dynamic;
 
-                            if is_filtered_children_plural && child.dynamic {
-                                if let Some(Expr::Arrow(ArrowExpr { body, .. })) =
-                                    child.exprs.first()
-                                {
-                                    if let BlockStmtOrExpr::Expr(expr) = body.as_ref() {
-                                        child.exprs.insert(0, *expr.clone());
-                                    }
+                        if self.config.generate == "ssr" && is_filtered_children_plural && child.dynamic {
+                            if let Some(Expr::Arrow(ArrowExpr { body, .. })) =
+                                child.exprs.first()
+                            {
+                                if let BlockStmtOrExpr::Expr(expr) = body.as_ref() {
+                                    child.exprs.insert(0, *expr.clone());
                                 }
                             }
-
-                            return Some(
-                                self.create_template(&mut child, is_filtered_children_plural),
-                            );
                         }
-                    }
-                };
 
-                None
-            })
-            .collect();
+                        path_nodes.push(node);
+                        memo.push(self.create_template(&mut child, is_filtered_children_plural));
+                    }
+                }
+            };
+            memo
+        });
 
         if transformed_children.len() == 1 {
             let first_children = transformed_children.into_iter().next().unwrap();
 
-            match filtered_children.first() {
-                Some(JSXElementChild::JSXExprContainer(_))
-                | Some(JSXElementChild::JSXSpreadChild(_))
-                | Some(JSXElementChild::JSXText(_))
-                | None => Some((first_children, dynamic)),
-                _ => {
-                    let expr = match &first_children {
-                        Expr::Call(CallExpr {
-                            callee: Callee::Expr(callee_expr),
-                            args,
-                            ..
-                        }) if args.is_empty() => match *callee_expr.clone() {
-                            Expr::Ident(_) => None,
-                            expr => Some(expr),
-                        },
-                        _ => None,
-                    }
-                    .unwrap_or(
-                        ArrowExpr {
-                            span: DUMMY_SP,
-                            params: vec![],
-                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(first_children))),
-                            is_async: false,
-                            is_generator: false,
-                            type_params: None,
-                            return_type: None,
-                        }
-                        .into(),
-                    );
-
-                    Some((expr, true))
+            if !path_nodes.is_empty() && !matches!(path_nodes[0], JSXElementChild::JSXExprContainer(_) | JSXElementChild::JSXSpreadChild(_) | JSXElementChild::JSXText(_)) {
+                let expr = match &first_children {
+                    Expr::Call(CallExpr {
+                        callee: Callee::Expr(callee_expr),
+                        args,
+                        ..
+                    }) if args.is_empty() => match *callee_expr.clone() {
+                        Expr::Ident(_) => None,
+                        expr => Some(expr),
+                    },
+                    _ => None,
                 }
+                .unwrap_or(
+                    ArrowExpr {
+                        span: DUMMY_SP,
+                        params: vec![],
+                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(first_children))),
+                        is_async: false,
+                        is_generator: false,
+                        type_params: None,
+                        return_type: None,
+                    }
+                    .into(),
+                );
+
+                Some((expr, true))
+            } else {
+                Some((first_children, dynamic))
             }
         } else {
             Some((
@@ -467,60 +570,29 @@ where
         }
     }
 
-    fn get_component_identifier(&mut self, node: &JSXElementName) -> TagId {
+    fn get_component_identifier(&mut self, node: &JSXElementName) -> Expr {
         match node {
             JSXElementName::Ident(ident) => {
-                let ident = if self
-                    .config
-                    .builtins
-                    .iter()
-                    .any(|builtin| &ident.sym == AsRef::<str>::as_ref(builtin))
-                {
-                    self.register_import_method(&ident.sym)
-                } else {
-                    ident.clone()
-                };
-                TagId::Ident(ident)
+                match Ident::verify_symbol(&ident.sym) {
+                    Ok(_) => Expr::Ident(ident.clone()),
+                    Err(_) => Expr::Lit(Lit::Str(ident.sym.to_string().into()))
+                }
             }
             JSXElementName::JSXMemberExpr(member) => {
-                let obj = self.get_component_identifier(&match &member.obj {
-                    JSXObject::JSXMemberExpr(member) => {
-                        JSXElementName::JSXMemberExpr(*member.clone())
-                    }
-                    JSXObject::Ident(ident) => JSXElementName::Ident(ident.clone()),
-                });
-                TagId::MemberExpr(Box::new(MemberExpr {
-                    span: DUMMY_SP,
-                    obj: Box::new(match obj {
-                        TagId::Ident(ident) => Expr::Ident(ident),
-                        TagId::StringLiteral(str) => Expr::Lit(Lit::Str(str)),
-                        TagId::MemberExpr(member) => Expr::Member(*member),
-                    }),
-                    prop: match Ident::verify_symbol(&member.prop.sym) {
-                        Ok(_) => MemberProp::Ident(member.prop.clone()),
-                        Err(_) => MemberProp::Computed(ComputedPropName {
-                            span: DUMMY_SP,
-                            expr: Box::new(
-                                Str {
-                                    span: DUMMY_SP,
-                                    value: Into::into(member.prop.sym.to_string()),
-                                    raw: None,
-                                }
-                                .into(),
-                            ),
-                        }),
-                    },
-                }))
+                let prop = self.get_component_identifier(&JSXElementName::Ident(member.prop.clone()));
+                Expr::Member(MemberExpr { 
+                    span: DUMMY_SP, 
+                    obj: Box::new(self.get_component_identifier(&match &member.obj {
+                        JSXObject::Ident(id) => JSXElementName::Ident(id.clone()),
+                        JSXObject::JSXMemberExpr(box member) => JSXElementName::JSXMemberExpr(member.clone())
+                    })), 
+                    prop: match prop {
+                        Expr::Ident(id) => MemberProp::Ident(id),
+                        _ => MemberProp::Computed(ComputedPropName { span: DUMMY_SP, expr: Box::new(prop) })
+                    } 
+                })
             }
-            JSXElementName::JSXNamespacedName(name) => {
-                let name = format!("{}:{}", name.ns.sym, name.name.sym);
-                let name = Str {
-                    span: DUMMY_SP,
-                    value: Into::into(name),
-                    raw: None,
-                };
-                TagId::StringLiteral(name)
-            }
+            JSXElementName::JSXNamespacedName(_) => panic!("Can't hanlde this")
         }
     }
 }

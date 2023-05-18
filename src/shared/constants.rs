@@ -1,3 +1,69 @@
+use std::collections::{HashSet, HashMap};
+
+use once_cell::sync::Lazy;
+
+pub static PROP_ALIASES_OBJ: Lazy<HashMap<&str, HashMap<&str, &str>>> = Lazy::new(|| {
+    HashMap::from([
+        ("formnovalidate", HashMap::from([
+            ("$", "formNoValidate"),
+            ("BUTTON", "1"),
+            ("INPUT", "1"),
+        ])),
+        ("ismap", HashMap::from([
+            ("$", "isMap"),
+            ("IMG", "1")
+        ])),
+        ("nomodule", HashMap::from([
+            ("$", "noModule"),
+            ("SCRIPT", "1")
+        ])),
+        ("playsinline", HashMap::from([
+            ("$", "playsInline"),
+            ("VIDEO", "1")
+        ])),
+        ("readonly", HashMap::from([
+            ("$", "readOnly"),
+            ("INPUT", "1"),
+            ("TEXTAREA", "1")
+        ])),
+    ])
+});
+
+pub fn get_prop_alias(prop: &str, tag_name: &str) -> Option<String> {
+    if prop == "class" {
+        return Some("className".to_string());
+    }
+    let a = PROP_ALIASES_OBJ.get(prop)?;
+    a.get(tag_name).map(|_| a.get("$").unwrap().to_string())
+}
+
+pub static DELEGATED_EVENTS: Lazy<HashSet<&str>> = Lazy::new(||{
+    HashSet::from([
+        "beforeinput",
+        "click",
+        "dblclick",
+        "contextmenu",
+        "focusin",
+        "focusout",
+        "input",
+        "keydown",
+        "keyup",
+        "mousedown",
+        "mousemove",
+        "mouseout",
+        "mouseover",
+        "mouseup",
+        "pointerdown",
+        "pointermove",
+        "pointerout",
+        "pointerover",
+        "pointerup",
+        "touchend",
+        "touchmove",
+        "touchstart"
+    ])
+});
+
 pub const SVG_ELEMENTS: [&str; 76] = [
     "altGlyph",
     "altGlyphDef",
@@ -77,30 +143,56 @@ pub const SVG_ELEMENTS: [&str; 76] = [
     "vkern",
 ];
 
+pub static SVGNAMESPACE: Lazy<HashMap<&str, &str>> = Lazy::new(||{
+    HashMap::from([("xlink", "http://www.w3.org/1999/xlink"), ("xml", "http://www.w3.org/XML/1998/namespace")])
+});
+
 pub const VOID_ELEMENTS: [&str; 16] = [
     "area", "base", "br", "col", "embed", "hr", "img", "input", "keygen", "link", "menuitem",
     "meta", "param", "source", "track", "wbr",
 ];
 
-// // React Compat
-// const Aliases = {
-//     className: "class",
-//     htmlFor: "for"
-//   }
+pub static ALIASES: Lazy<HashMap<&str, &str>> = Lazy::new(||{
+    HashMap::from([("className", "class"), ("htmlFor", "for")])
+});
 
-// // React Compat
-// #[allow(non_snake_case)]
-// pub struct Aliases<'a> {
-//     className: &'a str,
-//     htmlFor: &'a str,
-// }
+pub static CHILD_PROPERTIES: Lazy<HashSet<&str>> = Lazy::new(||{
+    HashSet::from(["innerHTML", "textContent", "innerText", "children"])
+});
 
-// pub const ALIASES: Aliases = Aliases {
-//     className: "class",
-//     htmlFor: "for",
-// };
+pub const BOOLEANS: [&str; 24] = [
+    "allowfullscreen",
+    "async",
+    "autofocus",
+    "autoplay",
+    "checked",
+    "controls",
+    "default",
+    "disabled",
+    "formnovalidate",
+    "hidden",
+    "indeterminate",
+    "ismap",
+    "loop",
+    "multiple",
+    "muted",
+    "nomodule",
+    "novalidate",
+    "open",
+    "playsinline",
+    "readonly",
+    "required",
+    "reversed",
+    "seamless",
+    "selected"
+];
 
-// turn it into a hasmap
-pub const ALIASES: [(&str, &str); 2] = [("className", "class"), ("htmlFor", "for")];
-
-pub const CHILD_PROPERTIES: [&str; 4] = ["innerHTML", "textContent", "innerText", "children"];
+pub static PROPERTIES: Lazy<HashSet<&str>> = Lazy::new(||{
+    ["className",
+    "value",
+    "readOnly",
+    "formNoValidate",
+    "isMap",
+    "noModule",
+    "playsInline"].into_iter().chain(BOOLEANS.into_iter()).collect()
+});
