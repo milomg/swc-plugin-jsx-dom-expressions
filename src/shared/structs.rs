@@ -10,7 +10,6 @@ pub struct TemplateConstruction {
     pub id: Ident,
     pub is_svg: bool,
     pub is_ce: bool
-    pub is_svg: bool,
 }
 
 #[derive(Clone, Debug)]
