@@ -1,9 +1,8 @@
 pub use crate::shared::structs::TransformVisitor;
 
-use html_escape::decode_html_entities;
 use swc_core::{common::{comments::Comments, DUMMY_SP}, ecma::ast::{JSXElementChild, Expr, Lit, ArrayLit}};
 
-use super::{structs::TemplateInstantiation, utils::{filter_children, trim_whitespace}, transform::TransformInfo};
+use super::{structs::TemplateInstantiation, utils::{filter_children, jsx_text_to_str}, transform::TransformInfo};
 
 impl<C> TransformVisitor<C>
 where
@@ -19,11 +18,10 @@ where
         .filter(|c| filter_children(c))
         .fold(vec![], |mut memo,node| {
             match node {
-                JSXElementChild::JSXText(node) => {
-                    let s = trim_whitespace(&node.raw);
-                    let v = decode_html_entities(&s);
-                    if v.len() > 0 {
-                        memo.push(Expr::Lit(Lit::Str(v.into())));
+                JSXElementChild::JSXText(child) => {
+                    let value = jsx_text_to_str(&child.value);
+                    if value.len() > 0 {
+                        memo.push(Expr::Lit(Lit::Str(value.into())));
                     }
                 },
                 _ => {

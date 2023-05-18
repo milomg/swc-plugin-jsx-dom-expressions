@@ -1,14 +1,15 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, borrow::Cow};
 
 use crate::TransformVisitor;
 use convert_case::{Case, Converter};
 use regex::Regex;
+use swc_atoms::{Atom, JsWord};
 use swc_core::{
-    common::{comments::Comments, DUMMY_SP, Span, BytePos},
+    common::{comments::Comments, DUMMY_SP, Span, BytePos, iter::IdentifyLast},
     ecma::{
         ast::*,
         utils::{prepend_stmt, private_ident},
-        visit::{Visit, VisitWith},
+        visit::{Visit, VisitWith}, minifier::eval::EvalResult,
     },
 };
 use once_cell::sync::Lazy;
@@ -340,6 +341,22 @@ where
         }
     }
 
+    pub fn get_static_expression(&mut self, child: &JSXElementChild) -> Option<String> {
+        match child {
+            JSXElementChild::JSXExprContainer(JSXExprContainer { expr: JSXExpr::Expr(ref expr), .. }) => match **expr {
+                Expr::Lit(ref lit) => Some(lit_to_string(lit)),
+                Expr::Seq(_) => None,
+                _ => {
+                    match self.evaluator.as_mut().unwrap().eval(expr) {
+                        Some(EvalResult::Lit(lit)) => Some(lit_to_string(&lit)),
+                        _ => None,
+                    }
+                },
+            },
+            _ => None
+        }
+    }
+
     pub fn is_dynamic(
         &self,
         expr: &Expr,
@@ -501,21 +518,6 @@ where
             self.dynamic = true;
             self.is_stop = true;
         }
-    }
-}
-
-pub fn get_static_expression(child: &JSXElementChild) -> Option<String> {
-    // only handle simple literals for now
-    match child {
-        JSXElementChild::JSXExprContainer(JSXExprContainer { expr: JSXExpr::Expr(ref expr), .. }) => match **expr {
-            Expr::Lit(ref lit) => match lit {
-                    Lit::Str(Str { value, .. }) => Some(value.to_string()),
-                    Lit::Num(Number { value, .. }) => Some(value.to_string()),
-                    _ => None
-                },
-            _ => None,
-        },
-        _ => None
     }
 }
 
@@ -769,4 +771,34 @@ pub fn is_binary_expression(expr: &Expr) -> bool {
         }
     }
     return false;
+}
+
+pub fn jsx_text_to_str(t: &Atom) -> JsWord {
+    let mut buf = String::new();
+    let replaced = t.replace('\t', " ");
+
+    for (is_last, (i, line)) in replaced.lines().enumerate().identify_last() {
+        if line.is_empty() {
+            continue;
+        }
+        let line = Cow::from(line);
+        let line = if i != 0 {
+            Cow::Borrowed(line.trim_start_matches(' '))
+        } else {
+            line
+        };
+        let line = if is_last {
+            line
+        } else {
+            Cow::Borrowed(line.trim_end_matches(' '))
+        };
+        if line.len() == 0 {
+            continue;
+        }
+        if i != 0 && !buf.is_empty() {
+            buf.push(' ')
+        }
+        buf.push_str(&line);
+    }
+    buf.into()
 }

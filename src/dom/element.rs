@@ -5,7 +5,7 @@ use crate::{
             TemplateInstantiation, ProcessSpreadsInfo, DynamicAttr,
         },
         transform::{is_component, TransformInfo},
-        utils::{filter_children, get_static_expression, get_tag_name, wrapped_by_text, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length, is_l_val, is_static_expr},
+        utils::{filter_children, get_tag_name, wrapped_by_text, can_native_spread, convert_jsx_identifier, lit_to_string, RESERVED_NAME_SPACES, trim_whitespace, escape_backticks, escape_html, to_property_name, check_length, is_l_val, is_static_expr},
     },
     TransformVisitor,
 };
@@ -1288,7 +1288,7 @@ where
             .iter()
             .filter(|c| filter_children(c))
             .collect::<Vec<&JSXElementChild>>();
-        let last_element = find_last_element(&filtered_children);
+        let last_element = self.find_last_element(&filtered_children);
         let child_nodes = filtered_children.iter().enumerate().fold(
             Vec::<TemplateInstantiation>::new(),
             |mut memo, (index, child)| {
@@ -1298,10 +1298,11 @@ where
                         results.tag_name
                     );
                 }
+                let detect_expressions = self.detect_expressions(&filtered_children, index);
                 let transformed = self.transform_node(child, &TransformInfo { 
                     to_be_closed: results.to_be_closed.clone(),
                     last_element: index == last_element as usize,
-                    skip_id: results.id.is_none() || !self.detect_expressions(&filtered_children, index),
+                    skip_id: results.id.is_none() || !detect_expressions,
                     ..Default::default()
                  });
 
@@ -1476,11 +1477,11 @@ where
         (expr_id, None)
     }
 
-    fn detect_expressions(&self,children: &[&JSXElementChild], index: usize) -> bool {
+    fn detect_expressions(&mut self,children: &[&JSXElementChild], index: usize) -> bool {
         if index > 0 {
             let node = &children[index - 1];
     
-            if matches!(node, JSXElementChild::JSXExprContainer(JSXExprContainer { expr: JSXExpr::Expr(_),.. })) && get_static_expression(node).is_none() {
+            if matches!(node, JSXElementChild::JSXExprContainer(JSXExprContainer { expr: JSXExpr::Expr(_),.. })) && self.get_static_expression(node).is_none() {
                 return true;
             }
     
@@ -1493,7 +1494,7 @@ where
         }
         for child in children.iter().skip(index) {
             if let JSXElementChild::JSXExprContainer(JSXExprContainer { expr, .. }) = child {
-                if !matches!(expr, JSXExpr::JSXEmptyExpr(_)) && get_static_expression(child).is_none() {
+                if !matches!(expr, JSXExpr::JSXEmptyExpr(_)) && self.get_static_expression(child).is_none() {
                     return true;
                 }
             } else if let JSXElementChild::JSXElement(e) = child {
@@ -1536,26 +1537,26 @@ where
         }
         false
     }
-    
-}
 
-fn find_last_element(children: &Vec<&JSXElementChild>) -> i32{
-    let mut last_element = -1i32;
-    for i in (0i32..children.len() as i32).rev() {
-        let child = &children[i as usize];
-        if matches!(child, JSXElementChild::JSXText(_)) || get_static_expression(child).is_some() {
-            last_element = i;
-            break;
-        }
-        if let JSXElementChild::JSXElement(element) = child {
-            let tag_name = get_tag_name(element);
-            if !is_component(&tag_name) {
+    fn find_last_element(&mut self, children: &Vec<&JSXElementChild>) -> i32{
+        let mut last_element = -1i32;
+        for i in (0i32..children.len() as i32).rev() {
+            let child = &children[i as usize];
+            if matches!(child, JSXElementChild::JSXText(_)) || self.get_static_expression(child).is_some() {
                 last_element = i;
                 break;
             }
+            if let JSXElementChild::JSXElement(element) = child {
+                let tag_name = get_tag_name(element);
+                if !is_component(&tag_name) {
+                    last_element = i;
+                    break;
+                }
+            }
         }
+        return last_element;
     }
-    return last_element;
+    
 }
 
 fn next_child(child_nodes: &Vec<TemplateInstantiation>, index: usize) -> Option<Expr> {

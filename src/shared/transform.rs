@@ -1,9 +1,6 @@
 use std::collections::{HashSet, HashMap};
 
-use super::{
-    structs::TemplateInstantiation,
-    utils::{get_static_expression},
-};
+use super::{structs::TemplateInstantiation};
 use crate::shared::utils::{trim_whitespace, escape_backticks, escape_html};
 pub use crate::shared::{
     structs::TransformVisitor,
@@ -170,7 +167,7 @@ where
     C: Comments,
 {
 
-    pub fn transform_jsx(&mut self, node: &mut JSXElementChild) -> Expr {
+    pub fn transform_jsx(&mut self, node: &JSXElementChild) -> Expr {
         let info = match node {
             JSXElementChild::JSXFragment(_) => Default::default(),
             _ => TransformInfo {
@@ -191,7 +188,7 @@ where
             self.transform_fragment_children(&node.children, &mut results);
             return Some(results);
         } else if let JSXElementChild::JSXText(node) = node {
-            let text = trim_whitespace(&node.raw);
+            let text = trim_whitespace(&html_escape::encode_text(&node.raw).replace("\u{a0}", "&nbsp;"));
             if text.is_empty() {
                 return None;
             }
@@ -204,7 +201,7 @@ where
                 results.id = Some(self.generate_uid_identifier("el$"));
             }
             return Some(results);
-        } else if let Some(static_value) = get_static_expression(node) {
+        } else if let Some(static_value) = self.get_static_expression(node) {
             let text = if info.do_not_escape {
                 static_value
             } else {
@@ -325,11 +322,9 @@ where
         );
         self.create_template(&mut results, false)
     }
+
     pub fn transform_jsx_element(&mut self, node: &JSXElement) -> TemplateInstantiation {
         self.transform_element(node, &Default::default())
-    }
-    pub fn transform_jsx_fragment(&mut self, _: &JSXFragment) -> TemplateInstantiation {
-        Default::default()
     }
 
     pub fn transform_element(
@@ -344,84 +339,4 @@ where
         self.transform_element_dom(node, info)
     }
 
-    pub fn transform_jsx_child(
-        &mut self,
-        node: &JSXElementChild,
-        info: &TransformInfo,
-    ) -> Option<TemplateInstantiation> {
-        match node {
-            JSXElementChild::JSXElement(node) => Some(self.transform_element(node, info)),
-            JSXElementChild::JSXFragment(node) => {
-                // TODO: fixme
-                Some(self.transform_jsx_fragment(node))
-            }
-            JSXElementChild::JSXText(node) => {
-                self.transform_text_child(node.value.to_string(), info)
-            }
-            con @ JSXElementChild::JSXExprContainer(node) => {
-                match &node.expr {
-                    JSXExpr::JSXEmptyExpr(_) => None,
-                    JSXExpr::Expr(expr) => {
-                        if let Some(evaluated) = get_static_expression(con) {
-                            if !info.component_child {
-                                return self.transform_text_child(evaluated, info);
-                            }
-                        }
-
-                        if !self.is_dynamic(expr, None, true, info.component_child, true, info.component_child)
-                        {
-                            return Some(TemplateInstantiation {
-                                exprs: vec![*expr.clone()],
-                                ..Default::default()
-                            });
-                        }
-
-                        Some(TemplateInstantiation {
-                            exprs: vec![*expr.clone()],
-                            dynamic: true,
-                            ..Default::default()
-                        })
-                    }
-                }
-            }
-            JSXElementChild::JSXSpreadChild(node) => {
-                // TODO: add is_dynamic check for optimization
-                let expr = Expr::Arrow(ArrowExpr {
-                    span: DUMMY_SP,
-                    params: vec![],
-                    body: Box::new(BlockStmtOrExpr::Expr(node.expr.clone())),
-                    is_async: false,
-                    is_generator: false,
-                    type_params: None,
-                    return_type: None,
-                });
-                Some(TemplateInstantiation {
-                    exprs: vec![expr],
-                    dynamic: true,
-                    ..Default::default()
-                })
-            }
-        }
-    }
-
-    pub fn transform_text_child(
-        &self,
-        text: String,
-        info: &TransformInfo,
-    ) -> Option<TemplateInstantiation> {
-        if text.trim().is_empty() {
-            None
-        } else {
-            Some(TemplateInstantiation {
-                id: if info.skip_id {
-                    None
-                } else {
-                    Some(private_ident!("el$"))
-                },
-                template: text,
-                text: true,
-                ..Default::default()
-            })
-        }
-    }
 }

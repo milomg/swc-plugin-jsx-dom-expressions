@@ -1,7 +1,7 @@
-
 use crate::{TransformVisitor, shared::utils::is_l_val};
 
-use super::{structs::TemplateInstantiation, transform::TransformInfo, utils::{convert_jsx_identifier, filter_children, trim_whitespace}};
+use super::{structs::TemplateInstantiation, transform::TransformInfo, utils::{convert_jsx_identifier, filter_children, jsx_text_to_str}};
+
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::{ast::*, utils::quote_ident},
@@ -264,6 +264,10 @@ where
                             }
                         }
                         Some(JSXAttrValue::Lit(lit)) => {
+                            let lit = match lit {
+                                Lit::Str(s)=> Lit::Str(html_escape::decode_html_entities(&s.value).into()),
+                                _ => lit
+                            };
                             running_objects.push(Prop::KeyValue(KeyValueProp {
                                 key: id,
                                 value: lit.into(),
@@ -471,11 +475,10 @@ where
         let transformed_children: Vec<Expr> = filtered_children.iter().fold(vec![], |mut memo, node| {
             match node {
                 JSXElementChild::JSXText(child) => {
-                    let text = trim_whitespace(&child.raw);
-                    let decoded = html_escape::decode_html_entities(&text);
-                    if decoded.len() > 0 {
+                    let value = jsx_text_to_str(&child.value);
+                    if value.len() > 0 {
                         path_nodes.push(node);
-                        memo.push(Lit::Str(decoded.to_string().into()).into());
+                        memo.push(Lit::Str(value.into()).into());
                     }
                 }
                 node => {
