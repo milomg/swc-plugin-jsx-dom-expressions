@@ -1,6 +1,6 @@
 #![feature(box_patterns)]
-use config::Config;
-use shared::transform::{ThisBlockVisitor};
+
+use shared::transform::ThisBlockVisitor;
 use swc_core::{
     common::{comments::Comments, util::take::Take},
     ecma::{
