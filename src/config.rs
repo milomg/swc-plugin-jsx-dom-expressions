@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-// use serde_json::json;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,7 +41,7 @@ impl Default for Config {
             static_marker: "@once".to_owned(),
             effect_wrapper: "effect".to_owned(),
             memo_wrapper: "memo".to_owned(),
-            validate: true
+            validate: true,
         }
     }
 }

@@ -1,5 +1,4 @@
-
-use super::element::{AttrOptions};
+use super::element::AttrOptions;
 use crate::{
     shared::structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
     TransformVisitor,
@@ -33,37 +32,41 @@ where
                         params: vec![],
                         body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
                             span: DUMMY_SP,
-                            stmts: [
-                                Stmt::Decl(Decl::Var(Box::new(VarDecl { span: DUMMY_SP, kind: VarDeclKind::Const, declare: false, decls: result.declarations.clone() })))]
-                                .into_iter()
-                                .chain(result.exprs.clone().into_iter().map(|x| {
-                                    Stmt::Expr(ExprStmt {
-                                        span: DUMMY_SP,
-                                        expr: Box::new(x),
-                                    })
-                                }))
-                                .chain(
-                                    self.wrap_dynamics(&mut result.dynamics)
-                                        .unwrap_or_default()
-                                        .into_iter()
-                                        .map(|x| {
-                                            Stmt::Expr(ExprStmt {
-                                                span: DUMMY_SP,
-                                                expr: Box::new(x),
-                                            })
-                                        }),
-                                )
-                                .chain(result.post_exprs.clone().into_iter().map(|x| {
-                                    Stmt::Expr(ExprStmt {
-                                        span: DUMMY_SP,
-                                        expr: Box::new(x),
-                                    })
-                                }))
-                                .chain([Stmt::Return(ReturnStmt {
+                            stmts: [Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                                span: DUMMY_SP,
+                                kind: VarDeclKind::Const,
+                                declare: false,
+                                decls: result.declarations.clone(),
+                            })))]
+                            .into_iter()
+                            .chain(result.exprs.clone().into_iter().map(|x| {
+                                Stmt::Expr(ExprStmt {
                                     span: DUMMY_SP,
-                                    arg: Some(Box::new(Expr::Ident(id))),
-                                })])
-                                .collect(),
+                                    expr: Box::new(x),
+                                })
+                            }))
+                            .chain(
+                                self.wrap_dynamics(&mut result.dynamics)
+                                    .unwrap_or_default()
+                                    .into_iter()
+                                    .map(|x| {
+                                        Stmt::Expr(ExprStmt {
+                                            span: DUMMY_SP,
+                                            expr: Box::new(x),
+                                        })
+                                    }),
+                            )
+                            .chain(result.post_exprs.clone().into_iter().map(|x| {
+                                Stmt::Expr(ExprStmt {
+                                    span: DUMMY_SP,
+                                    expr: Box::new(x),
+                                })
+                            }))
+                            .chain([Stmt::Return(ReturnStmt {
+                                span: DUMMY_SP,
+                                arg: Some(Box::new(Expr::Ident(id))),
+                            })])
+                            .collect(),
                         })),
                         is_async: false,
                         is_generator: false,
@@ -79,7 +82,9 @@ where
         if wrap && result.dynamic && !self.config.memo_wrapper.is_empty() {
             return Expr::Call(CallExpr {
                 span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method(&self.config.memo_wrapper.clone())))),
+                callee: Callee::Expr(Box::new(Expr::Ident(
+                    self.register_import_method(&self.config.memo_wrapper.clone()),
+                ))),
                 args: vec![result.exprs[0].clone().into()],
                 type_args: None,
             });
@@ -105,24 +110,22 @@ where
                     .map(|template| {
                         let span = Span::dummy_with_cmt();
                         self.comments.add_pure_comment(span.lo);
-                        let mut args = vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(
-                                    Tpl {
+                        let mut args = vec![ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(
+                                Tpl {
+                                    span: DUMMY_SP,
+                                    exprs: vec![],
+                                    quasis: vec![TplElement {
                                         span: DUMMY_SP,
-                                        exprs: vec![],
-                                        quasis: vec![TplElement {
-                                            span: DUMMY_SP,
-                                            tail: true,
-                                            cooked: None,
-                                            raw: template.template.into(),
-                                        }],
-                                    }
-                                        .into(),
-                                ),
-                            },
-                        ];
+                                        tail: true,
+                                        cooked: None,
+                                        raw: template.template.into(),
+                                    }],
+                                }
+                                .into(),
+                            ),
+                        }];
                         if template.is_svg || template.is_ce {
                             args.push(ExprOrSpread {
                                 spread: None,
@@ -137,7 +140,7 @@ where
                             span: DUMMY_SP,
                             name: template.id.into(),
                             init: Some(Box::new(Expr::Call(CallExpr {
-                                span: span,
+                                span,
                                 callee: Callee::Expr(Box::new(Expr::Ident(templ.clone()))),
                                 args,
                                 type_args: None,
@@ -157,29 +160,29 @@ where
             let template_id: Ident;
             if !results.skip_template {
                 let template_def = self
-                .templates
-                .iter()
-                .find(|t| t.template == results.template);
+                    .templates
+                    .iter()
+                    .find(|t| t.template == results.template);
                 if let Some(template_def) = template_def {
                     template_id = template_def.id.clone();
                 } else {
                     template_id = self.generate_uid_identifier("tmpl$");
-                    self.templates.push(TemplateConstruction { 
-                        id: template_id.clone(), 
-                        template: results.template.clone(), 
+                    self.templates.push(TemplateConstruction {
+                        id: template_id.clone(),
+                        template: results.template.clone(),
                         is_svg: results.is_svg,
-                        is_ce: results.has_custom_element
+                        is_ce: results.has_custom_element,
                     });
                 }
 
                 decl = VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(results.id.clone().unwrap().into()),
-                    init: Some(Box::new(Expr::Call(CallExpr { 
-                        span: DUMMY_SP, 
-                        callee: Callee::Expr(Box::new(Expr::Ident(template_id))), 
-                        args: vec![], 
-                        type_args: None
+                    init: Some(Box::new(Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: Callee::Expr(Box::new(Expr::Ident(template_id))),
+                        args: vec![],
+                        type_args: None,
                     }))),
                     definite: false,
                 };
@@ -234,14 +237,18 @@ where
                                 })]
                             })
                             .unwrap_or_default(),
-                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(
-                            self.set_attr(
-                                &dynamics[0].elem,
-                                &dynamics[0].key,
-                                &dynamics[0].value,
-                                &AttrOptions {is_svg:dynamics[0].is_svg,is_ce:dynamics[0].is_ce,dynamic:true,prev_id:prev_value.map(|v| Expr::Ident(v)), tag_name: dynamics[0].tag_name.clone() },
-                            ),
-                        ))),
+                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(self.set_attr(
+                            &dynamics[0].elem,
+                            &dynamics[0].key,
+                            &dynamics[0].value,
+                            &AttrOptions {
+                                is_svg: dynamics[0].is_svg,
+                                is_ce: dynamics[0].is_ce,
+                                dynamic: true,
+                                prev_id: prev_value.map(Expr::Ident),
+                                tag_name: dynamics[0].tag_name.clone(),
+                            },
+                        )))),
                         is_async: false,
                         is_generator: false,
                         type_params: None,
@@ -296,20 +303,18 @@ where
                         span: Default::default(),
                         left: PatOrExpr::Expr(Box::new(prev.clone())),
                         op: AssignOp::Assign,
-                        right: Box::new(
-                            self.set_attr(
-                                &dynamic.elem,
-                                &dynamic.key,
-                                &Expr::Ident(identifier),
-                                &AttrOptions {
-                                    is_svg: dynamic.is_svg,
-                                    is_ce: dynamic.is_ce,
-                                    tag_name: dynamic.tag_name.clone(),
-                                    dynamic: true,
-                                    prev_id: Some(prev)
-                                },
-                            ),
-                        ),
+                        right: Box::new(self.set_attr(
+                            &dynamic.elem,
+                            &dynamic.key,
+                            &Expr::Ident(identifier),
+                            &AttrOptions {
+                                is_svg: dynamic.is_svg,
+                                is_ce: dynamic.is_ce,
+                                tag_name: dynamic.tag_name.clone(),
+                                dynamic: true,
+                                prev_id: Some(prev),
+                            },
+                        )),
                     })),
                 }));
             } else {
@@ -333,29 +338,27 @@ where
                             })),
                         })),
                         op: BinaryOp::LogicalAnd,
-                        right: Box::new(
-                            self.set_attr(
-                                &dynamic.elem,
-                                &dynamic.key,
-                                &Expr::Assign(AssignExpr {
-                                    span: Default::default(),
-                                    left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr { 
-                                        span: DUMMY_SP, 
-                                        obj: Box::new(Expr::Ident(prev_id.clone())), 
-                                        prop: MemberProp::Ident(identifier.clone())
-                                    }))),
-                                    op: AssignOp::Assign,
-                                    right: Box::new(Expr::Ident(identifier)),
-                                }),
-                                &AttrOptions {
-                                    is_svg: dynamic.is_svg,
-                                    is_ce: dynamic.is_ce,
-                                    tag_name: "".to_string(),
-                                    dynamic: true,
-                                    prev_id: Some(prev)
-                                },
-                            ),
-                        ),
+                        right: Box::new(self.set_attr(
+                            &dynamic.elem,
+                            &dynamic.key,
+                            &Expr::Assign(AssignExpr {
+                                span: Default::default(),
+                                left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                                    span: DUMMY_SP,
+                                    obj: Box::new(Expr::Ident(prev_id.clone())),
+                                    prop: MemberProp::Ident(identifier.clone()),
+                                }))),
+                                op: AssignOp::Assign,
+                                right: Box::new(Expr::Ident(identifier)),
+                            }),
+                            &AttrOptions {
+                                is_svg: dynamic.is_svg,
+                                is_ce: dynamic.is_ce,
+                                tag_name: "".to_string(),
+                                dynamic: true,
+                                prev_id: Some(prev),
+                            },
+                        )),
                     })),
                 }));
             }
@@ -406,7 +409,7 @@ where
                             .into_iter()
                             .map(|id| {
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident(id.clone()),
+                                    key: PropName::Ident(id),
                                     value: Box::new(Expr::Ident(quote_ident!("undefined"))),
                                 })))
                             })

@@ -1,31 +1,25 @@
-use std::collections::{HashSet, HashMap};
-
 use once_cell::sync::Lazy;
+use std::collections::{HashMap, HashSet};
 
 pub static PROP_ALIASES_OBJ: Lazy<HashMap<&str, HashMap<&str, &str>>> = Lazy::new(|| {
     HashMap::from([
-        ("formnovalidate", HashMap::from([
-            ("$", "formNoValidate"),
-            ("BUTTON", "1"),
-            ("INPUT", "1"),
-        ])),
-        ("ismap", HashMap::from([
-            ("$", "isMap"),
-            ("IMG", "1")
-        ])),
-        ("nomodule", HashMap::from([
-            ("$", "noModule"),
-            ("SCRIPT", "1")
-        ])),
-        ("playsinline", HashMap::from([
-            ("$", "playsInline"),
-            ("VIDEO", "1")
-        ])),
-        ("readonly", HashMap::from([
-            ("$", "readOnly"),
-            ("INPUT", "1"),
-            ("TEXTAREA", "1")
-        ])),
+        (
+            "formnovalidate",
+            HashMap::from([("$", "formNoValidate"), ("BUTTON", "1"), ("INPUT", "1")]),
+        ),
+        ("ismap", HashMap::from([("$", "isMap"), ("IMG", "1")])),
+        (
+            "nomodule",
+            HashMap::from([("$", "noModule"), ("SCRIPT", "1")]),
+        ),
+        (
+            "playsinline",
+            HashMap::from([("$", "playsInline"), ("VIDEO", "1")]),
+        ),
+        (
+            "readonly",
+            HashMap::from([("$", "readOnly"), ("INPUT", "1"), ("TEXTAREA", "1")]),
+        ),
     ])
 });
 
@@ -37,7 +31,7 @@ pub fn get_prop_alias(prop: &str, tag_name: &str) -> Option<String> {
     a.get(tag_name).map(|_| a.get("$").unwrap().to_string())
 }
 
-pub static DELEGATED_EVENTS: Lazy<HashSet<&str>> = Lazy::new(||{
+pub static DELEGATED_EVENTS: Lazy<HashSet<&str>> = Lazy::new(|| {
     HashSet::from([
         "beforeinput",
         "click",
@@ -60,7 +54,7 @@ pub static DELEGATED_EVENTS: Lazy<HashSet<&str>> = Lazy::new(||{
         "pointerup",
         "touchend",
         "touchmove",
-        "touchstart"
+        "touchstart",
     ])
 });
 
@@ -143,8 +137,11 @@ pub const SVG_ELEMENTS: [&str; 76] = [
     "vkern",
 ];
 
-pub static SVGNAMESPACE: Lazy<HashMap<&str, &str>> = Lazy::new(||{
-    HashMap::from([("xlink", "http://www.w3.org/1999/xlink"), ("xml", "http://www.w3.org/XML/1998/namespace")])
+pub static SVGNAMESPACE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
+    HashMap::from([
+        ("xlink", "http://www.w3.org/1999/xlink"),
+        ("xml", "http://www.w3.org/XML/1998/namespace"),
+    ])
 });
 
 pub const VOID_ELEMENTS: [&str; 16] = [
@@ -152,13 +149,11 @@ pub const VOID_ELEMENTS: [&str; 16] = [
     "meta", "param", "source", "track", "wbr",
 ];
 
-pub static ALIASES: Lazy<HashMap<&str, &str>> = Lazy::new(||{
-    HashMap::from([("className", "class"), ("htmlFor", "for")])
-});
+pub static ALIASES: Lazy<HashMap<&str, &str>> =
+    Lazy::new(|| HashMap::from([("className", "class"), ("htmlFor", "for")]));
 
-pub static CHILD_PROPERTIES: Lazy<HashSet<&str>> = Lazy::new(||{
-    HashSet::from(["innerHTML", "textContent", "innerText", "children"])
-});
+pub static CHILD_PROPERTIES: Lazy<HashSet<&str>> =
+    Lazy::new(|| HashSet::from(["innerHTML", "textContent", "innerText", "children"]));
 
 pub const BOOLEANS: [&str; 24] = [
     "allowfullscreen",
@@ -184,15 +179,20 @@ pub const BOOLEANS: [&str; 24] = [
     "required",
     "reversed",
     "seamless",
-    "selected"
+    "selected",
 ];
 
-pub static PROPERTIES: Lazy<HashSet<&str>> = Lazy::new(||{
-    ["className",
-    "value",
-    "readOnly",
-    "formNoValidate",
-    "isMap",
-    "noModule",
-    "playsInline"].into_iter().chain(BOOLEANS.into_iter()).collect()
+pub static PROPERTIES: Lazy<HashSet<&str>> = Lazy::new(|| {
+    [
+        "className",
+        "value",
+        "readOnly",
+        "formNoValidate",
+        "isMap",
+        "noModule",
+        "playsInline",
+    ]
+    .into_iter()
+    .chain(BOOLEANS.into_iter())
+    .collect()
 });

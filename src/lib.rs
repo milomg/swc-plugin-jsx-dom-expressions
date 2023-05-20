@@ -5,7 +5,8 @@ use swc_core::{
     common::{comments::Comments, util::take::Take},
     ecma::{
         ast::*,
-        visit::{as_folder, FoldWith, VisitMut, VisitMutWith, VisitWith}, minifier::{eval::Evaluator, marks::Marks},
+        minifier::{eval::Evaluator, marks::Marks},
+        visit::{as_folder, FoldWith, VisitMut, VisitMutWith, VisitWith},
     },
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
@@ -19,19 +20,19 @@ impl<C> VisitMut for TransformVisitor<C>
 where
     C: Comments,
 {
-    // fn visit_mut_jsx_element(&mut self, element: &mut JSXElement) {
-    //     self.transform_jsx_element(element);
-    //     element.visit_mut_children_with(self);
-    // }
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
         match expr {
             Expr::JSXElement(_) | Expr::JSXFragment(_) => {
                 match expr.take() {
-                    Expr::JSXElement(node) => *expr = self.transform_jsx(&mut JSXElementChild::JSXElement(node)),
-                    Expr::JSXFragment(node) => *expr = self.transform_jsx(&mut JSXElementChild::JSXFragment(node)),
+                    Expr::JSXElement(node) => {
+                        *expr = self.transform_jsx(&JSXElementChild::JSXElement(node))
+                    }
+                    Expr::JSXFragment(node) => {
+                        *expr = self.transform_jsx(&JSXElementChild::JSXFragment(node))
+                    }
                     _ => {}
                 };
-            },
+            }
             _ => {}
         };
         expr.visit_mut_children_with(self);
