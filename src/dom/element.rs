@@ -1929,7 +1929,7 @@ where
                             JSXAttrName::Ident(i) => {
                                 ["textContent", "innerHTML", "innerText"].contains(&i.sym.as_ref())
                             }
-                            JSXAttrName::JSXNamespacedName(n) => n.ns.to_string() == "use",
+                            JSXAttrName::JSXNamespacedName(n) => &n.ns.sym == "use",
                         } || (if let Some(JSXAttrValue::JSXExprContainer(expr)) = &attr.value {
                             if let JSXExpr::Expr(expr) = &expr.expr {
                                 !matches!(**expr, Expr::Lit(Lit::Str(_)) | Expr::Lit(Lit::Num(_)))

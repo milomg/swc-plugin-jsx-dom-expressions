@@ -4,7 +4,7 @@ pub use crate::shared::{
     structs::TransformVisitor,
     utils::{get_tag_name, is_component},
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use swc_core::{
     common::{
         collections::{AHashMap, AHashSet},
@@ -17,7 +17,6 @@ use swc_core::{
         visit::{Visit, VisitMut, VisitMutWith, VisitWith},
     },
 };
-
 pub struct VarBindingCollector {
     pub const_var_bindings: AHashMap<Id, Option<Expr>>,
     pub function_bindings: AHashSet<Id>,
@@ -75,85 +74,59 @@ impl Visit for VarBindingCollector {
         self.function_bindings.insert(f.ident.to_id());
     }
 }
+
 pub struct ThisBlockVisitor {
-    uid_identifier_map: HashMap<String, usize>,
+    this_id: Option<Ident>,
+    has_jsx: bool,
 }
 
 impl ThisBlockVisitor {
     pub fn new() -> Self {
         Self {
-            uid_identifier_map: HashMap::new(),
-        }
-    }
-
-    pub fn generate_uid_identifier(&mut self, name: &str) -> Ident {
-        let name = if name.starts_with('_') {
-            name.to_string()
-        } else {
-            "_".to_string() + name
-        };
-        if let Some(count) = self.uid_identifier_map.get_mut(&name) {
-            *count += 1;
-            private_ident!(format!("{name}{count}"))
-        } else {
-            self.uid_identifier_map.insert(name.clone(), 1);
-            private_ident!(name)
+            this_id: None,
+            has_jsx: false,
         }
     }
 }
 
 impl VisitMut for ThisBlockVisitor {
     fn visit_mut_block_stmt(&mut self, block: &mut BlockStmt) {
-        let mut jsx_visitor = JSXVisitor { has_jsx: false };
-        block.visit_children_with(&mut jsx_visitor);
-        if jsx_visitor.has_jsx {
-            let mut this_block_visitor = ThisVisitor {
-                this_id: None,
-                this_block_visitor: self,
-            };
-            block.visit_mut_children_with(&mut this_block_visitor);
-            if let Some(id) = this_block_visitor.this_id {
-                block.stmts.insert(
-                    0,
-                    Stmt::Decl(Decl::Var(Box::new(VarDecl {
+        let mut id = self.this_id.clone();
+        self.has_jsx = false;
+        block.visit_mut_children_with(self);
+        std::mem::swap(&mut self.this_id, &mut id);
+        if let Some(id) = id {
+            block.stmts.insert(
+                0,
+                Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Const,
+                    declare: false,
+                    decls: vec![VarDeclarator {
                         span: DUMMY_SP,
-                        kind: VarDeclKind::Const,
-                        declare: false,
-                        decls: vec![VarDeclarator {
-                            span: DUMMY_SP,
-                            name: Pat::Ident(id.into()),
-                            init: Some(Box::new(Expr::This(ThisExpr { span: DUMMY_SP }))),
-                            definite: false,
-                        }],
-                    }))),
-                )
-            }
+                        name: Pat::Ident(id.into()),
+                        init: Some(Box::new(Expr::This(ThisExpr { span: DUMMY_SP }))),
+                        definite: false,
+                    }],
+                }))),
+            )
         }
     }
-}
-
-struct JSXVisitor {
-    has_jsx: bool,
-}
-impl Visit for JSXVisitor {
-    fn visit_jsx_element(&mut self, _: &JSXElement) {
+    fn visit_mut_jsx_element(&mut self, el: &mut JSXElement) {
         self.has_jsx = true;
+        el.visit_mut_children_with(self);
     }
-    fn visit_jsx_fragment(&mut self, _: &JSXFragment) {
+    fn visit_mut_jsx_fragment(&mut self, el: &mut JSXFragment) {
         self.has_jsx = true;
+        el.visit_mut_children_with(self);
     }
-}
-
-struct ThisVisitor<'a> {
-    this_id: Option<Ident>,
-    this_block_visitor: &'a mut ThisBlockVisitor,
-}
-
-impl VisitMut for ThisVisitor<'_> {
     fn visit_mut_expr(&mut self, n: &mut Expr) {
         if let Expr::This(_) = n {
+            if !self.has_jsx {
+                return;
+            }
             if self.this_id.is_none() {
-                self.this_id = Some(self.this_block_visitor.generate_uid_identifier("self$"));
+                self.this_id = Some(private_ident!("_self$"));
             }
             *n = Expr::Ident(self.this_id.clone().unwrap());
         } else {

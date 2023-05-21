@@ -2,14 +2,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(default)]
 pub struct Config {
-    #[serde(default = "default_module_name")]
     pub module_name: String,
     pub generate: String,
     pub hydratable: bool,
     pub delegate_events: bool,
     pub delegated_events: Vec<String>,
-    #[serde(default)]
     pub built_ins: Vec<String>,
     pub require_import_source: bool,
     pub wrap_conditionals: bool,
@@ -21,14 +20,10 @@ pub struct Config {
     pub validate: bool,
 }
 
-fn default_module_name() -> String {
-    "dom".to_string()
-}
-
 impl Default for Config {
     fn default() -> Self {
         Config {
-            module_name: "dom".to_owned(),
+            module_name: "solid-js/web".to_owned(),
             generate: "dom".to_owned(),
             hydratable: false,
             delegate_events: true,
