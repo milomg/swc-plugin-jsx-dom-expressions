@@ -42,3 +42,7 @@ const template4 = (
     </div>
   </div>
 );
+
+const template5 = <>{"Hello"}</>
+
+const template6 = <>Hello</>

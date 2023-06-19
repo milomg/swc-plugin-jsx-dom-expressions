@@ -11,3 +11,5 @@ const template = _tmpl$();
 const template2 = _tmpl$2();
 const template3 = _tmpl$3();
 const template4 = _tmpl$4();
+const template5 = "Hello";
+const template6 = "Hello";

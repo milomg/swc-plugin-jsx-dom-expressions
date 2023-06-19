@@ -152,7 +152,19 @@ where
 {
     pub fn transform_jsx(&mut self, node: &JSXElementChild) -> Expr {
         let info = match node {
-            JSXElementChild::JSXFragment(_) => Default::default(),
+            JSXElementChild::JSXFragment(fragment) => {
+                if fragment.children.len() == 1 {
+                    let child = &fragment.children[0];
+                    if let JSXElementChild::JSXExprContainer(child) = child {
+                        if let JSXExpr::Expr(expr) = &child.expr {
+                            if let Expr::Lit(Lit::Str(_)) = &**expr {
+                                return *expr.clone();
+                            }
+                        }
+                    }
+                }
+                Default::default()
+            }
             _ => TransformInfo {
                 top_level: true,
                 last_element: true,
