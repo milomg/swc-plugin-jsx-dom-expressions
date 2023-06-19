@@ -28,6 +28,16 @@ where
                         *expr = self.transform_jsx(&JSXElementChild::JSXElement(node))
                     }
                     Expr::JSXFragment(node) => {
+                        for child in &node.children {
+                            if let JSXElementChild::JSXExprContainer(child) = child {
+                                if let JSXExpr::Expr(new_expr) = &child.expr {
+                                    if let Expr::Lit(Lit::Str(_)) = &**new_expr {
+                                        *expr = *new_expr.clone();
+                                        return;
+                                    }
+                                }
+                            }
+                        }
                         *expr = self.transform_jsx(&JSXElementChild::JSXFragment(node))
                     }
                     _ => {}
