@@ -153,8 +153,7 @@ where
     pub fn transform_jsx(&mut self, node: &JSXElementChild) -> Expr {
         let info = match node {
             JSXElementChild::JSXFragment(fragment) => {
-                if fragment.children.len() == 1 {
-                    let child = &fragment.children[0];
+                for child in &fragment.children {
                     if let JSXElementChild::JSXExprContainer(child) = child {
                         if let JSXExpr::Expr(expr) = &child.expr {
                             if let Expr::Lit(Lit::Str(_)) = &**expr {
