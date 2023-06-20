@@ -13,3 +13,4 @@ const template3 = _tmpl$3();
 const template4 = _tmpl$4();
 const template5 = "Hello";
 const template6 = "Hello";
+const template7 = ()=>`Hello ${props.id}`;

@@ -35,6 +35,14 @@ where
                                         *expr = *new_expr.clone();
                                         return;
                                     }
+                                    if let Expr::Tpl(_) = &**new_expr {
+                                        // dbg!(x);
+                                        let mut arrow_expr = ArrowExpr::dummy();
+                                        *arrow_expr.body =
+                                            BlockStmtOrExpr::Expr(Box::new(*new_expr.clone()));
+                                        *expr = Expr::Arrow(arrow_expr);
+                                        return;
+                                    }
                                 }
                             }
                         }

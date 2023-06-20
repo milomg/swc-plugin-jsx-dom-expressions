@@ -152,7 +152,7 @@ where
 {
     pub fn transform_jsx(&mut self, node: &JSXElementChild) -> Expr {
         let info = match node {
-            JSXElementChild::JSXFragment(fragment) => Default::default(),
+            JSXElementChild::JSXFragment(_) => Default::default(),
             _ => TransformInfo {
                 top_level: true,
                 last_element: true,
