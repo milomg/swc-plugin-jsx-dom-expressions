@@ -15,3 +15,11 @@ const template4 = _tmpl$4();
 const template5 = "Hello";
 const template6 = "Hello";
 const template7 = _$memo(()=>props.id);
+const template8 = [
+  "1",
+  "2"
+];
+const template9 = [
+  "1",
+  _$memo(()=>props.id)
+];
