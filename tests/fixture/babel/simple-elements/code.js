@@ -48,3 +48,4 @@ const template6 = <>{"Hello"}</>
 const template7 = <>{props.id}</>
 const template8 = <>{"1"}{"2"}</>
 const template9 = <>{"1"}{props.id}</>
+const template10 = <>{1}</>

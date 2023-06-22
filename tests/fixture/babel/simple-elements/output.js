@@ -23,3 +23,4 @@ const template9 = [
   "1",
   _$memo(()=>props.id)
 ];
+const template10 = 1;

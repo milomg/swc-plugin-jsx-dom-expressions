@@ -45,7 +45,7 @@ where
                             }
                         }
                         JSXElementChild::JSXExprContainer(child) => {
-                            if let JSXExpr::Expr(new_expr) = &child.expr && let Expr::Lit(Lit::Str(_)) = &**new_expr {
+                            if let JSXExpr::Expr(new_expr) = &child.expr && let Expr::Lit(Lit::Str(_) | Lit::Num(_) ) = &**new_expr {
                                 memo.push(*new_expr.clone());
                             }
                             else{
