@@ -24,3 +24,4 @@ const template9 = [
   _$memo(()=>props.id)
 ];
 const template10 = 1;
+const template11 = _$memo(()=>`Hello ${props.name}`);
