@@ -52,9 +52,9 @@ where
                                 do_default(self, node, &mut memo);
                             }
                         }
-                        _ => {
-                            do_default(self, node, &mut memo);
-                        }
+                        _ => 
+                            do_default(self, node, &mut memo),
+                        
                     }
                     memo
                 });
