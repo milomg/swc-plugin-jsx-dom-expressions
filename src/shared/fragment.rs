@@ -8,7 +8,7 @@ use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::ast::{ArrayLit, Expr, JSXElementChild, JSXExpr, Lit},
 };
-fn do_default<C>(visitor: &mut TransformVisitor<C>, node: &JSXElementChild, memo: &mut Vec<Expr>)
+fn do_default<C>(visitor: &mut TransformVisitor<C>, node: &JSXElementChild) -> Expr
 where
     C: Comments,
 {
@@ -21,7 +21,7 @@ where
             ..Default::default()
         },
     );
-    memo.push(visitor.create_template(&mut child.unwrap(), true));
+    visitor.create_template(&mut child.unwrap(), true)
 }
 impl<C> TransformVisitor<C>
 where
@@ -37,22 +37,28 @@ where
                 .iter()
                 .filter(|c| filter_children(c))
                 .fold(vec![], |mut memo, node| {
-                    match node {
+                    let res = match node {
                         JSXElementChild::JSXText(child) => {
                             let value = jsx_text_to_str(&child.value);
                             if value.len() > 0 {
-                                memo.push(Expr::Lit(Lit::Str(value.into())));
+                                Some(Expr::Lit(Lit::Str(value.into())))
+                            }
+                            else{
+                                None
                             }
                         }
                         JSXElementChild::JSXExprContainer(child) => {
                             if let JSXExpr::Expr(new_expr) = &child.expr && let Expr::Lit(Lit::Str(_) | Lit::Num(_) ) = &**new_expr {
-                                memo.push(*new_expr.clone());
+                                Some(*new_expr.clone())
                             }
                             else{
-                                do_default(self, node, &mut memo);
+                                Some(do_default(self, node))
                             }
                         }
-                        _ => do_default(self, node, &mut memo),
+                        _ => Some(do_default(self, node)),
+                    };
+                    if let Some(expr) = res {
+                        memo.push(expr);
                     }
                     memo
                 });
