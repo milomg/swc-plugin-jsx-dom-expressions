@@ -42,19 +42,14 @@ where
                             let value = jsx_text_to_str(&child.value);
                             if value.len() > 0 {
                                 Some(Expr::Lit(Lit::Str(value.into())))
-                            }
-                            else{
+                            } else {
                                 None
                             }
                         }
-                        JSXElementChild::JSXExprContainer(child) => {
-                            if let JSXExpr::Expr(new_expr) = &child.expr && let Expr::Lit(Lit::Str(_) | Lit::Num(_) ) = &**new_expr {
-                                Some(*new_expr.clone())
-                            }
-                            else{
-                                Some(do_default(self, node))
-                            }
-                        }
+                        JSXElementChild::JSXExprContainer(child) => match &child.expr {
+                            JSXExpr::Expr(new_expr) if new_expr.is_lit() => Some(*new_expr.clone()),
+                            _ => Some(do_default(self, node)),
+                        },
                         _ => Some(do_default(self, node)),
                     };
                     if let Some(expr) = res {

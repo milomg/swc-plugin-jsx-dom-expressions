@@ -1,5 +1,4 @@
 #![feature(box_patterns)]
-#![feature(let_chains)]
 
 use shared::transform::ThisBlockVisitor;
 use swc_core::{
