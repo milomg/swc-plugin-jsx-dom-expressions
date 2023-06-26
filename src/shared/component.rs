@@ -656,8 +656,8 @@ fn get_component_identifier(node: &JSXElementName) -> Expr {
                 span: DUMMY_SP,
                 obj: Box::new(get_component_identifier(&match &member.obj {
                     JSXObject::Ident(id) => JSXElementName::Ident(id.clone()),
-                    JSXObject::JSXMemberExpr(box member) => {
-                        JSXElementName::JSXMemberExpr(member.clone())
+                    JSXObject::JSXMemberExpr(member) => {
+                        JSXElementName::JSXMemberExpr(*member.clone())
                     }
                 })),
                 prop: match prop {

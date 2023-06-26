@@ -133,7 +133,7 @@ where
         let mut d_test = false;
         let mut cond = Expr::Invalid(Invalid { span: DUMMY_SP });
         let mut id = Expr::Invalid(Invalid { span: DUMMY_SP });
-        match node {
+        match &mut node {
             Expr::Cond(ref mut expr) => {
                 if self.is_dynamic(&expr.cons, None, false, true, true, false)
                     || self.is_dynamic(&expr.alt, None, false, true, true, false)
@@ -189,13 +189,14 @@ where
                             expr.cons = Box::new(e);
                         }
 
-                        match *expr.cons {
+                        match &mut *expr.cons {
                             Expr::Paren(ParenExpr {
-                                expr: box ref mut ex,
-                                ..
-                            }) if (matches!(ex, Expr::Cond(_)) || is_logical_expression(ex)) => {
-                                let (_, e) = self.transform_condition(ex.clone(), inline, true);
-                                *ex = e;
+                                expr: ref mut ex, ..
+                            }) if (matches!(**ex, Expr::Cond(_))
+                                || is_logical_expression(&*ex)) =>
+                            {
+                                let (_, e) = self.transform_condition(*ex.clone(), inline, true);
+                                **ex = e;
                             }
                             _ => {}
                         }
@@ -205,13 +206,14 @@ where
                             expr.alt = Box::new(e);
                         }
 
-                        match *expr.alt {
+                        match &mut *expr.alt {
                             Expr::Paren(ParenExpr {
-                                expr: box ref mut ex,
-                                ..
-                            }) if (matches!(ex, Expr::Cond(_)) || is_logical_expression(ex)) => {
-                                let (_, e) = self.transform_condition(ex.clone(), inline, true);
-                                *ex = e;
+                                expr: ref mut ex, ..
+                            }) if (matches!(**ex, Expr::Cond(_))
+                                || is_logical_expression(&*ex)) =>
+                            {
+                                let (_, e) = self.transform_condition(*ex.clone(), inline, true);
+                                **ex = e;
                             }
                             _ => {}
                         }
@@ -233,8 +235,8 @@ where
                         break;
                     }
 
-                    if let Expr::Paren(ParenExpr { box ref expr, .. }) = *next_path.left {
-                        *next_path.left = expr.clone();
+                    if let Expr::Paren(ParenExpr { expr, .. }) = &*next_path.left {
+                        *next_path.left = *expr.clone();
                     }
                     if let Expr::Bin(ref mut left) = *next_path.left {
                         if !is_logical_op(left) {
@@ -814,7 +816,7 @@ pub fn is_static_expr(expr: &Expr) -> bool {
         for prop in props {
             match prop {
                 PropOrSpread::Spread(_) => return false,
-                PropOrSpread::Prop(box p) => match p {
+                PropOrSpread::Prop(p) => match **p {
                     Prop::KeyValue(ref kv) => {
                         if !is_static_expr(&kv.value) {
                             return false;

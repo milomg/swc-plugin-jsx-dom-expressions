@@ -1,6 +1,3 @@
-#![feature(box_patterns)]
-#![feature(let_chains)]
-
 use shared::transform::ThisBlockVisitor;
 use swc_core::{
     common::{comments::Comments, util::take::Take},

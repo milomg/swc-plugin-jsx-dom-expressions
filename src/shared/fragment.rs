@@ -8,6 +8,7 @@ use swc_core::{
     common::{comments::Comments, DUMMY_SP},
     ecma::ast::{ArrayLit, Expr, JSXElementChild, JSXExpr, Lit},
 };
+
 fn do_default<C>(visitor: &mut TransformVisitor<C>, node: &JSXElementChild) -> Expr
 where
     C: Comments,
@@ -23,6 +24,7 @@ where
     );
     visitor.create_template(&mut child.unwrap(), true)
 }
+
 impl<C> TransformVisitor<C>
 where
     C: Comments,
@@ -42,16 +44,18 @@ where
                             let value = jsx_text_to_str(&child.value);
                             if value.len() > 0 {
                                 Some(Expr::Lit(Lit::Str(value.into())))
-                            }
-                            else{
+                            } else {
                                 None
                             }
                         }
                         JSXElementChild::JSXExprContainer(child) => {
-                            if let JSXExpr::Expr(new_expr) = &child.expr && let Expr::Lit(Lit::Str(_) | Lit::Num(_) ) = &**new_expr {
-                                Some(*new_expr.clone())
-                            }
-                            else{
+                            if let JSXExpr::Expr(new_expr) = &child.expr {
+                                if let Expr::Lit(Lit::Str(_) | Lit::Num(_)) = &**new_expr {
+                                    Some(*new_expr.clone())
+                                } else {
+                                    Some(do_default(self, node))
+                                }
+                            } else {
                                 Some(do_default(self, node))
                             }
                         }
