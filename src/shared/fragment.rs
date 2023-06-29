@@ -37,24 +37,21 @@ where
                 .iter()
                 .filter(|c| filter_children(c))
                 .fold(vec![], |mut memo, node| {
-                    let res = match node {
+                    match node {
                         JSXElementChild::JSXText(child) => {
                             let value = jsx_text_to_str(&child.value);
                             if value.len() > 0 {
-                                Some(Expr::Lit(Lit::Str(value.into())))
-                            } else {
-                                None
+                                memo.push(Expr::Lit(Lit::Str(value.into())))
                             }
                         }
                         JSXElementChild::JSXExprContainer(child) => match &child.expr {
-                            JSXExpr::Expr(new_expr) if new_expr.is_lit() => Some(*new_expr.clone()),
-                            _ => Some(do_default(self, node)),
+                            JSXExpr::Expr(new_expr) if new_expr.is_lit() => {
+                                memo.push(*new_expr.clone())
+                            }
+                            _ => memo.push(do_default(self, node)),
                         },
-                        _ => Some(do_default(self, node)),
+                        _ => memo.push(do_default(self, node)),
                     };
-                    if let Some(expr) = res {
-                        memo.push(expr);
-                    }
                     memo
                 });
 

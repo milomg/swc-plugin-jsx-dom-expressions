@@ -1941,7 +1941,7 @@ where
                             JSXAttrName::JSXNamespacedName(n) => &n.ns.sym == "use",
                         } || (if let Some(JSXAttrValue::JSXExprContainer(expr)) = &attr.value {
                             if let JSXExpr::Expr(expr) = &expr.expr {
-                                !matches!(**expr, Expr::Lit(Lit::Str(_)) | Expr::Lit(Lit::Num(_)))
+                                !matches!(expr.as_lit(), Some(Lit::Str(_)) | Some(Lit::Num(_)))
                             } else {
                                 false
                             }
