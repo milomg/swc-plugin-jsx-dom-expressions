@@ -25,3 +25,7 @@ const template9 = [
 ];
 const template10 = 1;
 const template11 = _$memo(()=>`Hello ${props.name}`);
+let id = 123;
+const template12 = id;
+const signal = ()=>1;
+const template13 = _$memo(signal);

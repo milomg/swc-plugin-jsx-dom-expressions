@@ -50,3 +50,7 @@ const template8 = <>{"1"}{"2"}</>
 const template9 = <>{"1"}{props.id}</>
 const template10 = <>{1}</>
 const template11 = <>{`Hello ${props.name}`}</>
+let id = 123;
+const template12 = <>{id}</>
+const signal = () => 1;
+const template13 = <>{signal()}</>

@@ -45,7 +45,7 @@ where
                             }
                         }
                         JSXElementChild::JSXExprContainer(child) => match &child.expr {
-                            JSXExpr::Expr(new_expr) if new_expr.is_lit() => {
+                            JSXExpr::Expr(new_expr) if new_expr.is_lit() || new_expr.is_ident() => {
                                 memo.push(*new_expr.clone())
                             }
                             _ => memo.push(do_default(self, node)),
