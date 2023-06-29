@@ -847,7 +847,7 @@ where
             })) = &mut attribute.value
             {
                 if reserved_name_space
-                    || !matches!(**expr, Expr::Lit(ref lit) if matches!(lit, Lit::Str(_) | Lit::Num(_)))
+                    || !matches!(expr.as_lit(), Some(Lit::Str(_)) | Some(Lit::Num(_)))
                 {
                     if key == "ref" {
                         loop {
