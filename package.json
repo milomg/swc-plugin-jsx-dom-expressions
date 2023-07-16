@@ -7,7 +7,7 @@
     "keywords": ["swc-plugin"],
     "main": "target/wasm32-wasi/release/swc-plugin-jsx-dom-expressions.wasm",
     "scripts": {
-        "prepublishOnly": "cargo +nightly build --release"
+        "prepublishOnly": "cargo build --release"
     },
     "files": []
 }
