@@ -42,3 +42,15 @@ const template4 = (
     </div>
   </div>
 );
+
+const template5 = <>Hello</>
+const template6 = <>{"Hello"}</>
+const template7 = <>{props.id}</>
+const template8 = <>{"1"}{"2"}</>
+const template9 = <>{"1"}{props.id}</>
+const template10 = <>{1}</>
+const template11 = <>{`Hello ${props.name}`}</>
+let id = 123;
+const template12 = <>{id}</>
+const signal = () => 1;
+const template13 = <>{signal()}</>

@@ -6,9 +6,23 @@ use super::{
 pub use crate::shared::structs::TransformVisitor;
 use swc_core::{
     common::{comments::Comments, DUMMY_SP},
-    ecma::ast::{ArrayLit, Expr, JSXElementChild, Lit},
+    ecma::ast::{ArrayLit, Expr, JSXElementChild, JSXExpr, Lit},
 };
-
+fn do_default<C>(visitor: &mut TransformVisitor<C>, node: &JSXElementChild) -> Expr
+where
+    C: Comments,
+{
+    let child = visitor.transform_node(
+        node,
+        &TransformInfo {
+            top_level: true,
+            fragment_child: true,
+            last_element: true,
+            ..Default::default()
+        },
+    );
+    visitor.create_template(&mut child.unwrap(), true)
+}
 impl<C> TransformVisitor<C>
 where
     C: Comments,
@@ -27,22 +41,17 @@ where
                         JSXElementChild::JSXText(child) => {
                             let value = jsx_text_to_str(&child.value);
                             if value.len() > 0 {
-                                memo.push(Expr::Lit(Lit::Str(value.into())));
+                                memo.push(Expr::Lit(Lit::Str(value.into())))
                             }
                         }
-                        _ => {
-                            let child = self.transform_node(
-                                node,
-                                &TransformInfo {
-                                    top_level: true,
-                                    fragment_child: true,
-                                    last_element: true,
-                                    ..Default::default()
-                                },
-                            );
-                            memo.push(self.create_template(&mut child.unwrap(), true));
-                        }
-                    }
+                        JSXElementChild::JSXExprContainer(child) => match &child.expr {
+                            JSXExpr::Expr(new_expr) if new_expr.is_lit() || new_expr.is_ident() => {
+                                memo.push(*new_expr.clone())
+                            }
+                            _ => memo.push(do_default(self, node)),
+                        },
+                        _ => memo.push(do_default(self, node)),
+                    };
                     memo
                 });
 
