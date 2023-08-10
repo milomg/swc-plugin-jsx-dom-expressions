@@ -1,4 +1,5 @@
 # These command aliases are not final, may change
 [alias]
 # Alias to build actual plugin binary for the specified target.
-prepublish = "build --target wasm32-wasi"
+build-wasi = "rustc --target wasm32-wasi --crate-type cdylib"
+build-wasm32 = "build --target wasm32-unknown-unknown"
