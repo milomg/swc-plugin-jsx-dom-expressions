@@ -83,7 +83,7 @@ where
                     }),
                     span: DUMMY_SP,
                     type_only: false,
-                    asserts: None,
+                    with: None,
                 })),
             );
         }

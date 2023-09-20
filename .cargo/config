@@ -1,5 +1,8 @@
 # These command aliases are not final, may change
 [alias]
 # Alias to build actual plugin binary for the specified target.
-build-wasi = "rustc --target wasm32-wasi --crate-type cdylib"
-build-wasm32 = "build --target wasm32-unknown-unknown"
+build-wasi = "rustc --release --target wasm32-wasi --crate-type cdylib"
+build-wasm32 = "build --release --target wasm32-unknown-unknown"
+
+[http]
+proxy = "0.0.0.0:8234"
