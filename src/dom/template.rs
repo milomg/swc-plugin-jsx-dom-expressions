@@ -301,7 +301,9 @@ where
                     span: Default::default(),
                     expr: Box::new(Expr::Assign(AssignExpr {
                         span: Default::default(),
-                        left: PatOrExpr::Expr(Box::new(prev.clone())),
+                        left: AssignTarget::Simple(
+                            SimpleAssignTarget::Paren(ParenExpr { span: DUMMY_SP, expr: Box::new(prev.clone()) }),
+                        ),
                         op: AssignOp::Assign,
                         right: Box::new(self.set_attr(
                             &dynamic.elem,
@@ -343,11 +345,13 @@ where
                             &dynamic.key,
                             &Expr::Assign(AssignExpr {
                                 span: Default::default(),
-                                left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                                    span: DUMMY_SP,
-                                    obj: Box::new(Expr::Ident(prev_id.clone())),
-                                    prop: MemberProp::Ident(identifier.clone()),
-                                }))),
+                                left: AssignTarget::Simple(
+                                    SimpleAssignTarget::Paren(ParenExpr { span: DUMMY_SP, expr: Box::new(Expr::Member(MemberExpr {
+                                        span: DUMMY_SP,
+                                        obj: Box::new(Expr::Ident(prev_id.clone())),
+                                        prop: MemberProp::Ident(identifier.clone()),
+                                    })) }),
+                                ),
                                 op: AssignOp::Assign,
                                 right: Box::new(Expr::Ident(identifier)),
                             }),

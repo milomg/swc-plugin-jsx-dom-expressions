@@ -373,11 +373,14 @@ where
             return Expr::Assign(AssignExpr {
                 span: DUMMY_SP,
                 op: AssignOp::Assign,
-                left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                left: AssignTarget::Simple(SimpleAssignTarget::Paren(ParenExpr {
                     span: DUMMY_SP,
-                    obj: Box::new(Expr::Ident(elem.clone())),
-                    prop: MemberProp::Ident(quote_ident!("data")),
-                }))),
+                    expr: Box::new(Expr::Member(MemberExpr {
+                        span: DUMMY_SP,
+                        obj: Box::new(Expr::Ident(elem.clone())),
+                        prop: MemberProp::Ident(quote_ident!("data")),
+                    })),
+                })),
                 right: Box::new(value.clone()),
             });
         }
@@ -398,11 +401,14 @@ where
             return Expr::Assign(AssignExpr {
                 span: DUMMY_SP,
                 op: AssignOp::Assign,
-                left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                left: AssignTarget::Simple(SimpleAssignTarget::Paren(ParenExpr {
                     span: DUMMY_SP,
-                    obj: Box::new(Expr::Ident(elem.clone())),
-                    prop: MemberProp::Ident(quote_ident!(alias.unwrap_or(name))),
-                }))),
+                    expr: Box::new(Expr::Member(MemberExpr {
+                        span: DUMMY_SP,
+                        obj: Box::new(Expr::Ident(elem.clone())),
+                        prop: MemberProp::Ident(quote_ident!(alias.unwrap_or(name))),
+                    })),
+                })),
                 right: Box::new(value.clone()),
             });
         }
@@ -919,7 +925,12 @@ where
                                     alt: Box::new(Expr::Assign(AssignExpr {
                                         span: DUMMY_SP,
                                         op: AssignOp::Assign,
-                                        left: PatOrExpr::Expr(expr.clone()),
+                                        left: AssignTarget::Simple(SimpleAssignTarget::Paren(
+                                            ParenExpr {
+                                                span: DUMMY_SP,
+                                                expr: expr.clone(),
+                                            },
+                                        )),
                                         right: Box::new(Expr::Ident(el_ident)),
                                     })),
                                 }),
@@ -1088,16 +1099,20 @@ where
                                         Expr::Assign(AssignExpr {
                                             span: DUMMY_SP,
                                             op: AssignOp::Assign,
-                                            left: PatOrExpr::Expr(Box::new(Expr::Member(
-                                                MemberExpr {
+                                            left: AssignTarget::Simple(SimpleAssignTarget::Paren(
+                                                ParenExpr {
                                                     span: DUMMY_SP,
-                                                    obj: Box::new(Expr::Ident(el_ident.clone())),
-                                                    prop: MemberProp::Ident(quote_ident!(format!(
-                                                        "$${}Data",
-                                                        ev
-                                                    ))),
+                                                    expr: Box::new(Expr::Member(MemberExpr {
+                                                        span: DUMMY_SP,
+                                                        obj: Box::new(Expr::Ident(
+                                                            el_ident.clone(),
+                                                        )),
+                                                        prop: MemberProp::Ident(quote_ident!(
+                                                            format!("$${}Data", ev)
+                                                        )),
+                                                    })),
                                                 },
-                                            ))),
+                                            )),
                                             right: arr_lit.elems[1].clone().unwrap().expr.clone(),
                                         }),
                                     );
@@ -1107,14 +1122,19 @@ where
                                     Expr::Assign(AssignExpr {
                                         span: DUMMY_SP,
                                         op: AssignOp::Assign,
-                                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                                            span: DUMMY_SP,
-                                            obj: Box::new(Expr::Ident(el_ident.clone())),
-                                            prop: MemberProp::Ident(quote_ident!(format!(
-                                                "$${}",
-                                                ev
-                                            ))),
-                                        }))),
+                                        left: AssignTarget::Simple(SimpleAssignTarget::Paren(
+                                            ParenExpr {
+                                                span: DUMMY_SP,
+                                                expr: Box::new(Expr::Member(MemberExpr {
+                                                    span: DUMMY_SP,
+                                                    obj: Box::new(Expr::Ident(el_ident.clone())),
+                                                    prop: MemberProp::Ident(quote_ident!(format!(
+                                                        "$${}",
+                                                        ev
+                                                    ))),
+                                                })),
+                                            },
+                                        )),
                                         right: arr_lit.elems[0].clone().unwrap().expr.clone(),
                                     }),
                                 )
@@ -1125,14 +1145,19 @@ where
                                     Expr::Assign(AssignExpr {
                                         span: DUMMY_SP,
                                         op: AssignOp::Assign,
-                                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                                            span: DUMMY_SP,
-                                            obj: Box::new(Expr::Ident(el_ident.clone())),
-                                            prop: MemberProp::Ident(quote_ident!(format!(
-                                                "$${}",
-                                                ev
-                                            ))),
-                                        }))),
+                                        left: AssignTarget::Simple(SimpleAssignTarget::Paren(
+                                            ParenExpr {
+                                                span: DUMMY_SP,
+                                                expr: Box::new(Expr::Member(MemberExpr {
+                                                    span: DUMMY_SP,
+                                                    obj: Box::new(Expr::Ident(el_ident.clone())),
+                                                    prop: MemberProp::Ident(quote_ident!(format!(
+                                                        "$${}",
+                                                        ev
+                                                    ))),
+                                                })),
+                                            },
+                                        )),
                                         right: expr.clone(),
                                     }),
                                 )
@@ -1467,11 +1492,16 @@ where
         results.exprs.push(Expr::Assign(AssignExpr {
             span: DUMMY_SP,
             op: AssignOp::Assign,
-            left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                span: DUMMY_SP,
-                obj: Box::new(Expr::Ident(results.id.clone().unwrap())),
-                prop: MemberProp::Ident(quote_ident!("_$owner")),
-            }))),
+            left: AssignTarget::Simple(SimpleAssignTarget::Paren(
+                ParenExpr {
+                    span: DUMMY_SP,
+                    expr: Box::new(Expr::Member(MemberExpr {
+                        span: DUMMY_SP,
+                        obj: Box::new(Expr::Ident(results.id.clone().unwrap())),
+                        prop: MemberProp::Ident(quote_ident!("_$owner")),
+                    })),
+                },
+            )),
             right: Box::new(Expr::Call(CallExpr {
                 span: DUMMY_SP,
                 callee: Callee::Expr(Box::new(Expr::Ident(

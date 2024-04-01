@@ -84,6 +84,7 @@ where
                     span: DUMMY_SP,
                     type_only: false,
                     with: None,
+                    phase: ImportPhase::default(),
                 })),
             );
         }
