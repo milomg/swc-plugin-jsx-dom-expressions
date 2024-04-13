@@ -1492,16 +1492,14 @@ where
         results.exprs.push(Expr::Assign(AssignExpr {
             span: DUMMY_SP,
             op: AssignOp::Assign,
-            left: AssignTarget::Simple(SimpleAssignTarget::Paren(
-                ParenExpr {
+            left: AssignTarget::Simple(SimpleAssignTarget::Paren(ParenExpr {
+                span: DUMMY_SP,
+                expr: Box::new(Expr::Member(MemberExpr {
                     span: DUMMY_SP,
-                    expr: Box::new(Expr::Member(MemberExpr {
-                        span: DUMMY_SP,
-                        obj: Box::new(Expr::Ident(results.id.clone().unwrap())),
-                        prop: MemberProp::Ident(quote_ident!("_$owner")),
-                    })),
-                },
-            )),
+                    obj: Box::new(Expr::Ident(results.id.clone().unwrap())),
+                    prop: MemberProp::Ident(quote_ident!("_$owner")),
+                })),
+            })),
             right: Box::new(Expr::Call(CallExpr {
                 span: DUMMY_SP,
                 callee: Callee::Expr(Box::new(Expr::Ident(

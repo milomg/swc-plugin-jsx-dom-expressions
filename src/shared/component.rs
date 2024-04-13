@@ -178,7 +178,14 @@ where
                                                                     span: DUMMY_SP,
                                                                     op: AssignOp::Assign,
                                                                     left: AssignTarget::Simple(
-                                                                        SimpleAssignTarget::Paren(ParenExpr { span: DUMMY_SP, expr: Box::new(expr) }),
+                                                                        SimpleAssignTarget::Paren(
+                                                                            ParenExpr {
+                                                                                span: DUMMY_SP,
+                                                                                expr: Box::new(
+                                                                                    expr,
+                                                                                ),
+                                                                            },
+                                                                        ),
                                                                     ),
                                                                     right: Box::new(Expr::Ident(
                                                                         quote_ident!("r$"),
