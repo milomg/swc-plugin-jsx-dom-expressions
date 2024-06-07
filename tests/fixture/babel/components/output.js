@@ -4,6 +4,7 @@ import { mergeProps as _$mergeProps } from "r-dom";
 import { memo as _$memo } from "r-dom";
 import { insert as _$insert } from "r-dom";
 import { createComponent as _$createComponent } from "r-dom";
+import { Show as _$Show } from "r-dom";
 import { For as _$For } from "r-dom";
 const _tmpl$ = /*#__PURE__*/ _$template(`<div>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<div>`), _tmpl$3 = /*#__PURE__*/ _$template(`<div>From Parent`), _tmpl$4 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | <!> | <!> | `), _tmpl$5 = /*#__PURE__*/ _$template(`<div> | <!> | <!> | `), _tmpl$6 = /*#__PURE__*/ _$template(`<div> | <!> |  |  | <!> | `), _tmpl$7 = /*#__PURE__*/ _$template(`<span>1`), _tmpl$8 = /*#__PURE__*/ _$template(`<span>2`), _tmpl$9 = /*#__PURE__*/ _$template(`<span>3`);
 import { Show } from "somewhere";
@@ -109,7 +110,7 @@ const template6 = _$createComponent(_$For, {
     get fallback () {
         return _$createComponent(Loading, {});
     },
-    children: (item)=>_$createComponent(Show, {
+    children: (item)=>_$createComponent(_$Show, {
             get when () {
                 return state.condition;
             },
