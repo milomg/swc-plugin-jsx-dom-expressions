@@ -23,7 +23,7 @@ where
 
         if let Expr::Ident(id) = &tag_id {
             if self.config.built_ins.iter().any(|v| v.as_str() == &id.sym)
-                && id.span.ctxt.as_u32() == 1
+                && id.ctxt.as_u32() == 1
             {
                 tag_id = Expr::Ident(self.register_import_method(&id.sym));
             }
@@ -62,10 +62,7 @@ where
                                 span: DUMMY_SP,
                                 params: vec![],
                                 body: Box::new(BlockStmtOrExpr::Expr(Box::new(expr))),
-                                is_async: false,
-                                is_generator: false,
-                                type_params: None,
-                                return_type: None,
+                                ..Default::default()
                             }
                             .into(),
                         }
@@ -137,6 +134,7 @@ where
                                                             ),
                                                             init: Some(Box::new(expr.clone())),
                                                         }],
+                                                        ..Default::default()
                                                     }))),
                                                     Stmt::Expr(ExprStmt {
                                                         span: DUMMY_SP,
@@ -168,10 +166,10 @@ where
                                                                 args: vec![ExprOrSpread {
                                                                     spread: None,
                                                                     expr: Box::new(Expr::Ident(
-                                                                        quote_ident!("r$"),
+                                                                        quote_ident!("r$").into(),
                                                                     )),
                                                                 }],
-                                                                type_args: None,
+                                                                ..Default::default()
                                                             })),
                                                             alt: Box::new(Expr::Assign(
                                                                 AssignExpr {
@@ -188,18 +186,16 @@ where
                                                                         ),
                                                                     ),
                                                                     right: Box::new(Expr::Ident(
-                                                                        quote_ident!("r$"),
+                                                                        quote_ident!("r$").into(),
                                                                     )),
                                                                 },
                                                             )),
                                                         })),
                                                     }),
                                                 ],
+                                                ..Default::default()
                                             }),
-                                            is_generator: false,
-                                            is_async: false,
-                                            type_params: None,
-                                            return_type: None,
+                                            ..Default::default()
                                         }),
                                     }));
                                 } else if is_function
@@ -236,6 +232,7 @@ where
                                                             ),
                                                             init: Some(Box::new(expr)),
                                                         }],
+                                                        ..Default::default()
                                                     }))),
                                                     Stmt::Expr(ExprStmt {
                                                         span: DUMMY_SP,
@@ -268,19 +265,17 @@ where
                                                                 args: vec![ExprOrSpread {
                                                                     spread: None,
                                                                     expr: Box::new(Expr::Ident(
-                                                                        quote_ident!("r$"),
+                                                                        quote_ident!("r$").into(),
                                                                     )),
                                                                 }],
-                                                                type_args: None,
+                                                                ..Default::default()
                                                             })),
                                                         })),
                                                     }),
                                                 ],
+                                                ..Default::default()
                                             }),
-                                            is_generator: false,
-                                            is_async: false,
-                                            type_params: None,
-                                            return_type: None,
+                                            ..Default::default()
                                         }),
                                     }));
                                 }
@@ -314,6 +309,7 @@ where
                                                 span: DUMMY_SP,
                                                 arg: Some(Box::new(exp)),
                                             })],
+                                            ..Default::default()
                                         }),
                                     }
                                     .into(),
@@ -389,6 +385,7 @@ where
                                                         span: DUMMY_SP,
                                                         arg: Some(ex),
                                                     })],
+                                                    ..Default::default()
                                                 }),
                                             }
                                         } else {
@@ -407,6 +404,7 @@ where
                                             span: DUMMY_SP,
                                             arg: Some(expr),
                                         })],
+                                        ..Default::default()
                                     },
                                 }),
                                 _ => None,
@@ -418,6 +416,7 @@ where
                                     span: DUMMY_SP,
                                     arg: Some(Box::new(expr)),
                                 })],
+                                ..Default::default()
                             }))
                         },
                         type_ann: None,
@@ -452,7 +451,7 @@ where
                 span: DUMMY_SP,
                 callee: Callee::Expr(self.register_import_method("mergeProps").into()),
                 args: props.into_iter().map(|p| p.into()).collect(),
-                type_args: None,
+                ..Default::default()
             })];
         }
 
@@ -469,7 +468,7 @@ where
                         expr: Box::new(v),
                     })
                     .collect(),
-                type_args: None,
+                ..Default::default()
             }
             .into(),
         );
@@ -501,18 +500,15 @@ where
                                 BlockStmt {
                                     span: DUMMY_SP,
                                     stmts,
+                                    ..Default::default()
                                 }
                                 .into(),
                             ),
-                            is_async: false,
-                            is_generator: false,
-                            type_params: None,
-                            return_type: None,
+                            ..Default::default()
                         }
                         .into(),
                     ),
-                    args: vec![],
-                    type_args: None,
+                    ..Default::default()
                 }
                 .into()]
             } else {
@@ -612,10 +608,7 @@ where
                         span: DUMMY_SP,
                         params: vec![],
                         body: Box::new(BlockStmtOrExpr::Expr(Box::new(first_children))),
-                        is_async: false,
-                        is_generator: false,
-                        type_params: None,
-                        return_type: None,
+                        ..Default::default()
                     }
                     .into(),
                 );
@@ -639,10 +632,7 @@ where
                         }
                         .into(),
                     )),
-                    is_async: false,
-                    is_generator: false,
-                    type_params: None,
-                    return_type: None,
+                    ..Default::default()
                 }
                 .into(),
                 true,
@@ -658,7 +648,7 @@ fn get_component_identifier(node: &JSXElementName) -> Expr {
             Err(_) => Expr::Lit(Lit::Str(ident.sym.to_string().into())),
         },
         JSXElementName::JSXMemberExpr(member) => {
-            let prop = get_component_identifier(&JSXElementName::Ident(member.prop.clone()));
+            let prop = get_component_identifier(&JSXElementName::Ident(member.prop.clone().into()));
             Expr::Member(MemberExpr {
                 span: DUMMY_SP,
                 obj: Box::new(get_component_identifier(&match &member.obj {
@@ -668,7 +658,7 @@ fn get_component_identifier(node: &JSXElementName) -> Expr {
                     }
                 })),
                 prop: match prop {
-                    Expr::Ident(id) => MemberProp::Ident(id),
+                    Expr::Ident(id) => MemberProp::Ident(id.into()),
                     _ => MemberProp::Computed(ComputedPropName {
                         span: DUMMY_SP,
                         expr: Box::new(prop),

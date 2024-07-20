@@ -37,6 +37,7 @@ where
                                 kind: VarDeclKind::Const,
                                 declare: false,
                                 decls: result.declarations.clone(),
+                                ..Default::default()
                             })))]
                             .into_iter()
                             .chain(result.exprs.clone().into_iter().map(|x| {
@@ -67,14 +68,11 @@ where
                                 arg: Some(Box::new(Expr::Ident(id))),
                             })])
                             .collect(),
+                            ..Default::default()
                         })),
-                        is_async: false,
-                        is_generator: false,
-                        type_params: None,
-                        return_type: None,
+                        ..Default::default()
                     }))),
-                    args: vec![],
-                    type_args: None,
+                    ..Default::default()
                 });
             }
         }
@@ -86,7 +84,7 @@ where
                     self.register_import_method(&self.config.memo_wrapper.clone()),
                 ))),
                 args: vec![result.exprs[0].clone().into()],
-                type_args: None,
+                ..Default::default()
             });
         }
 
@@ -143,12 +141,13 @@ where
                                 span,
                                 callee: Callee::Expr(Box::new(Expr::Ident(templ.clone()))),
                                 args,
-                                type_args: None,
+                                ..Default::default()
                             }))),
                             definite: false,
                         }
                     })
                     .collect(),
+                ..Default::default()
             })))),
         )
     }
@@ -181,8 +180,7 @@ where
                     init: Some(Box::new(Expr::Call(CallExpr {
                         span: DUMMY_SP,
                         callee: Callee::Expr(Box::new(Expr::Ident(template_id))),
-                        args: vec![],
-                        type_args: None,
+                        ..Default::default()
                     }))),
                     definite: false,
                 };
@@ -201,7 +199,7 @@ where
 
         if dynamics.len() == 1 {
             let prev_value = if dynamics[0].key == "classList" || dynamics[0].key == "style" {
-                Some(Ident::new("_$p".into(), Default::default()))
+                Some(Ident::new_no_ctxt("_$p".into(), Default::default()))
             } else {
                 None
             };
@@ -249,20 +247,17 @@ where
                                 tag_name: dynamics[0].tag_name.clone(),
                             },
                         )))),
-                        is_async: false,
-                        is_generator: false,
-                        type_params: None,
-                        return_type: None,
+                        ..Default::default()
                     })),
                 }],
-                type_args: None,
+                ..Default::default()
             })]);
         }
 
         let mut decls = vec![];
         let mut statements = vec![];
         let mut identifiers = vec![];
-        let prev_id = Ident::new("_p$".into(), DUMMY_SP);
+        let prev_id = Ident::new_no_ctxt("_p$".into(), DUMMY_SP);
 
         for dynamic in dynamics {
             let identifier = self.generate_uid_identifier("v$");
@@ -295,7 +290,7 @@ where
                 let prev = Expr::Member(MemberExpr {
                     span: Default::default(),
                     obj: Box::new(Expr::Ident(prev_id.clone())),
-                    prop: MemberProp::Ident(identifier.clone()),
+                    prop: MemberProp::Ident(identifier.clone().into()),
                 });
                 statements.push(Stmt::Expr(ExprStmt {
                     span: Default::default(),
@@ -324,7 +319,7 @@ where
                 let prev = if dynamic.key.starts_with("style:") {
                     Expr::Ident(identifier.clone())
                 } else {
-                    Expr::Ident(quote_ident!("undefined"))
+                    Expr::Ident(quote_ident!("undefined").into())
                 };
                 statements.push(Stmt::Expr(ExprStmt {
                     span: Default::default(),
@@ -337,7 +332,7 @@ where
                             right: Box::new(Expr::Member(MemberExpr {
                                 span: Default::default(),
                                 obj: Box::new(Expr::Ident(prev_id.clone())),
-                                prop: MemberProp::Ident(identifier.clone()),
+                                prop: MemberProp::Ident(identifier.clone().into()),
                             })),
                         })),
                         op: BinaryOp::LogicalAnd,
@@ -351,7 +346,7 @@ where
                                     expr: Box::new(Expr::Member(MemberExpr {
                                         span: DUMMY_SP,
                                         obj: Box::new(Expr::Ident(prev_id.clone())),
-                                        prop: MemberProp::Ident(identifier.clone()),
+                                        prop: MemberProp::Ident(identifier.clone().into()),
                                     })),
                                 })),
                                 op: AssignOp::Assign,
@@ -389,6 +384,7 @@ where
                                 kind: VarDeclKind::Const,
                                 declare: false,
                                 decls,
+                                ..Default::default()
                             })))]
                             .into_iter()
                             .chain(statements)
@@ -400,11 +396,9 @@ where
                                 .into_iter(),
                             )
                             .collect(),
+                            ..Default::default()
                         })),
-                        is_async: false,
-                        is_generator: false,
-                        type_params: None,
-                        return_type: None,
+                        ..Default::default()
                     })),
                 },
                 ExprOrSpread {
@@ -415,15 +409,15 @@ where
                             .into_iter()
                             .map(|id| {
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident(id),
-                                    value: Box::new(Expr::Ident(quote_ident!("undefined"))),
+                                    key: PropName::Ident(id.into()),
+                                    value: Box::new(Expr::Ident(quote_ident!("undefined").into())),
                                 })))
                             })
                             .collect(),
                     })),
                 },
             ],
-            type_args: None,
+            ..Default::default()
         })])
     }
 }

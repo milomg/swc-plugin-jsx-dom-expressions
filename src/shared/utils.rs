@@ -4,8 +4,8 @@ use convert_case::{Case, Converter};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashSet;
-use swc_atoms::{Atom, JsWord};
 use swc_core::{
+    atoms::{Atom, JsWord},
     common::{comments::Comments, iter::IdentifyLast, BytePos, Span, DUMMY_SP},
     ecma::{
         ast::*,
@@ -72,7 +72,7 @@ where
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         local: val,
-                        imported: Some(ModuleExportName::Ident(Ident::new(name.into(), DUMMY_SP))),
+                        imported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(name.into(), DUMMY_SP))),
                         span: DUMMY_SP,
                         is_type_only: false,
                     })],
@@ -117,7 +117,7 @@ where
                             elems,
                         })),
                     }],
-                    type_args: None,
+                    ..Default::default()
                 })),
             })))
         }
@@ -165,13 +165,10 @@ where
                                         body: Box::new(BlockStmtOrExpr::Expr(Box::new(
                                             cond.clone(),
                                         ))),
-                                        is_async: false,
-                                        is_generator: false,
-                                        type_params: None,
-                                        return_type: None,
+                                        ..Default::default()
                                     })),
                                 }],
-                                type_args: None,
+                                ..Default::default()
                             })
                         } else {
                             Expr::Ident(self.generate_uid_identifier("_c$"))
@@ -180,8 +177,7 @@ where
                         expr.test = Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: Callee::Expr(Box::new(id.clone())),
-                            args: vec![],
-                            type_args: None,
+                            ..Default::default()
                         }));
 
                         if matches!(*expr.cons, Expr::Cond(_)) || is_logical_expression(&expr.cons)
@@ -274,10 +270,7 @@ where
                         span: DUMMY_SP,
                         params: vec![],
                         body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond))),
-                        is_async: false,
-                        is_generator: false,
-                        type_params: None,
-                        return_type: None,
+                        ..Default::default()
                     })
                 } else {
                     Expr::Call(CallExpr {
@@ -289,13 +282,10 @@ where
                                 span: DUMMY_SP,
                                 params: vec![],
                                 body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond))),
-                                is_async: false,
-                                is_generator: false,
-                                type_params: None,
-                                return_type: None,
+                                ..Default::default()
                             })),
                         }],
-                        type_args: None,
+                        ..Default::default()
                     })
                 };
                 let stmt1 = Stmt::Decl(Decl::Var(Box::new(VarDecl {
@@ -311,15 +301,13 @@ where
                         init: Some(Box::new(init_id_var)),
                         definite: false,
                     }],
+                    ..Default::default()
                 })));
                 let expr2 = Expr::Arrow(ArrowExpr {
                     span: DUMMY_SP,
                     params: vec![],
                     body: Box::new(BlockStmtOrExpr::Expr(Box::new(node))),
-                    is_async: false,
-                    is_generator: false,
-                    type_params: None,
-                    return_type: None,
+                    ..Default::default()
                 });
                 return if deep {
                     (
@@ -338,14 +326,11 @@ where
                                             arg: Some(Box::new(expr2)),
                                         }),
                                     ],
+                                    ..Default::default()
                                 })),
-                                is_async: false,
-                                is_generator: false,
-                                type_params: None,
-                                return_type: None,
+                                ..Default::default()
                             }))),
-                            args: vec![],
-                            type_args: None,
+                            ..Default::default()
                         }),
                     )
                 } else {
@@ -363,10 +348,7 @@ where
                     span: DUMMY_SP,
                     params: vec![],
                     body: Box::new(BlockStmtOrExpr::Expr(Box::new(node))),
-                    is_async: false,
-                    is_generator: false,
-                    type_params: None,
-                    return_type: None,
+                    ..Default::default()
                 }),
             )
         }
@@ -409,13 +391,10 @@ where
                             span: DUMMY_SP,
                             params: vec![],
                             body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond.clone()))),
-                            is_async: false,
-                            is_generator: false,
-                            type_params: None,
-                            return_type: None,
+                            ..Default::default()
                         })),
                     }],
-                    type_args: None,
+                    ..Default::default()
                 })
             } else {
                 Expr::Ident(self.generate_uid_identifier("_c$"))
@@ -423,8 +402,7 @@ where
             next_path.left = Box::new(Expr::Call(CallExpr {
                 span: DUMMY_SP,
                 callee: Callee::Expr(Box::new(id.clone())),
-                args: vec![],
-                type_args: None,
+                ..Default::default()
             }));
         }
     }
@@ -629,7 +607,7 @@ pub fn convert_jsx_identifier(attr_name: &JSXAttrName) -> (PropName, String) {
     };
     match Ident::verify_symbol(&name) {
         Ok(_) => (
-            PropName::Ident(Ident::new(name.clone().into(), DUMMY_SP)),
+            PropName::Ident(IdentName::new(name.clone().into(), DUMMY_SP)),
             name,
         ),
         Err(_) => (
@@ -697,7 +675,7 @@ pub fn to_property_name(name: &str) -> String {
     conv.convert(name.to_lowercase())
 }
 
-pub fn wrapped_by_text(list: &Vec<TemplateInstantiation>, start_index: usize) -> bool {
+pub fn wrapped_by_text(list: &[TemplateInstantiation], start_index: usize) -> bool {
     let mut index = start_index;
     let mut wrapped = false;
     while index > 0 {

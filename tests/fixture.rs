@@ -4,7 +4,7 @@ use jsx_dom_expressions::config::Config;
 use jsx_dom_expressions::TransformVisitor;
 use swc_core::common::{chain, Mark};
 use swc_core::{
-    ecma::parser::{EsConfig, Syntax},
+    ecma::parser::{EsSyntax, Syntax},
     ecma::transforms::base::resolver,
     ecma::transforms::testing::test_fixture,
     ecma::visit::as_folder,
@@ -12,7 +12,7 @@ use swc_core::{
 use testing::fixture;
 
 fn syntax() -> Syntax {
-    Syntax::Es(EsConfig {
+    Syntax::Es(EsSyntax {
         jsx: true,
         ..Default::default()
     })

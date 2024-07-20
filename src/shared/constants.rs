@@ -193,6 +193,6 @@ pub static PROPERTIES: Lazy<HashSet<&str>> = Lazy::new(|| {
         "playsInline",
     ]
     .into_iter()
-    .chain(BOOLEANS.into_iter())
+    .chain(BOOLEANS)
     .collect()
 });
