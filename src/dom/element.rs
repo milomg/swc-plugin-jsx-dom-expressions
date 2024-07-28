@@ -570,7 +570,9 @@ where
                 };
                 if let PropOrSpread::Prop(p) = prop {
                     return match **p {
-                        Prop::Shorthand(ref id) => handle(id.clone().into(), Expr::Ident(id.clone())),
+                        Prop::Shorthand(ref id) => {
+                            handle(id.clone().into(), Expr::Ident(id.clone()))
+                        }
                         Prop::KeyValue(ref kv) => match kv.key {
                             PropName::Ident(ref id) => handle(id.clone(), *kv.value.clone()),
                             PropName::Str(ref s) => {
@@ -678,7 +680,9 @@ where
 
                 if let PropOrSpread::Prop(p) = prop {
                     return match **p {
-                        Prop::Shorthand(ref id) => handle(id.clone().into(), Expr::Ident(id.clone())),
+                        Prop::Shorthand(ref id) => {
+                            handle(id.clone().into(), Expr::Ident(id.clone()))
+                        }
                         Prop::KeyValue(ref kv) => match kv.key {
                             PropName::Ident(ref id) => handle(id.clone(), *kv.value.clone()),
                             PropName::Str(ref s) => {
@@ -1020,10 +1024,9 @@ where
                                     args: vec![
                                         ExprOrSpread {
                                             spread: None,
-                                            expr: Box::new(Expr::Ident(quote_ident!(name
-                                                .name
-                                                .sym
-                                                .to_string()).into())),
+                                            expr: Box::new(Expr::Ident(
+                                                quote_ident!(name.name.sym.to_string()).into(),
+                                            )),
                                         },
                                         ExprOrSpread {
                                             spread: None,
@@ -1221,9 +1224,9 @@ where
                                                     },
                                                     ExprOrSpread {
                                                         spread: None,
-                                                        expr: Box::new(Expr::Ident(quote_ident!(
-                                                            "e"
-                                                        ).into())),
+                                                        expr: Box::new(Expr::Ident(
+                                                            quote_ident!("e").into(),
+                                                        )),
                                                     },
                                                 ],
                                                 ..Default::default()
@@ -1782,14 +1785,10 @@ where
                     init: Some(Box::new(walk)),
                     definite: false,
                 });
-                results
-                    .declarations
-                    .extend(child.declarations.clone());
+                results.declarations.extend(child.declarations.clone());
                 results.exprs.extend(child.exprs.clone());
                 results.dynamics.extend(child.dynamics.clone());
-                results
-                    .post_exprs
-                    .extend(child.post_exprs.clone());
+                results.post_exprs.extend(child.post_exprs.clone());
                 results.has_custom_element |= child.has_custom_element;
                 temp_path.clone_from(&child.id);
                 next_placeholder = None;

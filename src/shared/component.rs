@@ -22,8 +22,7 @@ where
         let has_children = !node.children.is_empty();
 
         if let Expr::Ident(id) = &tag_id {
-            if self.config.built_ins.iter().any(|v| v.as_str() == &id.sym)
-                && id.ctxt.as_u32() == 1
+            if self.config.built_ins.iter().any(|v| v.as_str() == &id.sym) && id.ctxt.as_u32() == 1
             {
                 tag_id = Expr::Ident(self.register_import_method(&id.sym));
             }

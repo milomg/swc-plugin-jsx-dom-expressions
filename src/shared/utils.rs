@@ -72,7 +72,10 @@ where
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         local: val,
-                        imported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(name.into(), DUMMY_SP))),
+                        imported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                            name.into(),
+                            DUMMY_SP,
+                        ))),
                         span: DUMMY_SP,
                         is_type_only: false,
                     })],
