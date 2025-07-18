@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use jsx_dom_expressions::config::Config;
 use jsx_dom_expressions::TransformVisitor;
-use swc_core::common::{chain, Mark};
+use jsx_dom_expressions::config::Config;
+use swc_core::common::Mark;
+use swc_core::ecma::visit::visit_mut_pass;
 use swc_core::{
     ecma::parser::{EsSyntax, Syntax},
     ecma::transforms::base::resolver,
     ecma::transforms::testing::test_fixture,
-    ecma::visit::as_folder,
 };
 use testing::fixture;
 
@@ -25,17 +25,17 @@ fn jsx_dom_expressions_fixture_babel(input: PathBuf) {
     test_fixture(
         syntax(),
         &|t| {
-            chain!(
+            (
                 resolver(Mark::new(), Mark::new(), false),
-                as_folder(TransformVisitor::new(
+                visit_mut_pass(TransformVisitor::new(
                     Config {
                         module_name: "r-dom".to_string(),
                         built_ins: vec!["For".to_string(), "Show".to_string()],
                         context_to_custom_elements: true,
                         ..Default::default()
                     },
-                    t.comments.clone()
-                ))
+                    t.comments.clone(),
+                )),
             )
         },
         &input,

@@ -3,9 +3,9 @@ use super::{
     transform::TransformInfo,
     utils::{convert_jsx_identifier, filter_children, jsx_text_to_str},
 };
-use crate::{shared::utils::is_l_val, TransformVisitor};
+use crate::{TransformVisitor, shared::utils::is_l_val};
 use swc_core::{
-    common::{comments::Comments, DUMMY_SP},
+    common::{DUMMY_SP, comments::Comments},
     ecma::{ast::*, utils::quote_ident},
 };
 
@@ -21,11 +21,11 @@ where
         let mut dynamic_spread = false;
         let has_children = !node.children.is_empty();
 
-        if let Expr::Ident(id) = &tag_id {
-            if self.config.built_ins.iter().any(|v| v.as_str() == &id.sym) && id.ctxt.as_u32() == 1
-            {
-                tag_id = Expr::Ident(self.register_import_method(&id.sym));
-            }
+        if let Expr::Ident(id) = &tag_id
+            && self.config.built_ins.iter().any(|v| v.as_str() == &id.sym)
+            && id.ctxt.as_u32() == 1
+        {
+            tag_id = Expr::Ident(self.register_import_method(&id.sym));
         }
 
         for attribute in &node.opening.attrs {
@@ -489,27 +489,29 @@ where
                     arg: ret.map(Box::new),
                 }));
 
-                vec![CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(
-                        ArrowExpr {
-                            span: DUMMY_SP,
-                            params: vec![],
-                            body: Box::new(
-                                BlockStmt {
-                                    span: DUMMY_SP,
-                                    stmts,
-                                    ..Default::default()
-                                }
-                                .into(),
-                            ),
-                            ..Default::default()
-                        }
-                        .into(),
-                    ),
-                    ..Default::default()
-                }
-                .into()]
+                vec![
+                    CallExpr {
+                        span: DUMMY_SP,
+                        callee: Callee::Expr(
+                            ArrowExpr {
+                                span: DUMMY_SP,
+                                params: vec![],
+                                body: Box::new(
+                                    BlockStmt {
+                                        span: DUMMY_SP,
+                                        stmts,
+                                        ..Default::default()
+                                    }
+                                    .into(),
+                                ),
+                                ..Default::default()
+                            }
+                            .into(),
+                        ),
+                        ..Default::default()
+                    }
+                    .into(),
+                ]
             } else {
                 exprs
             },
@@ -539,7 +541,7 @@ where
                 match node {
                     JSXElementChild::JSXText(child) => {
                         let value = jsx_text_to_str(&child.value);
-                        if value.len() > 0 {
+                        if !value.is_empty() {
                             path_nodes.push(node);
                             memo.push(Lit::Str(value.into()).into());
                         }
@@ -560,14 +562,11 @@ where
                             if self.config.generate == "ssr"
                                 && is_filtered_children_plural
                                 && child.dynamic
-                            {
-                                if let Some(Expr::Arrow(ArrowExpr { body, .. })) =
+                                && let Some(Expr::Arrow(ArrowExpr { body, .. })) =
                                     child.exprs.first()
-                                {
-                                    if let BlockStmtOrExpr::Expr(expr) = body.as_ref() {
-                                        child.exprs.insert(0, *expr.clone());
-                                    }
-                                }
+                                && let BlockStmtOrExpr::Expr(expr) = body.as_ref()
+                            {
+                                child.exprs.insert(0, *expr.clone());
                             }
 
                             path_nodes.push(node);

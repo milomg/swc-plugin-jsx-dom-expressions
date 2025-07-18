@@ -4,9 +4,12 @@ use swc_core::{
     ecma::{
         ast::*,
         minifier::{eval::Evaluator, marks::Marks},
-        visit::{as_folder, FoldWith, VisitMut, VisitMutWith, VisitWith},
+        visit::{VisitMut, VisitMutWith, VisitWith},
     },
-    plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
+    plugin::{
+        plugin_transform,
+        proxies::{PluginCommentsProxy, TransformPluginProgramMetadata},
+    },
 };
 
 pub mod config;
@@ -36,8 +39,8 @@ where
         expr.visit_mut_children_with(self);
     }
     fn visit_mut_module(&mut self, module: &mut Module) {
-        module.visit_mut_children_with(&mut ThisBlockVisitor::new());
         self.evaluator = Some(Evaluator::new(module.clone(), Marks::new()));
+        module.visit_mut_children_with(&mut ThisBlockVisitor::new());
         module.visit_children_with(&mut self.binding_collector);
         module.visit_mut_children_with(self);
 
@@ -48,13 +51,16 @@ where
 }
 
 #[plugin_transform]
-pub fn process_transform(program: Program, metadata: TransformPluginProgramMetadata) -> Program {
+pub fn process_transform(
+    mut program: Program,
+    metadata: TransformPluginProgramMetadata,
+) -> Program {
     let config: config::Config = metadata
         .get_transform_plugin_config()
         .and_then(|json| serde_json::from_str(&json).ok())
         .unwrap_or_default();
-    program.fold_with(&mut as_folder(TransformVisitor::new(
-        config,
-        &metadata.comments,
-    )))
+
+    program.visit_mut_with(&mut TransformVisitor::new(config, PluginCommentsProxy));
+
+    program
 }

@@ -1,22 +1,22 @@
 use crate::{
+    TransformVisitor,
     shared::{
         constants::{
-            get_prop_alias, ALIASES, CHILD_PROPERTIES, DELEGATED_EVENTS, PROPERTIES, SVGNAMESPACE,
-            SVG_ELEMENTS, VOID_ELEMENTS,
+            ALIASES, CHILD_PROPERTIES, DELEGATED_EVENTS, PROPERTIES, SVG_ELEMENTS, SVGNAMESPACE,
+            VOID_ELEMENTS, get_prop_alias,
         },
         structs::{DynamicAttr, ProcessSpreadsInfo, TemplateInstantiation},
-        transform::{is_component, TransformInfo},
+        transform::{TransformInfo, is_component},
         utils::{
-            can_native_spread, check_length, convert_jsx_identifier, escape_backticks, escape_html,
-            filter_children, get_tag_name, is_l_val, is_static_expr, lit_to_string,
-            to_property_name, trim_whitespace, wrapped_by_text, RESERVED_NAME_SPACES,
+            RESERVED_NAME_SPACES, can_native_spread, check_length, convert_jsx_identifier,
+            escape_backticks, escape_html, filter_children, get_tag_name, is_l_val, is_static_expr,
+            lit_to_string, to_property_name, trim_whitespace, wrapped_by_text,
         },
     },
-    TransformVisitor,
 };
 use regex::Regex;
 use swc_core::{
-    common::{comments::Comments, DUMMY_SP},
+    common::{DUMMY_SP, comments::Comments},
     ecma::ast::*,
     ecma::{minifier::eval::EvalResult, utils::quote_ident},
 };
@@ -43,7 +43,7 @@ where
         let void_tag = VOID_ELEMENTS.contains(&tag_name.as_str());
         let is_custom_element = tag_name.contains('-');
         let mut results = TemplateInstantiation {
-            template: format!("<{}", tag_name),
+            template: format!("<{tag_name}"),
             tag_name: tag_name.clone(),
             is_svg: wrap_svg,
             is_void: void_tag,
@@ -84,7 +84,7 @@ where
             }
             self.transform_children(&node, &mut results);
             if to_be_closed {
-                results.template += &format!("</{}>", tag_name);
+                results.template += &format!("</{tag_name}>");
             }
         }
         if wrap_svg {
@@ -534,13 +534,11 @@ where
                     if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
                         expr: JSXExpr::Expr(expr),
                         span
-                    })) = &attr.value {
-                        if let Expr::Object(ObjectLit {ref props, .. }) = **expr {
-                            if !props.iter().any(|p| matches!(p, PropOrSpread::Spread(_))) {
+                    })) = &attr.value
+                        && let Expr::Object(ObjectLit {ref props, .. }) = **expr
+                            && !props.iter().any(|p| matches!(p, PropOrSpread::Spread(_))) {
                                 return Some((i, props.clone(), *span));
                             }
-                        }
-                    }
                     None
                 },
                 _ => None
@@ -606,32 +604,26 @@ where
         // preprocess classList
         let class_list_props = attributes.iter().enumerate().find_map(|(i, a)| match a {
             JSXAttrOrSpread::JSXAttr(attr) => {
-                if let JSXAttrName::Ident(name) = &attr.name {
-                    if &name.sym == "classList" {
-                        if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                            expr: JSXExpr::Expr(expr),
-                            span,
-                        })) = &attr.value
-                        {
-                            if let Expr::Object(ObjectLit { ref props, .. }) = **expr {
-                                if !props.iter().any(|p| match p {
-                                    PropOrSpread::Spread(_) => true,
-                                    PropOrSpread::Prop(b) => match &**b {
-                                        Prop::KeyValue(kv) => match &kv.key {
-                                            PropName::Computed(_) => true,
-                                            PropName::Str(s) => {
-                                                s.value.contains(' ') || s.value.contains(':')
-                                            }
-                                            _ => false,
-                                        },
-                                        _ => false,
-                                    },
-                                }) {
-                                    return Some((i, props.clone(), *span));
-                                }
-                            }
-                        }
-                    }
+                if let JSXAttrName::Ident(name) = &attr.name
+                    && &name.sym == "classList"
+                    && let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                        expr: JSXExpr::Expr(expr),
+                        span,
+                    })) = &attr.value
+                    && let Expr::Object(ObjectLit { ref props, .. }) = **expr
+                    && !props.iter().any(|p| match p {
+                        PropOrSpread::Spread(_) => true,
+                        PropOrSpread::Prop(b) => match &**b {
+                            Prop::KeyValue(kv) => match &kv.key {
+                                PropName::Computed(_) => true,
+                                PropName::Str(s) => s.value.contains(' ') || s.value.contains(':'),
+                                _ => false,
+                            },
+                            _ => false,
+                        },
+                    })
+                {
+                    return Some((i, props.clone(), *span));
                 }
                 None
             }
@@ -717,12 +709,12 @@ where
             .iter()
             .enumerate()
             .filter(|(_, a)| {
-                if let JSXAttrOrSpread::JSXAttr(attr) = a {
-                    if let JSXAttrName::Ident(ref id) = attr.name {
-                        let name = id.sym.as_ref().to_string();
-                        if name == "class" || name == "className" {
-                            return true;
-                        }
+                if let JSXAttrOrSpread::JSXAttr(attr) = a
+                    && let JSXAttrName::Ident(ref id) = attr.name
+                {
+                    let name = id.sym.as_ref().to_string();
+                    if name == "class" || name == "className" {
+                        return true;
                     }
                 }
                 false
@@ -741,38 +733,38 @@ where
             }];
             for (i, (idx, attr)) in class_attributes.iter().enumerate() {
                 let is_last = i == class_attributes.len() - 1;
-                if let JSXAttrOrSpread::JSXAttr(attr) = attr {
-                    if let Some(ref v) = attr.value {
-                        if let JSXAttrValue::JSXExprContainer(expr) = v {
-                            if let JSXExpr::Expr(ref ex) = expr.expr {
-                                values.push(Expr::Bin(BinExpr {
-                                    span: DUMMY_SP,
-                                    op: BinaryOp::LogicalOr,
-                                    left: ex.clone(),
-                                    right: Box::new(Expr::Lit(Lit::Str("".into()))),
-                                }));
-                            }
-                            quasis.push(TplElement {
+                if let JSXAttrOrSpread::JSXAttr(attr) = attr
+                    && let Some(ref v) = attr.value
+                {
+                    if let JSXAttrValue::JSXExprContainer(expr) = v {
+                        if let JSXExpr::Expr(ref ex) = expr.expr {
+                            values.push(Expr::Bin(BinExpr {
                                 span: DUMMY_SP,
-                                tail: true,
-                                cooked: None,
-                                raw: (if is_last { "" } else { " " }).into(),
-                            });
-                        } else if let JSXAttrValue::Lit(lit) = v {
-                            let prev = quasis.pop();
-                            let raw = format!(
-                                "{}{}{}",
-                                prev.map_or("".to_string(), |prev| prev.raw.to_string()),
-                                lit_to_string(lit),
-                                if is_last { "" } else { " " }
-                            );
-                            quasis.push(TplElement {
-                                span: DUMMY_SP,
-                                tail: true,
-                                cooked: None,
-                                raw: raw.into(),
-                            })
+                                op: BinaryOp::LogicalOr,
+                                left: ex.clone(),
+                                right: Box::new(Expr::Lit(Lit::Str("".into()))),
+                            }));
                         }
+                        quasis.push(TplElement {
+                            span: DUMMY_SP,
+                            tail: true,
+                            cooked: None,
+                            raw: (if is_last { "" } else { " " }).into(),
+                        });
+                    } else if let JSXAttrValue::Lit(lit) = v {
+                        let prev = quasis.pop();
+                        let raw = format!(
+                            "{}{}{}",
+                            prev.map_or("".to_string(), |prev| prev.raw.to_string()),
+                            lit_to_string(lit),
+                            if is_last { "" } else { " " }
+                        );
+                        quasis.push(TplElement {
+                            span: DUMMY_SP,
+                            tail: true,
+                            cooked: None,
+                            raw: raw.into(),
+                        })
                     }
                 }
                 if i > 0 {
@@ -817,19 +809,18 @@ where
                 }
             };
 
-            if !key.starts_with("use:") {
-                if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+            if !key.starts_with("use:")
+                && let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
                     expr: JSXExpr::Expr(ref expr),
                     ..
                 })) = attribute.value
-                {
-                    match self.evaluator.as_mut().unwrap().eval(expr) {
-                        Some(EvalResult::Lit(lit)) if matches!(lit, Lit::Str(_) | Lit::Num(_)) => {
-                            attribute.value = Some(JSXAttrValue::Lit(lit))
-                        }
-                        _ => {}
-                    };
-                }
+            {
+                match self.evaluator.as_mut().unwrap().eval(expr) {
+                    Some(EvalResult::Lit(lit)) if matches!(lit, Lit::Str(_) | Lit::Num(_)) => {
+                        attribute.value = Some(JSXAttrValue::Lit(lit))
+                    }
+                    _ => {}
+                };
             }
 
             if let Some(ref mut value) = attribute.value {
@@ -854,7 +845,7 @@ where
             }
 
             if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                expr: JSXExpr::Expr(ref mut expr),
+                expr: JSXExpr::Expr(expr),
                 span,
             })) = &mut attribute.value
             {
@@ -1450,7 +1441,7 @@ where
                         if !is_svg {
                             key = key.to_lowercase();
                         }
-                        results.template += &format!(" {}", key);
+                        results.template += &format!(" {key}");
 
                         if let Some(value) = value {
                             let mut text = lit_to_string(value);
@@ -1477,10 +1468,8 @@ where
             }
         }
 
-        if !has_children {
-            if let Some(child) = children {
-                node.children.push(child);
-            }
+        if !has_children && let Some(child) = children {
+            node.children.push(child);
         }
 
         if !matches!(spread_expr, Expr::Invalid(_)) {
@@ -1895,7 +1884,7 @@ where
         char: &str,
     ) -> (Ident, Option<ExprOrSpread>) {
         let expr_id = self.generate_uid_identifier("el$");
-        results.template += &format!("<!{}>", char);
+        results.template += &format!("<!{char}>");
         results.declarations.push(VarDeclarator {
             span: DUMMY_SP,
             name: Pat::Ident(expr_id.clone().into()),

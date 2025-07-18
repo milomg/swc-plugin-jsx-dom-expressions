@@ -5,7 +5,7 @@ use super::{
 };
 pub use crate::shared::structs::TransformVisitor;
 use swc_core::{
-    common::{comments::Comments, DUMMY_SP},
+    common::{DUMMY_SP, comments::Comments},
     ecma::ast::{ArrayLit, Expr, JSXElementChild, JSXExpr, Lit},
 };
 fn do_default<C>(visitor: &mut TransformVisitor<C>, node: &JSXElementChild) -> Expr
@@ -40,7 +40,7 @@ where
                     match node {
                         JSXElementChild::JSXText(child) => {
                             let value = jsx_text_to_str(&child.value);
-                            if value.len() > 0 {
+                            if !value.is_empty() {
                                 memo.push(Expr::Lit(Lit::Str(value.into())))
                             }
                         }

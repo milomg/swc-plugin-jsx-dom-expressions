@@ -4,13 +4,10 @@ pub use crate::shared::{
     structs::TransformVisitor,
     utils::{get_tag_name, is_component},
 };
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::HashSet;
 use swc_core::{
-    common::{
-        collections::{AHashMap, AHashSet},
-        comments::Comments,
-        DUMMY_SP,
-    },
+    common::{DUMMY_SP, comments::Comments},
     ecma::{
         ast::*,
         utils::private_ident,
@@ -20,8 +17,8 @@ use swc_core::{
 
 #[derive(Default)]
 pub struct VarBindingCollector {
-    pub const_var_bindings: AHashMap<Id, Option<Expr>>,
-    pub function_bindings: AHashSet<Id>,
+    pub const_var_bindings: FxHashMap<Id, Option<Expr>>,
+    pub function_bindings: FxHashSet<Id>,
 }
 
 impl VarBindingCollector {
@@ -262,18 +259,16 @@ where
                         let mut flag = false;
                         if !info.component_child
                             && (self.config.generate != "ssr" || info.fragment_child)
-                        {
-                            if let Expr::Call(CallExpr {
+                            && let Expr::Call(CallExpr {
                                 callee: Callee::Expr(ref ex),
                                 ref args,
                                 ..
                             }) = **exp
-                            {
-                                if !matches!(**ex, Expr::Member(_)) && args.is_empty() {
-                                    flag = true;
-                                    expr = vec![*ex.clone()];
-                                }
-                            }
+                            && !matches!(**ex, Expr::Member(_))
+                            && args.is_empty()
+                        {
+                            flag = true;
+                            expr = vec![*ex.clone()];
                         }
                         if !flag {
                             expr = vec![Expr::Arrow(ArrowExpr {

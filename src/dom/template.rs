@@ -1,10 +1,10 @@
 use super::element::AttrOptions;
 use crate::{
-    shared::structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
     TransformVisitor,
+    shared::structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
 };
 use swc_core::{
-    common::{comments::Comments, Span, DUMMY_SP},
+    common::{DUMMY_SP, Span, comments::Comments},
     ecma::{
         ast::*,
         utils::{prepend_stmt, quote_ident},

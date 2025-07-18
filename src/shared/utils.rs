@@ -5,8 +5,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashSet;
 use swc_core::{
-    atoms::{Atom, JsWord},
-    common::{comments::Comments, iter::IdentifyLast, BytePos, Span, DUMMY_SP},
+    atoms::Atom,
+    common::{BytePos, DUMMY_SP, Span, comments::Comments, iter::IdentifyLast},
     ecma::{
         ast::*,
         minifier::eval::EvalResult,
@@ -44,7 +44,7 @@ pub fn get_tag_name(element: &JSXElement) -> String {
                     break id.sym.to_string();
                 }
             };
-            format!("{}.{}", o, name)
+            format!("{o}.{name}")
         }
         JSXElementName::JSXNamespacedName(name) => {
             format!("{}:{}", name.ns.sym, name.name.sym)
@@ -138,7 +138,7 @@ where
         let mut cond = Expr::Invalid(Invalid { span: DUMMY_SP });
         let mut id = Expr::Invalid(Invalid { span: DUMMY_SP });
         match &mut node {
-            Expr::Cond(ref mut expr) => {
+            Expr::Cond(expr) => {
                 if self.is_dynamic(&expr.cons, None, false, true, true, false)
                     || self.is_dynamic(&expr.alt, None, false, true, true, false)
                 {
@@ -190,10 +190,9 @@ where
                         }
 
                         match &mut *expr.cons {
-                            Expr::Paren(ParenExpr {
-                                expr: ref mut ex, ..
-                            }) if (matches!(**ex, Expr::Cond(_))
-                                || is_logical_expression(&*ex)) =>
+                            Expr::Paren(ParenExpr { expr: ex, .. })
+                                if (matches!(**ex, Expr::Cond(_))
+                                    || is_logical_expression(&*ex)) =>
                             {
                                 let (_, e) = self.transform_condition(*ex.clone(), inline, true);
                                 **ex = e;
@@ -207,10 +206,9 @@ where
                         }
 
                         match &mut *expr.alt {
-                            Expr::Paren(ParenExpr {
-                                expr: ref mut ex, ..
-                            }) if (matches!(**ex, Expr::Cond(_))
-                                || is_logical_expression(&*ex)) =>
+                            Expr::Paren(ParenExpr { expr: ex, .. })
+                                if (matches!(**ex, Expr::Cond(_))
+                                    || is_logical_expression(&*ex)) =>
                             {
                                 let (_, e) = self.transform_condition(*ex.clone(), inline, true);
                                 **ex = e;
@@ -220,7 +218,7 @@ where
                     }
                 }
             }
-            Expr::Bin(ref mut expr) if is_logical_op(expr) => {
+            Expr::Bin(expr) if is_logical_op(expr) => {
                 let mut next_path = expr;
                 loop {
                     if next_path.op == BinaryOp::LogicalAnd {
@@ -266,80 +264,81 @@ where
             }
             _ => {}
         }
-        if d_test && !inline {
-            if let Expr::Ident(ref ident) = id {
-                let init_id_var = if memo_wrapper.is_empty() {
-                    Expr::Arrow(ArrowExpr {
-                        span: DUMMY_SP,
-                        params: vec![],
-                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond))),
-                        ..Default::default()
-                    })
-                } else {
-                    Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(memo))),
-                        args: vec![ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Arrow(ArrowExpr {
-                                span: DUMMY_SP,
-                                params: vec![],
-                                body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond))),
-                                ..Default::default()
-                            })),
-                        }],
-                        ..Default::default()
-                    })
-                };
-                let stmt1 = Stmt::Decl(Decl::Var(Box::new(VarDecl {
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Const,
-                    declare: false,
-                    decls: vec![VarDeclarator {
-                        span: DUMMY_SP,
-                        name: Pat::Ident(BindingIdent {
-                            id: ident.clone(),
-                            type_ann: None,
-                        }),
-                        init: Some(Box::new(init_id_var)),
-                        definite: false,
-                    }],
-                    ..Default::default()
-                })));
-                let expr2 = Expr::Arrow(ArrowExpr {
+        if d_test
+            && !inline
+            && let Expr::Ident(ref ident) = id
+        {
+            let init_id_var = if memo_wrapper.is_empty() {
+                Expr::Arrow(ArrowExpr {
                     span: DUMMY_SP,
                     params: vec![],
-                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(node))),
+                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond))),
                     ..Default::default()
-                });
-                return if deep {
-                    (
-                        None,
-                        Expr::Call(CallExpr {
+                })
+            } else {
+                Expr::Call(CallExpr {
+                    span: DUMMY_SP,
+                    callee: Callee::Expr(Box::new(Expr::Ident(memo))),
+                    args: vec![ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Arrow(ArrowExpr {
                             span: DUMMY_SP,
-                            callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
-                                span: DUMMY_SP,
-                                params: vec![],
-                                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                                    span: DUMMY_SP,
-                                    stmts: vec![
-                                        stmt1,
-                                        Stmt::Return(ReturnStmt {
-                                            span: DUMMY_SP,
-                                            arg: Some(Box::new(expr2)),
-                                        }),
-                                    ],
-                                    ..Default::default()
-                                })),
-                                ..Default::default()
-                            }))),
+                            params: vec![],
+                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond))),
                             ..Default::default()
-                        }),
-                    )
-                } else {
-                    (Some(stmt1), expr2)
-                };
-            }
+                        })),
+                    }],
+                    ..Default::default()
+                })
+            };
+            let stmt1 = Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Const,
+                declare: false,
+                decls: vec![VarDeclarator {
+                    span: DUMMY_SP,
+                    name: Pat::Ident(BindingIdent {
+                        id: ident.clone(),
+                        type_ann: None,
+                    }),
+                    init: Some(Box::new(init_id_var)),
+                    definite: false,
+                }],
+                ..Default::default()
+            })));
+            let expr2 = Expr::Arrow(ArrowExpr {
+                span: DUMMY_SP,
+                params: vec![],
+                body: Box::new(BlockStmtOrExpr::Expr(Box::new(node))),
+                ..Default::default()
+            });
+            return if deep {
+                (
+                    None,
+                    Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
+                            span: DUMMY_SP,
+                            params: vec![],
+                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                span: DUMMY_SP,
+                                stmts: vec![
+                                    stmt1,
+                                    Stmt::Return(ReturnStmt {
+                                        span: DUMMY_SP,
+                                        arg: Some(Box::new(expr2)),
+                                    }),
+                                ],
+                                ..Default::default()
+                            })),
+                            ..Default::default()
+                        }))),
+                        ..Default::default()
+                    }),
+                )
+            } else {
+                (Some(stmt1), expr2)
+            };
         }
 
         if deep {
@@ -413,7 +412,7 @@ where
     pub fn get_static_expression(&mut self, child: &JSXElementChild) -> Option<String> {
         match child {
             JSXElementChild::JSXExprContainer(JSXExprContainer {
-                expr: JSXExpr::Expr(ref expr),
+                expr: JSXExpr::Expr(expr),
                 ..
             }) => match **expr {
                 Expr::Lit(ref lit) => Some(lit_to_string(lit)),
@@ -442,12 +441,12 @@ where
 
         if let Some(span) = span {
             let pos = span.lo + BytePos(1);
-            if let Some(mut cmts) = self.comments.take_trailing(pos) {
-                if cmts[0].text.to_string().trim() == self.config.static_marker {
-                    cmts.remove(0);
-                    self.comments.add_trailing_comments(pos, cmts);
-                    return false;
-                }
+            if let Some(mut cmts) = self.comments.take_trailing(pos)
+                && cmts[0].text.to_string().trim() == self.config.static_marker
+            {
+                cmts.remove(0);
+                self.comments.add_trailing_comments(pos, cmts);
+                return false;
             }
         }
 
@@ -664,13 +663,13 @@ pub fn trim_whitespace(text: &str) -> String {
                 }
             })
             .filter(|s| !space_regex.is_match(s))
-            .reduce(|cur, nxt| format!("{} {}", cur, nxt))
+            .reduce(|cur, nxt| format!("{cur} {nxt}"))
             .unwrap_or("".to_owned());
     }
-    return Regex::new(r"\s+")
+    Regex::new(r"\s+")
         .unwrap()
         .replace_all(&text, " ")
-        .to_string();
+        .to_string()
 }
 
 pub fn to_property_name(name: &str) -> String {
@@ -848,24 +847,24 @@ pub fn is_logical_op(b: &BinExpr) -> bool {
 }
 
 pub fn is_logical_expression(expr: &Expr) -> bool {
-    if let Expr::Bin(b) = expr {
-        if is_logical_op(b) {
-            return true;
-        }
+    if let Expr::Bin(b) = expr
+        && is_logical_op(b)
+    {
+        return true;
     }
     false
 }
 
 pub fn is_binary_expression(expr: &Expr) -> bool {
-    if let Expr::Bin(b) = expr {
-        if !is_logical_op(b) {
-            return true;
-        }
+    if let Expr::Bin(b) = expr
+        && !is_logical_op(b)
+    {
+        return true;
     }
     false
 }
 
-pub fn jsx_text_to_str(t: &Atom) -> JsWord {
+pub fn jsx_text_to_str(t: &Atom) -> String {
     let mut buf = String::new();
     let replaced = t.replace('\t', " ");
 
@@ -891,5 +890,6 @@ pub fn jsx_text_to_str(t: &Atom) -> JsWord {
         }
         buf.push_str(line);
     }
-    buf.into()
+
+    buf
 }
