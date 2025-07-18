@@ -1,91 +1,91 @@
-const trailing = <span>Hello </span>;
-const leading = <span> John</span>;
+export const trailing = <span>Hello </span>;
+export const leading = <span> John</span>;
 
 /* prettier-ignore */
-const extraSpaces = <span>Hello   John</span>;
+export const extraSpaces = <span>Hello   John</span>;
 
-const trailingExpr = <span>Hello {name}</span>;
-const leadingExpr = <span>{greeting} John</span>;
-
-/* prettier-ignore */
-const multiExpr = <span>{greeting} {name}</span>;
+export const trailingExpr = <span>Hello {name}</span>;
+export const leadingExpr = <span>{greeting} John</span>;
 
 /* prettier-ignore */
-const multiExprSpaced = <span> {greeting} {name} </span>;
+export const multiExpr = <span>{greeting} {name}</span>;
 
 /* prettier-ignore */
-const multiExprTogether = <span> {greeting}{name} </span>;
+export const multiExprSpaced = <span> {greeting} {name} </span>;
 
 /* prettier-ignore */
-const multiLine = <span>
+export const multiExprTogether = <span> {greeting}{name} </span>;
+
+/* prettier-ignore */
+export const multiLine = <span>
 
   Hello
 
 </span>
 
 /* prettier-ignore */
-const multiLineTrailingSpace = <span>
-  Hello 
-  John
-</span>
-
-/* prettier-ignore */
-const multiLineNoTrailingSpace = <span>
+export const multiLineTrailingSpace = <span>
   Hello
   John
 </span>
 
 /* prettier-ignore */
-const escape = <span> 
+export const multiLineNoTrailingSpace = <span>
+  Hello
+  John
+</span>
+
+/* prettier-ignore */
+export const escape = <span>
   &nbsp;&lt;Hi&gt;&nbsp;
 </span>
 
 /* prettier-ignore */
-const escape2 = <Comp> 
+export const escape2 = <Comp>
   &nbsp;&lt;Hi&gt;&nbsp;
 </Comp>
 
 /* prettier-ignore */
-const escape3 = <> 
+export const escape3 = <>
   &nbsp;&lt;Hi&gt;&nbsp;
 </>
 
-const injection = <span>Hi{"<script>alert();</script>"}</span>
+export const injection = <span>Hi{"<script>alert();</script>"}</span>
 
 let value = "World";
-const evaluated = <span>Hello {value + "!"}</span>
+export const evaluated = <span>Hello {value + "!"}</span>
 
 let number = 4 + 5;
-const evaluatedNonString = <span>4 + 5 = {number}</span>
+export const evaluatedNonString = <span>4 + 5 = {number}</span>
 
-const newLineLiteral = <div>{s}{"\n"}d</div>
+export const newLineLiteral = <div>{s}{"\n"}d</div>
 
-const trailingSpace = <div>
-  {expr} 
+export const trailingSpace = <div>
+  {expr}
 </div>
 
-const trailingSpaceComp = <Comp>
-  {expr} 
+export const trailingSpaceComp = <Comp>
+  {expr}
 </Comp>
 
-const trailingSpaceFrag = <>
-  {expr} 
+export const trailingSpaceFrag = <>
+  {expr}
 </>
 
-const leadingSpaceElement = <span> {expr}</span>
+export const leadingSpaceElement = <span> {expr}</span>
 
-const leadingSpaceComponent = <Div> {expr}</Div>
+export const leadingSpaceComponent = <Div> {expr}</Div>
 
-const leadingSpaceFragment = <> {expr}</>
+export const leadingSpaceFragment = <> {expr}</>
 
-const trailingSpaceElement = <span>{expr} </span>
+export const trailingSpaceElement = <span>{expr} </span>
 
-const trailingSpaceComponent = <Div>{expr} </Div>
+export const trailingSpaceComponent = <Div>{expr} </Div>
 
-const trailingSpaceFragment = <>{expr} </>
+export const trailingSpaceFragment = <>{expr} </>
 
-const escapeAttribute = <div normal="Search&hellip;" title={"Search&hellip;"} />
+export const escapeAttribute = <div normal="Search&hellip;" title={"Search&hellip;"} />
 
-const escapeCompAttribute = <Div normal="Search&hellip;" title={"Search&hellip;"} />
+export const escapeCompAttribute = <Div normal="Search&hellip;" title={"Search&hellip;"} />
 
-const lastElementExpression = <div><div></div>{expr()}</div>;
+export const lastElementExpression = <div><div></div>{expr()}</div>;

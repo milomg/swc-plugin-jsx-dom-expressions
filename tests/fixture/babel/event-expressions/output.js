@@ -6,7 +6,7 @@ function hoisted1() {
     console.log("hoisted");
 }
 const hoisted2 = ()=>console.log("hoisted delegated");
-const template = (()=>{
+export const template = (()=>{
     const _el$ = _tmpl$(), _el$2 = _el$.firstChild, _el$3 = _el$2.nextSibling, _el$4 = _el$3.nextSibling, _el$5 = _el$4.nextSibling, _el$6 = _el$5.nextSibling, _el$7 = _el$6.nextSibling, _el$8 = _el$7.nextSibling, _el$9 = _el$8.nextSibling, _el$10 = _el$9.nextSibling, _el$11 = _el$10.nextSibling, _el$12 = _el$11.nextSibling, _el$13 = _el$12.nextSibling;
     _el$2.addEventListener("change", ()=>console.log("bound"));
     _el$3.addEventListener("change", (e)=>((id1)=>console.log("bound", id1))(id, e));

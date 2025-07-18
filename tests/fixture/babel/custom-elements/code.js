@@ -1,8 +1,8 @@
-const template = (
+export const template = (
   <my-element some-attr={name} notProp={data} attr:my-attr={data} prop:someProp={data} />
 );
 
-const template2 = (
+export const template2 = (
   <my-element
     some-attr={state.name}
     notProp={state.data}
@@ -11,13 +11,13 @@ const template2 = (
   />
 );
 
-const template3 = (
+export const template3 = (
   <my-element>
     <header slot="head">Title</header>
   </my-element>
 );
 
-const template4 = (
+export const template4 = (
   <>
     <slot name="head"></slot>
   </>

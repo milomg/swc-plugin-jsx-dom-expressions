@@ -8,24 +8,24 @@ const _tmpl$ = /*#__PURE__*/ _$template(
   _tmpl$4 = /*#__PURE__*/ _$template(
     `<div><div><footer><div></div></footer></div><div><button><span>0`
   );
-const template = _tmpl$();
-const template2 = _tmpl$2();
-const template3 = _tmpl$3();
-const template4 = _tmpl$4();
-const template5 = "Hello";
-const template6 = "Hello";
-const template7 = _$memo(()=>props.id);
-const template8 = [
+export const template = _tmpl$();
+export const template2 = _tmpl$2();
+export const template3 = _tmpl$3();
+export const template4 = _tmpl$4();
+export const template5 = "Hello";
+export const template6 = "Hello";
+export const template7 = _$memo(()=>props.id);
+export const template8 = [
   "1",
   "2"
 ];
-const template9 = [
+export const template9 = [
   "1",
   _$memo(()=>props.id)
 ];
-const template10 = 1;
-const template11 = _$memo(()=>`Hello ${props.name}`);
+export const template10 = 1;
+export const template11 = _$memo(()=>`Hello ${props.name}`);
 let id = 123;
-const template12 = id;
+export const template12 = id;
 const signal = ()=>1;
-const template13 = _$memo(signal);
+export const template13 = _$memo(signal);

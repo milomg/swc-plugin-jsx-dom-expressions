@@ -4,17 +4,17 @@ import { memo as _$memo } from "r-dom";
 import { effect as _$effect } from "r-dom";
 import { createComponent as _$createComponent } from "r-dom";
 const _tmpl$ = /*#__PURE__*/ _$template(`<div>First`), _tmpl$2 = /*#__PURE__*/ _$template(`<div>Last`), _tmpl$3 = /*#__PURE__*/ _$template(`<div>`), _tmpl$4 = /*#__PURE__*/ _$template(`<span>1`), _tmpl$5 = /*#__PURE__*/ _$template(`<span>2`), _tmpl$6 = /*#__PURE__*/ _$template(`<span>3`);
-const multiStatic = [
+export const multiStatic = [
     _tmpl$(),
     _tmpl$2()
 ];
-const multiExpression = [
+export const multiExpression = [
     _tmpl$(),
     inserted,
     _tmpl$2(),
     "After"
 ];
-const multiDynamic = [
+export const multiDynamic = [
     (()=>{
         const _el$5 = _tmpl$();
         _$effect(()=>_$setAttribute(_el$5, "id", state.first));
@@ -28,40 +28,40 @@ const multiDynamic = [
     })(),
     "After"
 ];
-const singleExpression = inserted;
-const singleDynamic = _$memo(inserted);
-const firstStatic = [
+export const singleExpression = inserted;
+export const singleDynamic = _$memo(inserted);
+export const firstStatic = [
     inserted,
     _tmpl$3()
 ];
-const firstDynamic = [
+export const firstDynamic = [
     _$memo(inserted),
     _tmpl$3()
 ];
-const firstComponent = [
+export const firstComponent = [
     _$createComponent(Component, {}),
     _tmpl$3()
 ];
-const lastStatic = [
+export const lastStatic = [
     _tmpl$3(),
     inserted
 ];
-const lastDynamic = [
+export const lastDynamic = [
     _tmpl$3(),
     _$memo(inserted)
 ];
-const lastComponent = [
+export const lastComponent = [
     _tmpl$3(),
     _$createComponent(Component, {})
 ];
-const spaces = [
+export const spaces = [
     _tmpl$4(),
     " ",
     _tmpl$5(),
     " ",
     _tmpl$6()
 ];
-const multiLineTrailing = [
+export const multiLineTrailing = [
     _tmpl$4(),
     _tmpl$5(),
     _tmpl$6()

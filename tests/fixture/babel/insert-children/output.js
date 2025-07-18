@@ -8,81 +8,81 @@ const children = _tmpl$();
 const dynamic = {
     children
 };
-const template = _$createComponent(Module, {
+export const template = _$createComponent(Module, {
     children: children
 });
-const template2 = (()=>{
+export const template2 = (()=>{
     const _el$2 = _tmpl$2();
     _$insert(_el$2, children);
     return _el$2;
 })();
-const template3 = _tmpl$3();
-const template4 = (()=>{
+export const template3 = _tmpl$3();
+export const template4 = (()=>{
     const _el$4 = _tmpl$2();
     _$insert(_el$4, _$createComponent(Hello, {}));
     return _el$4;
 })();
-const template5 = (()=>{
+export const template5 = (()=>{
     const _el$5 = _tmpl$2();
     _$insert(_el$5, ()=>dynamic.children);
     return _el$5;
 })();
-const template6 = _$createComponent(Module, {
+export const template6 = _$createComponent(Module, {
     get children () {
         return dynamic.children;
     }
 });
-const template7 = (()=>{
+export const template7 = (()=>{
     const _el$6 = _tmpl$2();
     _$spread(_el$6, dynamic, false, false);
     return _el$6;
 })();
-const template8 = (()=>{
+export const template8 = (()=>{
     const _el$7 = _tmpl$3();
     _$spread(_el$7, dynamic, false, true);
     return _el$7;
 })();
-const template9 = (()=>{
+export const template9 = (()=>{
     const _el$8 = _tmpl$2();
     _$spread(_el$8, dynamic, false, true);
     _$insert(_el$8, ()=>dynamic.children);
     return _el$8;
 })();
-const template10 = _$createComponent(Module, _$mergeProps(dynamic, {
+export const template10 = _$createComponent(Module, _$mergeProps(dynamic, {
     children: "Hello"
 }));
-const template11 = (()=>{
+export const template11 = (()=>{
     const _el$9 = _tmpl$2();
     _$insert(_el$9, state.children);
     return _el$9;
 })();
-const template12 = _$createComponent(Module, {
+export const template12 = _$createComponent(Module, {
     children: state.children
 });
-const template13 = (()=>{
+export const template13 = (()=>{
     const _el$10 = _tmpl$2();
     _$insert(_el$10, children);
     return _el$10;
 })();
-const template14 = _$createComponent(Module, {
+export const template14 = _$createComponent(Module, {
     children: children
 });
-const template15 = (()=>{
+export const template15 = (()=>{
     const _el$11 = _tmpl$2();
     _$insert(_el$11, ()=>dynamic.children);
     return _el$11;
 })();
-const template16 = _$createComponent(Module, {
+export const template16 = _$createComponent(Module, {
     get children () {
         return dynamic.children;
     }
 });
-const template18 = (()=>{
+export const template18 = (()=>{
     const _el$12 = _tmpl$4();
     _$insert(_el$12, children, null);
     return _el$12;
 })();
-const template19 = _$createComponent(Module, {
+export const template19 = _$createComponent(Module, {
     get children () {
         return [
             "Hi ",
@@ -90,27 +90,27 @@ const template19 = _$createComponent(Module, {
         ];
     }
 });
-const template20 = (()=>{
+export const template20 = (()=>{
     const _el$13 = _tmpl$2();
     _$insert(_el$13, children);
     return _el$13;
 })();
-const template21 = _$createComponent(Module, {
+export const template21 = _$createComponent(Module, {
     get children () {
         return children();
     }
 });
-const template22 = (()=>{
+export const template22 = (()=>{
     const _el$14 = _tmpl$2();
     _$insert(_el$14, ()=>state.children());
     return _el$14;
 })();
-const template23 = _$createComponent(Module, {
+export const template23 = _$createComponent(Module, {
     get children () {
         return state.children();
     }
 });
-const template24 = (()=>{
+export const template24 = (()=>{
     const _el$15 = _tmpl$5(), _el$16 = _el$15.firstChild;
     _$spread(_el$15, dynamic, false, true);
     _$insert(_el$15, ()=>dynamic.children, null);
@@ -118,12 +118,12 @@ const template24 = (()=>{
 })();
 const tiles = [];
 tiles.push(_tmpl$6());
-const template25 = (()=>{
+export const template25 = (()=>{
     const _el$18 = _tmpl$();
     _$insert(_el$18, tiles);
     return _el$18;
 })();
-const comma = (()=>{
+export const comma = (()=>{
     const _el$19 = _tmpl$();
     _$insert(_el$19, ()=>(expression(), "static"));
     return _el$19;

@@ -1,4 +1,4 @@
-const template = (
+export const template = (
   <svg width="400" height="180">
     <rect
       stroke-width="2"
@@ -16,7 +16,7 @@ const template = (
   </svg>
 );
 
-const template2 = (
+export const template2 = (
   <svg width="400" height="180">
     <rect
       className={state.name}
@@ -37,27 +37,27 @@ const template2 = (
   </svg>
 );
 
-const template3 = (
+export const template3 = (
   <svg width="400" height="180">
     <rect {...props} />
   </svg>
 );
 
-const template4 = <rect x="50" y="20" width="150" height="150" />;
+export const template4 = <rect x="50" y="20" width="150" height="150" />;
 
-const template5 = (
+export const template5 = (
   <>
     <rect x="50" y="20" width="150" height="150" />
   </>
 );
 
-const template6 = (
+export const template6 = (
   <Component>
     <rect x="50" y="20" width="150" height="150" />
   </Component>
 );
 
-const template7 = (
+export const template7 = (
   <svg viewBox={"0 0 160 40"} xmlns="http://www.w3.org/2000/svg">
     <a xlink:href={url}>
       <text x="10" y="25">
@@ -67,7 +67,7 @@ const template7 = (
   </svg>
 );
 
-const template8 = (
+export const template8 = (
   <svg viewBox={"0 0 160 40"} xmlns="http://www.w3.org/2000/svg">
     <text x="10" y="25" textContent={text} />
   </svg>

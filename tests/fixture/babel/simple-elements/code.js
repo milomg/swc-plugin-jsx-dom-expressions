@@ -1,4 +1,4 @@
-const template = (
+export const template = (
   <div id="main">
     <style>{"div { color: red; }"}</style>
     <h1>Welcome</h1>
@@ -8,7 +8,7 @@ const template = (
   </div>
 );
 
-const template2 = (
+export const template2 = (
   <div>
     <span>
       <a></a>
@@ -17,7 +17,7 @@ const template2 = (
   </div>
 );
 
-const template3 = (
+export const template3 = (
   <div>
     <div>
       <table>
@@ -28,7 +28,7 @@ const template3 = (
   </div>
 );
 
-const template4 = (
+export const template4 = (
   <div>
     <div>
       <footer>
@@ -43,14 +43,14 @@ const template4 = (
   </div>
 );
 
-const template5 = <>Hello</>
-const template6 = <>{"Hello"}</>
-const template7 = <>{props.id}</>
-const template8 = <>{"1"}{"2"}</>
-const template9 = <>{"1"}{props.id}</>
-const template10 = <>{1}</>
-const template11 = <>{`Hello ${props.name}`}</>
+export const template5 = <>Hello</>
+export const template6 = <>{"Hello"}</>
+export const template7 = <>{props.id}</>
+export const template8 = <>{"1"}{"2"}</>
+export const template9 = <>{"1"}{props.id}</>
+export const template10 = <>{1}</>
+export const template11 = <>{`Hello ${props.name}`}</>
 let id = 123;
-const template12 = <>{id}</>
+export const template12 = <>{id}</>
 const signal = () => 1;
-const template13 = <>{signal()}</>
+export const template13 = <>{signal()}</>

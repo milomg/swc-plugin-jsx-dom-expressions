@@ -3,7 +3,7 @@ import { setAttribute as _$setAttribute } from "r-dom";
 import { getOwner as _$getOwner } from "r-dom";
 import { effect as _$effect } from "r-dom";
 const _tmpl$ = /*#__PURE__*/ _$template(`<my-element>`, true, false), _tmpl$2 = /*#__PURE__*/ _$template(`<my-element><header slot="head">Title`, true, false), _tmpl$3 = /*#__PURE__*/ _$template(`<slot name="head">`);
-const template = (()=>{
+export const template = (()=>{
     const _el$ = _tmpl$();
     _el$.someAttr = name;
     _el$.notprop = data;
@@ -12,7 +12,7 @@ const template = (()=>{
     _el$._$owner = _$getOwner();
     return _el$;
 })();
-const template2 = (()=>{
+export const template2 = (()=>{
     const _el$2 = _tmpl$();
     _el$2._$owner = _$getOwner();
     _$effect((_p$)=>{
@@ -30,12 +30,12 @@ const template2 = (()=>{
     });
     return _el$2;
 })();
-const template3 = (()=>{
+export const template3 = (()=>{
     const _el$3 = _tmpl$2();
     _el$3._$owner = _$getOwner();
     return _el$3;
 })();
-const template4 = (()=>{
+export const template4 = (()=>{
     const _el$4 = _tmpl$3();
     _el$4._$owner = _$getOwner();
     return _el$4;

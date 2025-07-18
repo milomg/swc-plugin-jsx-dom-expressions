@@ -8,7 +8,7 @@ const Child = props => {
   </>
 };
 
-const template = props => {
+export const template = props => {
   let childRef;
   const { content } = props;
   return (
@@ -25,7 +25,7 @@ const template = props => {
   );
 };
 
-const template2 = (
+export const template2 = (
   <Child
     name="Jake"
     dynamic={state.data}
@@ -36,7 +36,7 @@ const template2 = (
   />
 );
 
-const template3 = (
+export const template3 = (
   <Child>
     <div />
     <div />
@@ -46,34 +46,34 @@ const template3 = (
 );
 
 const [s, set] = createSignal();
-const template4 = <Child ref={set}>{<div />}</Child>;
+export const template4 = <Child ref={set}>{<div />}</Child>;
 
-const template5 = <Child dynamic={state.dynamic}>{state.dynamic}</Child>;
+export const template5 = <Child dynamic={state.dynamic}>{state.dynamic}</Child>;
 
 // builtIns
-const template6 = (
+export const template6 = (
   <For each={state.list} fallback={<Loading />}>
     {item => <Show when={state.condition}>{item}</Show>}
   </For>
 );
 
-const template7 = (
+export const template7 = (
   <Child>
     <div />
     {state.dynamic}
   </Child>
 );
 
-const template8 = (
+export const template8 = (
   <Child>
     {item => item}
     {item => item}
   </Child>
 );
 
-const template9 = <_garbage>Hi</_garbage>;
+export const template9 = <_garbage>Hi</_garbage>;
 
-const template10 = (
+export const template10 = (
   <div>
     <Link>new</Link>
     {" | "}
@@ -89,7 +89,7 @@ const template10 = (
   </div>
 );
 
-const template11 = (
+export const template11 = (
   <div>
     <Link>new</Link>
     {" | "}
@@ -103,7 +103,7 @@ const template11 = (
   </div>
 );
 
-const template12 = (
+export const template12 = (
   <div>
     {" | "}
     <Link>comments</Link>
@@ -123,25 +123,25 @@ class Template13 {
   }
 }
 
-const Template14 = <Component>{data()}</Component>;
+export const Template14 = <Component>{data()}</Component>;
 
-const Template15 = <Component {...props}/>
+export const Template15 = <Component {...props}/>
 
-const Template16 = <Component something={something} {...props}/>
+export const Template16 = <Component something={something} {...props}/>
 
-const Template17 = <Pre><span>1</span> <span>2</span> <span>3</span></Pre>
+export const Template17 = <Pre><span>1</span> <span>2</span> <span>3</span></Pre>
 
-const Template18 = <Pre>
+export const Template18 = <Pre>
   <span>1</span>
-  <span>2</span> 
+  <span>2</span>
   <span>3</span>
 </Pre>
 
-const Template19 = <Component {...s.dynamic()} />
+export const Template19 = <Component {...s.dynamic()} />
 
-const Template20 = <Component class={prop.red ? "red" : "green"} />
+export const Template20 = <Component class={prop.red ? "red" : "green"} />
 
-const template21 = (
+export const template21 = (
   <Component
     {...{
       get [key()]() {
@@ -151,14 +151,14 @@ const template21 = (
   />
 );
 
-const template22 = <Component passObject={{ ...a }} ></Component>
+export const template22 = <Component passObject={{ ...a }} ></Component>
 
-const template23 = <Component disabled={"t" in test}>{"t" in test && "true"}</Component>
+export const template23 = <Component disabled={"t" in test}>{"t" in test && "true"}</Component>
 
-const template24 = <Component> 
+export const template24 = <Component>
   {state.dynamic}
 </Component>
 
-const template25 = <Component> 
+export const template25 = <Component>
   <div />
 </Component>

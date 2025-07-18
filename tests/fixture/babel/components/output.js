@@ -24,7 +24,7 @@ const Child = (props1)=>{
         })()
     ];
 };
-const template = (props1)=>{
+export const template = (props1)=>{
     let childRef;
     const { content  } = props1;
     return (()=>{
@@ -64,7 +64,7 @@ const template = (props1)=>{
         return _el$4;
     })();
 };
-const template2 = _$createComponent(Child, {
+export const template2 = _$createComponent(Child, {
     name: "Jake",
     get dynamic () {
         return state.data;
@@ -76,7 +76,7 @@ const template2 = _$createComponent(Child, {
     },
     ref: (el)=>e = el
 });
-const template3 = _$createComponent(Child, {
+export const template3 = _$createComponent(Child, {
     get children () {
         return [
             _tmpl$2(),
@@ -87,13 +87,13 @@ const template3 = _$createComponent(Child, {
     }
 });
 const [s, set] = createSignal();
-const template4 = _$createComponent(Child, {
+export const template4 = _$createComponent(Child, {
     ref: set,
     get children () {
         return _tmpl$2();
     }
 });
-const template5 = _$createComponent(Child, {
+export const template5 = _$createComponent(Child, {
     get dynamic () {
         return state.dynamic;
     },
@@ -102,7 +102,7 @@ const template5 = _$createComponent(Child, {
     }
 });
 // builtIns
-const template6 = _$createComponent(_$For, {
+export const template6 = _$createComponent(_$For, {
     get each () {
         return state.list;
     },
@@ -116,7 +116,7 @@ const template6 = _$createComponent(_$For, {
             children: item
         })
 });
-const template7 = _$createComponent(Child, {
+export const template7 = _$createComponent(Child, {
     get children () {
         return [
             _tmpl$2(),
@@ -124,7 +124,7 @@ const template7 = _$createComponent(Child, {
         ];
     }
 });
-const template8 = _$createComponent(Child, {
+export const template8 = _$createComponent(Child, {
     get children () {
         return [
             (item)=>item,
@@ -132,10 +132,10 @@ const template8 = _$createComponent(Child, {
         ];
     }
 });
-const template9 = _$createComponent(_garbage, {
+export const template9 = _$createComponent(_garbage, {
     children: "Hi"
 });
-const template10 = (()=>{
+export const template10 = (()=>{
     const _el$12 = _tmpl$4(), _el$13 = _el$12.firstChild, _el$18 = _el$13.nextSibling, _el$14 = _el$18.nextSibling, _el$19 = _el$14.nextSibling, _el$15 = _el$19.nextSibling, _el$20 = _el$15.nextSibling, _el$16 = _el$20.nextSibling, _el$21 = _el$16.nextSibling, _el$17 = _el$21.nextSibling;
     _$insert(_el$12, _$createComponent(Link, {
         children: "new"
@@ -157,7 +157,7 @@ const template10 = (()=>{
     }), null);
     return _el$12;
 })();
-const template11 = (()=>{
+export const template11 = (()=>{
     const _el$22 = _tmpl$5(), _el$23 = _el$22.firstChild, _el$26 = _el$23.nextSibling, _el$24 = _el$26.nextSibling, _el$27 = _el$24.nextSibling, _el$25 = _el$27.nextSibling;
     _$insert(_el$22, _$createComponent(Link, {
         children: "new"
@@ -179,7 +179,7 @@ const template11 = (()=>{
     }), null);
     return _el$22;
 })();
-const template12 = (()=>{
+export const template12 = (()=>{
     const _el$28 = _tmpl$6(), _el$29 = _el$28.firstChild, _el$34 = _el$29.nextSibling, _el$30 = _el$34.nextSibling, _el$35 = _el$30.nextSibling, _el$33 = _el$35.nextSibling;
     _$insert(_el$28, _$createComponent(Link, {
         children: "comments"
@@ -210,16 +210,16 @@ class Template13 {
         });
     }
 }
-const Template14 = _$createComponent(Component, {
+export const Template14 = _$createComponent(Component, {
     get children () {
         return data();
     }
 });
-const Template15 = _$createComponent(Component, props);
-const Template16 = _$createComponent(Component, _$mergeProps({
+export const Template15 = _$createComponent(Component, props);
+export const Template16 = _$createComponent(Component, _$mergeProps({
     something: something
 }, props));
-const Template17 = _$createComponent(Pre, {
+export const Template17 = _$createComponent(Pre, {
     get children () {
         return [
             _tmpl$7(),
@@ -230,7 +230,7 @@ const Template17 = _$createComponent(Pre, {
         ];
     }
 });
-const Template18 = _$createComponent(Pre, {
+export const Template18 = _$createComponent(Pre, {
     get children () {
         return [
             _tmpl$7(),
@@ -239,25 +239,25 @@ const Template18 = _$createComponent(Pre, {
         ];
     }
 });
-const Template19 = _$createComponent(Component, _$mergeProps(()=>s.dynamic()));
-const Template20 = _$createComponent(Component, {
+export const Template19 = _$createComponent(Component, _$mergeProps(()=>s.dynamic()));
+export const Template20 = _$createComponent(Component, {
     get "class" () {
         return prop.red ? "red" : "green";
     }
 });
-const template21 = _$createComponent(Component, _$mergeProps(()=>({
+export const template21 = _$createComponent(Component, _$mergeProps(()=>({
         get [key()] () {
             return props.value;
         }
     })));
-const template22 = _$createComponent(Component, {
+export const template22 = _$createComponent(Component, {
     get passObject () {
         return {
             ...a
         };
     }
 });
-const template23 = _$createComponent(Component, {
+export const template23 = _$createComponent(Component, {
     get disabled () {
         return "t" in test;
     },
@@ -265,12 +265,12 @@ const template23 = _$createComponent(Component, {
         return "t" in test && "true";
     }
 });
-const template24 = _$createComponent(Component, {
+export const template24 = _$createComponent(Component, {
     get children () {
         return state.dynamic;
     }
 });
-const template25 = _$createComponent(Component, {
+export const template25 = _$createComponent(Component, {
     get children () {
         return _tmpl$2();
     }

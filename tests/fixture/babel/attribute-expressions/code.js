@@ -1,7 +1,7 @@
 const selected = true;
 let id = "my-h1";
 let link;
-const template = (
+export const template = (
   <div id="main" {...results} classList={{ selected: unknown }} style={{ color }}>
     <h1
       class="base"
@@ -20,7 +20,7 @@ const template = (
   </div>
 );
 
-const template2 = (
+export const template2 = (
   <div {...getProps("test")}>
     <div textContent={rowId} />
     <div textContent={row.label} />
@@ -28,7 +28,7 @@ const template2 = (
   </div>
 );
 
-const template3 = (
+export const template3 = (
   <div
     foo
     id={/*@once*/ state.id}
@@ -38,14 +38,14 @@ const template3 = (
   />
 );
 
-const template4 = <div class="hi" className={state.class} classList={{ "ccc:ddd": true }} />;
+export const template4 = <div class="hi" className={state.class} classList={{ "ccc:ddd": true }} />;
 
-const template5 = <div class="a" className="b"></div>;
+export const template5 = <div class="a" className="b"></div>;
 
-const template6 = <div style={someStyle()} textContent="Hi" />;
+export const template6 = <div style={someStyle()} textContent="Hi" />;
 
 let undefVar;
-const template7 = (
+export const template7 = (
   <div
     style={{ "background-color": color(), "margin-right": "40px", ...props.style }}
     style:padding-top={props.top}
@@ -56,23 +56,23 @@ const template7 = (
 );
 
 let refTarget;
-const template8 = <div ref={refTarget} />;
+export const template8 = <div ref={refTarget} />;
 
-const template9 = <div ref={e => console.log(e)} />;
+export const template9 = <div ref={e => console.log(e)} />;
 
-const template10 = <div ref={refFactory()} />;
+export const template10 = <div ref={refFactory()} />;
 
-const template11 = <div use:something use:another={thing} use:zero={0} />;
+export const template11 = <div use:something use:another={thing} use:zero={0} />;
 
-const template12 = <div prop:htmlFor={thing} />;
+export const template12 = <div prop:htmlFor={thing} />;
 
-const template13 = <input type="checkbox" checked={true} />;
+export const template13 = <input type="checkbox" checked={true} />;
 
-const template14 = <input type="checkbox" checked={state.visible} />;
+export const template14 = <input type="checkbox" checked={state.visible} />;
 
-const template15 = <div class="`a">`$`</div>;
+export const template15 = <div class="`a">`$`</div>;
 
-const template16 = (
+export const template16 = (
   <button
     class="static"
     classList={{
@@ -84,7 +84,7 @@ const template16 = (
   </button>
 );
 
-const template17 = (
+export const template17 = (
   <button
     classList={{
       a: true,
@@ -97,7 +97,7 @@ const template17 = (
   </button>
 );
 
-const template18 = (
+export const template18 = (
   <div
     {...{
       get [key()]() {
@@ -107,43 +107,43 @@ const template18 = (
   />
 );
 
-const template19 = <div classList={{ "bg-red-500": true }} class="flex flex-col" />;
+export const template19 = <div classList={{ "bg-red-500": true }} class="flex flex-col" />;
 
-const template20 = (
+export const template20 = (
   <div>
     <input value={s()} min={min()} max={max()} onInput={doSomething} readonly="" />
     <input checked={s2()} min={min()} max={max()} onInput={doSomethingElse} readonly={value} />
   </div>
 );
 
-const template21 = <div style={{ a: "static", ...rest }}></div>;
+export const template21 = <div style={{ a: "static", ...rest }}></div>;
 
-const template22 = <div data='"hi"' data2={'"'} />;
+export const template22 = <div data='"hi"' data2={'"'} />;
 
-const template23 = <div disabled={"t" in test}>{"t" in test && "true"}</div>;
+export const template23 = <div disabled={"t" in test}>{"t" in test && "true"}</div>;
 
-const template24 = <a {...props} something />;
+export const template24 = <a {...props} something />;
 
-const template25 = (
+export const template25 = (
   <div>
     {props.children}
     <a {...props} something />
   </div>
 );
 
-const template26 = (
+export const template26 = (
   <div start="Hi" middle={middle} {...spread}>
     Hi
   </div>
 );
 
-const template27 = (
+export const template27 = (
   <div start="Hi" {...first} middle={middle} {...second}>
     Hi
   </div>
 );
 
-const template28 = (
+export const template28 = (
   <label {...api()}>
     <span {...api()}>Input is {api() ? "checked" : "unchecked"}</span>
     <input {...api()} />
@@ -151,9 +151,9 @@ const template28 = (
   </label>
 );
 
-const template29 = <div attribute={!!someValue}>{!!someValue}</div>;
+export const template29 = <div attribute={!!someValue}>{!!someValue}</div>;
 
-const template30 = (
+export const template30 = (
   <div
     class="class1 class2
     class3 class4
@@ -167,13 +167,13 @@ const template30 = (
   />
 );
 
-const template31 = (
+export const template31 = (
   <div
     style={{ "background-color": getStore.itemProperties.color }}
   />
 );
 
-const template32 = (
+export const template32 = (
   <div
     style={{ "background-color": undefined }}
   />

@@ -1,11 +1,11 @@
-const multiStatic = (
+export const multiStatic = (
   <>
     <div>First</div>
     <div>Last</div>
   </>
 );
 
-const multiExpression = (
+export const multiExpression = (
   <>
     <div>First</div>
     {inserted}
@@ -14,7 +14,7 @@ const multiExpression = (
   </>
 );
 
-const multiDynamic = (
+export const multiDynamic = (
   <>
     <div id={state.first}>First</div>
     {state.inserted}
@@ -23,55 +23,55 @@ const multiDynamic = (
   </>
 );
 
-const singleExpression = <>{inserted}</>;
+export const singleExpression = <>{inserted}</>;
 
-const singleDynamic = <>{inserted()}</>;
+export const singleDynamic = <>{inserted()}</>;
 
-const firstStatic = (
+export const firstStatic = (
   <>
     {inserted}
     <div />
   </>
 );
 
-const firstDynamic = (
+export const firstDynamic = (
   <>
     {inserted()}
     <div />
   </>
 );
 
-const firstComponent = (
+export const firstComponent = (
   <>
     <Component />
     <div />
   </>
 );
 
-const lastStatic = (
+export const lastStatic = (
   <>
     <div />
     {inserted}
   </>
 );
 
-const lastDynamic = (
+export const lastDynamic = (
   <>
     <div />
     {inserted()}
   </>
 );
 
-const lastComponent = (
+export const lastComponent = (
   <>
     <div />
     <Component />
   </>
 );
 
-const spaces = <><span>1</span> <span>2</span> <span>3</span></>
-const multiLineTrailing = <>
+export const spaces = <><span>1</span> <span>2</span> <span>3</span></>
+export const multiLineTrailing = <>
   <span>1</span>
-  <span>2</span> 
+  <span>2</span>
   <span>3</span>
 </>

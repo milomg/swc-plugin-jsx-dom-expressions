@@ -1,7 +1,7 @@
 function hoisted1() { console.log("hoisted"); }
 const hoisted2 = () => console.log("hoisted delegated")
 
-const template = (
+export const template = (
   <div id="main">
     <button onchange={() => console.log("bound")}>Change Bound</button>
     <button onChange={[id => console.log("bound", id), id]}>Change Bound</button>
