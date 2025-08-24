@@ -17,8 +17,8 @@ use crate::{
 use regex::Regex;
 use swc_core::{
     common::{DUMMY_SP, comments::Comments},
-    ecma::ast::*,
-    ecma::{minifier::eval::EvalResult, utils::quote_ident},
+    ecma::{ast::*, minifier::eval::EvalResult, utils::quote_ident},
+    quote,
 };
 
 use super::constants::{BLOCK_ELEMENTS, INLINE_ELEMENTS};
@@ -114,161 +114,43 @@ where
                 Expr::Lit(lit) => match lit {
                     Lit::Str(_) | Lit::Num(_) => {
                         let value = lit_to_string(lit);
-                        return Expr::Call(CallExpr {
-                            span: DUMMY_SP,
-                            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                                span: DUMMY_SP,
-                                obj: Box::new(Expr::Member(MemberExpr {
-                                    span: DUMMY_SP,
-                                    obj: Box::new(Expr::Ident(elem.clone())),
-                                    prop: MemberProp::Ident(quote_ident!("style")),
-                                })),
-                                prop: MemberProp::Ident(quote_ident!("setProperty")),
-                            }))),
-                            args: vec![
-                                ExprOrSpread {
-                                    spread: None,
-                                    expr: name,
-                                },
-                                ExprOrSpread {
-                                    spread: None,
-                                    expr: Box::new(Expr::Lit(Lit::Str(value.into()))),
-                                },
-                            ],
-                            ..Default::default()
-                        });
+                        return quote!("$elem.style.setProperty($name, $value)" as Expr, elem = elem.clone(), name: Expr = *name, value: Expr = value.into());
                     }
                     Lit::Null(_) => {
-                        return Expr::Call(CallExpr {
-                            span: DUMMY_SP,
-                            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                                span: DUMMY_SP,
-                                obj: Box::new(Expr::Member(MemberExpr {
-                                    span: DUMMY_SP,
-                                    obj: Box::new(Expr::Ident(elem.clone())),
-                                    prop: MemberProp::Ident(quote_ident!("style")),
-                                })),
-                                prop: MemberProp::Ident(quote_ident!("removeProperty")),
-                            }))),
-                            args: vec![ExprOrSpread {
-                                spread: None,
-                                expr: name,
-                            }],
-                            ..Default::default()
-                        });
+                        return quote!("$elem.style.removeProperty($name)" as Expr, elem = elem.clone(), name: Expr = *name);
                     }
                     _ => {}
                 },
                 Expr::Ident(id) => {
                     if id.sym == "undefined" {
-                        return Expr::Call(CallExpr {
-                            span: DUMMY_SP,
-                            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                                span: DUMMY_SP,
-                                obj: Box::new(Expr::Member(MemberExpr {
-                                    span: DUMMY_SP,
-                                    obj: Box::new(Expr::Ident(elem.clone())),
-                                    prop: MemberProp::Ident(quote_ident!("style")),
-                                })),
-                                prop: MemberProp::Ident(quote_ident!("removeProperty")),
-                            }))),
-                            args: vec![ExprOrSpread {
-                                spread: None,
-                                expr: name,
-                            }],
-                            ..Default::default()
-                        });
+                        return quote!("$elem.style.removeProperty($name)" as Expr, elem = elem.clone(), name: Expr = *name);
                     }
                 }
                 _ => {}
             }
-            return Expr::Cond(CondExpr {
-                span: DUMMY_SP,
-                test: Box::new(Expr::Bin(BinExpr {
-                    span: DUMMY_SP,
-                    op: BinaryOp::NotEq,
-                    left: Box::new(value.clone()),
-                    right: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
-                })),
-                cons: Box::new(Expr::Call(CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                        span: DUMMY_SP,
-                        obj: Box::new(Expr::Member(MemberExpr {
-                            span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(elem.clone())),
-                            prop: MemberProp::Ident(quote_ident!("style")),
-                        })),
-                        prop: MemberProp::Ident(quote_ident!("setProperty")),
-                    }))),
-                    args: vec![
-                        ExprOrSpread {
-                            spread: None,
-                            expr: name.clone(),
-                        },
-                        ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(options.prev_id.clone().unwrap_or(value.clone())),
-                        },
-                    ],
-                    ..Default::default()
-                })),
-                alt: Box::new(Expr::Call(CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                        span: DUMMY_SP,
-                        obj: Box::new(Expr::Member(MemberExpr {
-                            span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(elem.clone())),
-                            prop: MemberProp::Ident(quote_ident!("style")),
-                        })),
-                        prop: MemberProp::Ident(quote_ident!("removeProperty")),
-                    }))),
-                    args: vec![ExprOrSpread {
-                        spread: None,
-                        expr: name,
-                    }],
-                    ..Default::default()
-                })),
-            });
+            return quote!(
+                "$value != null
+                    ? $elem.style.setProperty($name, $prev_or_value)
+                    : $elem.style.removeProperty($name)"
+                as Expr,
+                elem = elem.clone(),
+                name: Expr = *name.clone(),
+                value: Expr = value.clone(),
+                prev_or_value: Expr = options.prev_id.clone().unwrap_or(value.clone())
+            );
         }
 
         if namespace == "class" {
-            return Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                    span: DUMMY_SP,
-                    obj: Box::new(Expr::Member(MemberExpr {
-                        span: DUMMY_SP,
-                        obj: Box::new(Expr::Ident(elem.clone())),
-                        prop: MemberProp::Ident(quote_ident!("classList")),
-                    })),
-                    prop: MemberProp::Ident(quote_ident!("toggle")),
-                }))),
-                args: vec![
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Str(name.into()))),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(if options.dynamic {
-                            value.clone()
-                        } else {
-                            Expr::Unary(UnaryExpr {
-                                span: DUMMY_SP,
-                                op: UnaryOp::Bang,
-                                arg: Box::new(Expr::Unary(UnaryExpr {
-                                    span: DUMMY_SP,
-                                    op: UnaryOp::Bang,
-                                    arg: Box::new(value.clone()),
-                                })),
-                            })
-                        }),
-                    },
-                ],
-                ..Default::default()
-            });
+            return quote!(
+                "$elem.classList.toggle($name, $value)" as Expr,
+                elem = elem.clone(),
+                name: Expr = name.into(),
+                value: Expr = if options.dynamic {
+                    value.clone()
+                } else {
+                    quote!("!!$value" as Expr, value: Expr = value.clone())
+                }
+            );
         }
 
         if name == "style" {
@@ -310,23 +192,12 @@ where
         }
 
         if !options.is_svg && name == "class" {
-            return Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(
-                    self.register_import_method("className"),
-                ))),
-                args: vec![
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Ident(elem.clone())),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(value.clone()),
-                    },
-                ],
-                ..Default::default()
-            });
+            return quote!(
+                "$class_name($elem, $value)" as Expr,
+                class_name = self.register_import_method("className"),
+                elem = elem.clone(),
+                value: Expr = value.clone()
+            );
         }
 
         if name == "classList" {

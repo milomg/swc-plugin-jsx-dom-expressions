@@ -24,6 +24,7 @@ swc_core = { version = "33.0", features = [
     "ecma_ast",
     "ecma_minifier",
     "ecma_plugin_transform",
+    "ecma_quote",
     "ecma_utils",
     "ecma_visit",
     "swc_atoms",
