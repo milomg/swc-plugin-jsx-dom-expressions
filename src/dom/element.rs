@@ -154,41 +154,22 @@ where
         }
 
         if name == "style" {
-            return Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(self.register_import_method("style")))),
-                args: options.prev_id.clone().map_or_else(
-                    || {
-                        vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Ident(elem.clone())),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(value.clone()),
-                            },
-                        ]
-                    },
-                    |prev_id| {
-                        vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Ident(elem.clone())),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(value.clone()),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(prev_id),
-                            },
-                        ]
-                    },
-                ),
-                ..Default::default()
-            });
+            return if let Some(prev_id) = options.prev_id.clone() {
+                quote!(
+                    "$style($elem, $value, $prev_id)" as Expr,
+                    style = self.register_import_method("style"),
+                    elem = elem.clone(),
+                    value: Expr = value.clone(),
+                    prev_id: Expr = prev_id
+                )
+            } else {
+                quote!(
+                    "$style($elem, $value)" as Expr,
+                    style = self.register_import_method("style"),
+                    elem = elem.clone(),
+                    value: Expr = value.clone()
+                )
+            };
         }
 
         if !options.is_svg && name == "class" {
@@ -201,59 +182,26 @@ where
         }
 
         if name == "classList" {
-            return Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(
-                    self.register_import_method("classList"),
-                ))),
-                args: options.prev_id.clone().map_or_else(
-                    || {
-                        vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Ident(elem.clone())),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(value.clone()),
-                            },
-                        ]
-                    },
-                    |prev_id| {
-                        vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Ident(elem.clone())),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(value.clone()),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(prev_id),
-                            },
-                        ]
-                    },
-                ),
-                ..Default::default()
-            });
+            return if let Some(prev_id) = options.prev_id.clone() {
+                quote!(
+                    "$class_list($elem, $value, $prev_id)" as Expr,
+                    class_list = self.register_import_method("classList"),
+                    elem = elem.clone(),
+                    value: Expr = value.clone(),
+                    prev_id: Expr = prev_id
+                )
+            } else {
+                quote!(
+                    "$class_list($elem, $value)" as Expr,
+                    class_list = self.register_import_method("classList"),
+                    elem = elem.clone(),
+                    value: Expr = value.clone(),
+                )
+            };
         }
 
         if options.dynamic && name == "textContent" {
-            return Expr::Assign(AssignExpr {
-                span: DUMMY_SP,
-                op: AssignOp::Assign,
-                left: AssignTarget::Simple(SimpleAssignTarget::Paren(ParenExpr {
-                    span: DUMMY_SP,
-                    expr: Box::new(Expr::Member(MemberExpr {
-                        span: DUMMY_SP,
-                        obj: Box::new(Expr::Ident(elem.clone())),
-                        prop: MemberProp::Ident(quote_ident!("data")),
-                    })),
-                })),
-                right: Box::new(value.clone()),
-            });
+            return quote!("$elem.data = $value" as Expr, elem = elem.clone(), value: Expr = value.clone());
         }
 
         let is_child_prop = CHILD_PROPERTIES.contains(name.as_str());
@@ -293,53 +241,22 @@ where
         }
         if is_name_spaced && SVGNAMESPACE.contains_key(name.split_once(':').unwrap().0) {
             let ns = SVGNAMESPACE.get(name.split_once(':').unwrap().0).unwrap();
-            Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(
-                    self.register_import_method("setAttributeNS"),
-                ))),
-                args: vec![
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Ident(elem.clone())),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Str(ns.to_string().into()))),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Str(name.into()))),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(value.clone()),
-                    },
-                ],
-                ..Default::default()
-            })
+            quote!(
+                "$set_attribute_ns($elem, $ns, $name, $value)" as Expr,
+                set_attribute_ns = self.register_import_method("setAttributeNS"),
+                elem = elem.clone(),
+                ns: Expr = ns.to_string().into(),
+                name: Expr = name.into(),
+                value: Expr = value.clone()
+            )
         } else {
-            Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(
-                    self.register_import_method("setAttribute"),
-                ))),
-                args: vec![
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Ident(elem.clone())),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Str(name.into()))),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(value.clone()),
-                    },
-                ],
-                ..Default::default()
-            })
+            quote!(
+                "$set_attribute($elem, $name, $value)" as Expr,
+                set_attribute = self.register_import_method("setAttribute"),
+                elem = elem.clone(),
+                name: Expr = name.into(),
+                value: Expr = value.clone()
+            )
         }
     }
 }
@@ -1706,40 +1623,23 @@ where
                     }));
                     temp_path = Some(expr_id);
                 } else if multi {
-                    results.exprs.push(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(insert))),
-                        args: vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: results.id.clone().unwrap().into(),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: child.exprs[0].clone().into(),
-                            },
-                            next_child(&child_nodes, index)
-                                .unwrap_or(Expr::Lit(Lit::Null(Null { span: DUMMY_SP })))
-                                .into(),
-                        ],
-                        ..Default::default()
-                    }));
+                    let next_child = next_child(&child_nodes, index)
+                        .map(|x| x.into())
+                        .unwrap_or(quote!("null" as Expr));
+                    results.exprs.push(quote!(
+                        "$insert($result_id, $child_expr, $next_child)" as Expr,
+                        insert = insert,
+                        result_id = results.id.clone().unwrap(),
+                        child_expr: Expr = child.exprs[0].clone(),
+                        next_child: Expr = next_child
+                    ));
                 } else {
-                    results.exprs.push(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(insert))),
-                        args: vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: results.id.clone().unwrap().into(),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: child.exprs[0].clone().into(),
-                            },
-                        ],
-                        ..Default::default()
-                    }));
+                    results.exprs.push(quote!(
+                        "$insert($result_id, $child_expr)" as Expr,
+                        insert = insert,
+                        result_id = results.id.clone().unwrap(),
+                        child_expr: Expr = child.exprs[0].clone()
+                    ));
                 }
             } else {
                 next_placeholder = None;
@@ -1871,12 +1771,11 @@ where
     }
 }
 
-fn next_child(child_nodes: &Vec<TemplateInstantiation>, index: usize) -> Option<Expr> {
+fn next_child(child_nodes: &Vec<TemplateInstantiation>, index: usize) -> Option<Ident> {
     if index + 1 < child_nodes.len() {
         child_nodes[index + 1]
             .id
             .clone()
-            .map(|i| i.into())
             .or_else(|| next_child(child_nodes, index + 1))
     } else {
         None

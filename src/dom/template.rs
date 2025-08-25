@@ -7,8 +7,9 @@ use swc_core::{
     common::{DUMMY_SP, Span, comments::Comments},
     ecma::{
         ast::*,
-        utils::{prepend_stmt, quote_ident},
+        utils::{ExprFactory, prepend_stmt, quote_ident},
     },
+    quote,
 };
 
 impl<C> TransformVisitor<C>
@@ -32,41 +33,22 @@ where
                         params: vec![],
                         body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
                             span: DUMMY_SP,
-                            stmts: [Stmt::Decl(Decl::Var(Box::new(VarDecl {
-                                span: DUMMY_SP,
+                            stmts: [VarDecl {
                                 kind: VarDeclKind::Const,
-                                declare: false,
                                 decls: result.declarations.clone(),
                                 ..Default::default()
-                            })))]
+                            }
+                            .into()]
                             .into_iter()
-                            .chain(result.exprs.clone().into_iter().map(|x| {
-                                Stmt::Expr(ExprStmt {
-                                    span: DUMMY_SP,
-                                    expr: Box::new(x),
-                                })
-                            }))
+                            .chain(result.exprs.clone().into_iter().map(|x| x.into_stmt()))
                             .chain(
                                 self.wrap_dynamics(&mut result.dynamics)
                                     .unwrap_or_default()
                                     .into_iter()
-                                    .map(|x| {
-                                        Stmt::Expr(ExprStmt {
-                                            span: DUMMY_SP,
-                                            expr: Box::new(x),
-                                        })
-                                    }),
+                                    .map(|x| x.into_stmt()),
                             )
-                            .chain(result.post_exprs.clone().into_iter().map(|x| {
-                                Stmt::Expr(ExprStmt {
-                                    span: DUMMY_SP,
-                                    expr: Box::new(x),
-                                })
-                            }))
-                            .chain([Stmt::Return(ReturnStmt {
-                                span: DUMMY_SP,
-                                arg: Some(Box::new(Expr::Ident(id))),
-                            })])
+                            .chain(result.post_exprs.clone().into_iter().map(|x| x.into_stmt()))
+                            .chain([id.into_return_stmt().into()])
                             .collect(),
                             ..Default::default()
                         })),
@@ -78,14 +60,11 @@ where
         }
 
         if wrap && result.dynamic && !self.config.memo_wrapper.is_empty() {
-            return Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(
-                    self.register_import_method(&self.config.memo_wrapper.clone()),
-                ))),
-                args: vec![result.exprs[0].clone().into()],
-                ..Default::default()
-            });
+            return quote!(
+                "$memo_wrapper($my_fn)" as Expr,
+                memo_wrapper = self.register_import_method(&self.config.memo_wrapper.clone()),
+                my_fn: Expr = result.exprs[0].clone()
+            );
         }
 
         result.exprs[0].clone()
@@ -108,31 +87,22 @@ where
                     .map(|template| {
                         let span = Span::dummy_with_cmt();
                         self.comments.add_pure_comment(span.lo);
-                        let mut args = vec![ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(
-                                Tpl {
+                        let mut args = vec![Box::<Expr>::new(
+                            Tpl {
+                                span: DUMMY_SP,
+                                exprs: vec![],
+                                quasis: vec![TplElement {
                                     span: DUMMY_SP,
-                                    exprs: vec![],
-                                    quasis: vec![TplElement {
-                                        span: DUMMY_SP,
-                                        tail: true,
-                                        cooked: None,
-                                        raw: template.template.into(),
-                                    }],
-                                }
-                                .into(),
-                            ),
-                        }];
+                                    tail: true,
+                                    cooked: None,
+                                    raw: template.template.into(),
+                                }],
+                            }
+                            .into(),
+                        )];
                         if template.is_svg || template.is_ce {
-                            args.push(ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Lit(template.is_ce.into())),
-                            });
-                            args.push(ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Lit(template.is_svg.into())),
-                            });
+                            args.push(template.is_ce.into());
+                            args.push(template.is_svg.into());
                         }
                         VarDeclarator {
                             span: DUMMY_SP,
@@ -140,7 +110,7 @@ where
                             init: Some(Box::new(Expr::Call(CallExpr {
                                 span,
                                 callee: Callee::Expr(Box::new(Expr::Ident(templ.clone()))),
-                                args,
+                                args: args.into_iter().map(|x| x.into()).collect(),
                                 ..Default::default()
                             }))),
                             definite: false,
@@ -153,8 +123,6 @@ where
     }
 
     pub fn register_template(&mut self, results: &mut TemplateInstantiation) {
-        let decl: VarDeclarator;
-
         if !results.template.is_empty() {
             let template_id: Ident;
             if !results.skip_template {
@@ -174,14 +142,10 @@ where
                     });
                 }
 
-                decl = VarDeclarator {
+                let decl = VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(results.id.clone().unwrap().into()),
-                    init: Some(Box::new(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(template_id))),
-                        ..Default::default()
-                    }))),
+                    init: quote!("$tpl()" as Option<Box<Expr>>, tpl = template_id),
                     definite: false,
                 };
 
@@ -208,50 +172,33 @@ where
                 && !matches!(dynamics[0].value, Expr::Lit(Lit::Bool(_)))
                 && !dynamics[0].value.is_unary()
             {
-                dynamics[0].value = Expr::Unary(UnaryExpr {
-                    span: Default::default(),
-                    op: UnaryOp::Bang,
-                    arg: Box::new(Expr::Unary(UnaryExpr {
-                        span: Default::default(),
-                        op: UnaryOp::Bang,
-                        arg: Box::new(dynamics[0].value.clone()),
-                    })),
-                });
+                dynamics[0].value = quote!("!!$x" as Expr, x: Expr = dynamics[0].value.clone());
             }
 
-            return Some(vec![Expr::Call(CallExpr {
-                span: Default::default(),
-                callee: Callee::Expr(Box::new(Expr::Ident(effect_wrapper_id))),
-                args: vec![ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Arrow(ArrowExpr {
-                        span: Default::default(),
-                        params: prev_value
-                            .clone()
-                            .map(|v| {
-                                vec![Pat::Ident(BindingIdent {
-                                    id: v,
-                                    type_ann: None,
-                                })]
-                            })
-                            .unwrap_or_default(),
-                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(self.set_attr(
-                            &dynamics[0].elem,
-                            &dynamics[0].key,
-                            &dynamics[0].value,
-                            &AttrOptions {
-                                is_svg: dynamics[0].is_svg,
-                                is_ce: dynamics[0].is_ce,
-                                dynamic: true,
-                                prev_id: prev_value.map(Expr::Ident),
-                                tag_name: dynamics[0].tag_name.clone(),
-                            },
-                        )))),
-                        ..Default::default()
-                    })),
-                }],
-                ..Default::default()
-            })]);
+            let my_set_attr = self.set_attr(
+                &dynamics[0].elem,
+                &dynamics[0].key,
+                &dynamics[0].value,
+                &AttrOptions {
+                    is_svg: dynamics[0].is_svg,
+                    is_ce: dynamics[0].is_ce,
+                    dynamic: true,
+                    prev_id: prev_value.clone().map(Expr::Ident),
+                    tag_name: dynamics[0].tag_name.clone(),
+                },
+            );
+            return Some(vec![if let Some(prev_value) = prev_value {
+                quote!("$effect_wrapper(($params) => $my_set_attr)" as Expr,
+                    effect_wrapper = effect_wrapper_id,
+                    params: Pat = prev_value.into(),
+                    my_set_attr: Expr = my_set_attr
+                )
+            } else {
+                quote!("$effect_wrapper(() => $my_set_attr)" as Expr,
+                    effect_wrapper = effect_wrapper_id,
+                    my_set_attr: Expr = my_set_attr
+                )
+            }]);
         }
 
         let mut decls = vec![];
@@ -265,41 +212,26 @@ where
                 && !matches!(dynamic.value, Expr::Lit(Lit::Bool(_)))
                 && !dynamic.value.is_unary()
             {
-                dynamic.value = Expr::Unary(UnaryExpr {
-                    span: Default::default(),
-                    op: UnaryOp::Bang,
-                    arg: Box::new(Expr::Unary(UnaryExpr {
-                        span: Default::default(),
-                        op: UnaryOp::Bang,
-                        arg: Box::new(dynamic.value.clone()),
-                    })),
-                });
+                dynamic.value = quote!("!!$x" as Expr, x: Expr = dynamic.value.clone());
             }
             identifiers.push(identifier.clone());
             decls.push(VarDeclarator {
                 span: Default::default(),
-                name: Pat::Ident(BindingIdent {
-                    id: identifier.clone(),
-                    type_ann: None,
-                }),
+                name: identifier.clone().into(),
                 init: Some(Box::new(dynamic.value.clone())),
                 definite: false,
             });
 
             if dynamic.key == "classList" || dynamic.key == "style" {
-                let prev = Expr::Member(MemberExpr {
+                let prev = MemberExpr {
                     span: Default::default(),
-                    obj: Box::new(Expr::Ident(prev_id.clone())),
+                    obj: prev_id.clone().into(),
                     prop: MemberProp::Ident(identifier.clone().into()),
-                });
-                statements.push(Stmt::Expr(ExprStmt {
-                    span: Default::default(),
-                    expr: Box::new(Expr::Assign(AssignExpr {
+                };
+                statements.push(
+                    Expr::Assign(AssignExpr {
                         span: Default::default(),
-                        left: AssignTarget::Simple(SimpleAssignTarget::Paren(ParenExpr {
-                            span: DUMMY_SP,
-                            expr: Box::new(prev.clone()),
-                        })),
+                        left: prev.clone().into(),
                         op: AssignOp::Assign,
                         right: Box::new(self.set_attr(
                             &dynamic.elem,
@@ -310,114 +242,83 @@ where
                                 is_ce: dynamic.is_ce,
                                 tag_name: dynamic.tag_name.clone(),
                                 dynamic: true,
-                                prev_id: Some(prev),
+                                prev_id: Some(prev.into()),
                             },
                         )),
-                    })),
-                }));
+                    })
+                    .into_stmt(),
+                );
             } else {
                 let prev = if dynamic.key.starts_with("style:") {
-                    Expr::Ident(identifier.clone())
+                    identifier.clone()
                 } else {
-                    Expr::Ident(quote_ident!("undefined").into())
+                    quote_ident!("undefined").into()
                 };
-                statements.push(Stmt::Expr(ExprStmt {
-                    span: Default::default(),
-                    expr: Box::new(Expr::Bin(BinExpr {
+                let obj_member = prev_id.clone().make_member(identifier.clone().into());
+                let setter = self.set_attr(
+                    &dynamic.elem,
+                    &dynamic.key,
+                    &Expr::Assign(AssignExpr {
+                        left: obj_member.clone().into(),
+                        right: identifier.clone().into(),
+                        op: AssignOp::Assign,
                         span: Default::default(),
-                        left: Box::new(Expr::Bin(BinExpr {
-                            span: Default::default(),
-                            left: Box::new(Expr::Ident(identifier.clone())),
-                            op: BinaryOp::NotEqEq,
-                            right: Box::new(Expr::Member(MemberExpr {
-                                span: Default::default(),
-                                obj: Box::new(Expr::Ident(prev_id.clone())),
-                                prop: MemberProp::Ident(identifier.clone().into()),
-                            })),
-                        })),
-                        op: BinaryOp::LogicalAnd,
-                        right: Box::new(self.set_attr(
-                            &dynamic.elem,
-                            &dynamic.key,
-                            &Expr::Assign(AssignExpr {
-                                span: Default::default(),
-                                left: AssignTarget::Simple(SimpleAssignTarget::Paren(ParenExpr {
-                                    span: DUMMY_SP,
-                                    expr: Box::new(Expr::Member(MemberExpr {
-                                        span: DUMMY_SP,
-                                        obj: Box::new(Expr::Ident(prev_id.clone())),
-                                        prop: MemberProp::Ident(identifier.clone().into()),
-                                    })),
-                                })),
-                                op: AssignOp::Assign,
-                                right: Box::new(Expr::Ident(identifier)),
-                            }),
-                            &AttrOptions {
-                                is_svg: dynamic.is_svg,
-                                is_ce: dynamic.is_ce,
-                                tag_name: "".to_string(),
-                                dynamic: true,
-                                prev_id: Some(prev),
-                            },
-                        )),
-                    })),
-                }));
+                    }),
+                    &AttrOptions {
+                        is_svg: dynamic.is_svg,
+                        is_ce: dynamic.is_ce,
+                        tag_name: "".to_string(),
+                        dynamic: true,
+                        prev_id: Some(prev.into()),
+                    },
+                );
+                statements.push(quote!(
+                    "$val !== $obj && $setter" as Stmt,
+                    val = identifier,
+                    obj: Expr = obj_member.into(),
+                    setter: Expr = setter
+                ));
             }
         }
 
-        Some(vec![Expr::Call(CallExpr {
+        let effect_fn = Expr::Arrow(ArrowExpr {
             span: Default::default(),
-            callee: Callee::Expr(Box::new(Expr::Ident(effect_wrapper_id))),
-            args: vec![
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Arrow(ArrowExpr {
-                        span: Default::default(),
-                        params: vec![Pat::Ident(BindingIdent {
-                            id: prev_id.clone(),
-                            type_ann: None,
-                        })],
-                        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                            span: Default::default(),
-                            stmts: [Stmt::Decl(Decl::Var(Box::new(VarDecl {
-                                span: Default::default(),
-                                kind: VarDeclKind::Const,
-                                declare: false,
-                                decls,
-                                ..Default::default()
-                            })))]
-                            .into_iter()
-                            .chain(statements)
-                            .chain(
-                                [Stmt::Return(ReturnStmt {
-                                    span: Default::default(),
-                                    arg: Some(Box::new(Expr::Ident(prev_id))),
-                                })]
-                                .into_iter(),
-                            )
-                            .collect(),
-                            ..Default::default()
-                        })),
-                        ..Default::default()
-                    })),
-                },
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Object(ObjectLit {
-                        span: Default::default(),
-                        props: identifiers
-                            .into_iter()
-                            .map(|id| {
-                                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident(id.into()),
-                                    value: Box::new(Expr::Ident(quote_ident!("undefined").into())),
-                                })))
-                            })
-                            .collect(),
-                    })),
-                },
-            ],
+            params: vec![Pat::Ident(BindingIdent {
+                id: prev_id.clone(),
+                type_ann: None,
+            })],
+            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                stmts: [Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                    span: Default::default(),
+                    kind: VarDeclKind::Const,
+                    declare: false,
+                    decls,
+                    ..Default::default()
+                })))]
+                .into_iter()
+                .chain(statements)
+                .chain([prev_id.into_return_stmt().into()].into_iter())
+                .collect(),
+                ..Default::default()
+            })),
             ..Default::default()
-        })])
+        });
+        let effect_obj = Expr::Object(ObjectLit {
+            span: Default::default(),
+            props: identifiers
+                .into_iter()
+                .map(|id| {
+                    PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                        key: PropName::Ident(id.into()),
+                        value: quote_ident!("undefined").into(),
+                    })))
+                })
+                .collect(),
+        });
+        Some(vec![quote!("$effect_wrapper($my_fn, $obj)" as Expr,
+            effect_wrapper = effect_wrapper_id,
+            my_fn: Expr = effect_fn,
+            obj: Expr = effect_obj
+        )])
     }
 }

@@ -10,7 +10,7 @@ use swc_core::{
     common::{DUMMY_SP, comments::Comments},
     ecma::{
         ast::*,
-        utils::private_ident,
+        utils::{ExprFactory, private_ident},
         visit::{Visit, VisitMut, VisitMutWith, VisitWith},
     },
 };
@@ -271,12 +271,7 @@ where
                             expr = vec![*ex.clone()];
                         }
                         if !flag {
-                            expr = vec![Expr::Arrow(ArrowExpr {
-                                span: DUMMY_SP,
-                                params: vec![],
-                                body: Box::new(BlockStmtOrExpr::Expr(exp.clone())),
-                                ..Default::default()
-                            })];
+                            expr = vec![exp.clone().into_lazy_arrow(vec![]).into()];
                         }
                     }
                     return Some(TemplateInstantiation {
