@@ -173,7 +173,7 @@ where
             return Some(results);
         } else if let JSXElementChild::JSXText(node) = node {
             let text =
-                trim_whitespace(&html_escape::encode_text(&node.raw).replace('\u{a0}', "&nbsp;"));
+                trim_whitespace(&html_escape::encode_text(&node.value).replace('\u{a0}', "&nbsp;"));
             if text.is_empty() {
                 return None;
             }

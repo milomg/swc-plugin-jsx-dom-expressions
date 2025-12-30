@@ -297,7 +297,7 @@ where
                 })))]
                 .into_iter()
                 .chain(statements)
-                .chain([prev_id.into_return_stmt().into()].into_iter())
+                .chain([prev_id.into_return_stmt().into()])
                 .collect(),
                 ..Default::default()
             })),

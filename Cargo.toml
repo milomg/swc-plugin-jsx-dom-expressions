@@ -13,13 +13,13 @@ opt-level = "z"
 codegen-units = 1
 
 [dependencies]
-convert_case = "0.8.0"
+convert_case = "0.10.0"
 html-escape = "0.2.13"
-once_cell = "1.19"
-regex = "1.11"
+once_cell = "1.21"
+regex = "1.12"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-swc_core = { version = "37.0", features = [
+swc_core = { version = "53.0", features = [
     "common",
     "ecma_ast",
     "ecma_minifier",
@@ -29,11 +29,8 @@ swc_core = { version = "37.0", features = [
     "ecma_visit",
     "swc_atoms",
 ] }
-rustc-hash = "2.1.1"
+rustc-hash = "2.1"
 
 [dev-dependencies]
-swc_core = { version = "37.0", features = [
-    "ecma_parser",
-    "testing_transform",
-] }
-testing = "15.0"
+swc_core = { version = "53.0", features = ["ecma_parser", "testing_transform"] }
+testing = "19.0"

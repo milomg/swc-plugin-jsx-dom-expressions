@@ -4,13 +4,10 @@ import { setAttributeNS as _$setAttributeNS } from "r-dom";
 import { setAttribute as _$setAttribute } from "r-dom";
 import { effect as _$effect } from "r-dom";
 import { createComponent as _$createComponent } from "r-dom";
-const _tmpl$ = /*#__PURE__*/ _$template(`<svg width="400" height="180"><rect stroke-width="2" x="50" y="20" rx="20" ry="20" width="150" height="150" style="fill:red;stroke:black;stroke-width:5;opacity:0.5"></rect><linearGradient gradientTransform="rotate(25)"><stop offset="0%">`), _tmpl$2 = /*#__PURE__*/ _$template(`<svg width="400" height="180"><rect rx="20" ry="20" width="150" height="150">`), _tmpl$3 = /*#__PURE__*/ _$template(`<svg width="400" height="180"><rect>`), _tmpl$4 = /*#__PURE__*/ _$template(`<svg><rect x="50" y="20" width="150" height="150"></svg>`, false, true), _tmpl$5 = /*#__PURE__*/ _$template(`<svg viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg"><a><text x="10" y="25">MDN Web Docs`), _tmpl$6 = /*#__PURE__*/ _$template(`<svg viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg"><text x="10" y="25">`);
+const _tmpl$ = /*#__PURE__*/ _$template(`<svg width="400" height="180"><rect stroke-width="2" x="50" y="20" rx="20" ry="20" width="150" height="150" style="fill:red;stroke:black;stroke-width:5;opacity:0.5"></rect><linearGradient gradientTransform="rotate(25)"><stop offset="0%">`), _tmpl$2 = /*#__PURE__*/ _$template(`<svg width="400" height="180"><rect rx="20" ry="20" width="150" height="150" style="fill:red;stroke:black;opacity:0.5">`), _tmpl$3 = /*#__PURE__*/ _$template(`<svg width="400" height="180"><rect>`), _tmpl$4 = /*#__PURE__*/ _$template(`<svg><rect x="50" y="20" width="150" height="150"></svg>`, false, true), _tmpl$5 = /*#__PURE__*/ _$template(`<svg viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg"><a><text x="10" y="25">MDN Web Docs`), _tmpl$6 = /*#__PURE__*/ _$template(`<svg viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg"><text x="10" y="25">`);
 export const template = _tmpl$();
 export const template2 = (()=>{
     const _el$2 = _tmpl$2(), _el$3 = _el$2.firstChild;
-    _el$3.style.setProperty("fill", "red");
-    _el$3.style.setProperty("stroke", "black");
-    _el$3.style.setProperty("opacity", "0.5");
     _$effect((_p$)=>{
         const _v$ = state.name, _v$2 = state.width, _v$3 = state.x, _v$4 = state.y, _v$5 = props.stroke;
         _v$ !== _p$._v$ && _$setAttribute(_el$3, "class", _p$._v$ = _v$);

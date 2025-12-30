@@ -13,6 +13,7 @@ use swc_core::{
         utils::{prepend_stmt, private_ident},
         visit::{Visit, VisitWith},
     },
+    quote,
 };
 
 pub static RESERVED_NAME_SPACES: Lazy<HashSet<&str>> =
@@ -97,32 +98,22 @@ where
         if !self.events.is_empty() {
             let mut elems: Vec<_> = self.events.drain().collect();
             elems.sort();
-            let elems = elems
-                .into_iter()
-                .map(|v| {
-                    Some(ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Str(v.into()))),
-                    })
-                })
-                .collect();
-            module.body.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(Expr::Call(CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Ident(
-                        self.register_import_method("delegateEvents"),
-                    ))),
-                    args: vec![ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Array(ArrayLit {
-                            span: DUMMY_SP,
-                            elems,
-                        })),
-                    }],
-                    ..Default::default()
-                })),
-            })))
+            let delegate_events = self.register_import_method("delegateEvents");
+            module.body.push(
+                quote!(
+                    "$delegate_events($elems)" as Stmt,
+                    delegate_events = delegate_events,
+                    elems: Expr = ArrayLit {
+                        span: DUMMY_SP,
+                        elems: elems
+                            .into_iter()
+                            .map(|v| Some(Expr::Lit(Lit::Str(v.into())).into()))
+                            .collect(),
+                    }
+                    .into()
+                )
+                .into(),
+            );
         }
     }
 
@@ -146,47 +137,24 @@ where
                     if d_test {
                         cond = *expr.test.clone();
                         if !is_binary_expression(&cond) {
-                            cond = Expr::Unary(UnaryExpr {
-                                span: DUMMY_SP,
-                                op: UnaryOp::Bang,
-                                arg: Box::new(Expr::Unary(UnaryExpr {
-                                    span: DUMMY_SP,
-                                    op: UnaryOp::Bang,
-                                    arg: Box::new(cond),
-                                })),
-                            })
+                            cond = quote!("!!$cond" as Expr, cond: Expr = cond);
                         }
                         id = if inline {
-                            Expr::Call(CallExpr {
-                                span: DUMMY_SP,
-                                callee: Callee::Expr(Box::new(Expr::Ident(memo.clone()))),
-                                args: vec![ExprOrSpread {
-                                    spread: None,
-                                    expr: Box::new(Expr::Arrow(ArrowExpr {
-                                        span: DUMMY_SP,
-                                        params: vec![],
-                                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(
-                                            cond.clone(),
-                                        ))),
-                                        ..Default::default()
-                                    })),
-                                }],
-                                ..Default::default()
-                            })
+                            quote!(
+                                "$memo(() => $cond)" as Expr,
+                                memo = memo.clone(),
+                                cond: Expr = cond.clone()
+                            )
                         } else {
                             Expr::Ident(self.generate_uid_identifier("_c$"))
                         };
 
-                        expr.test = Box::new(Expr::Call(CallExpr {
-                            span: DUMMY_SP,
-                            callee: Callee::Expr(Box::new(id.clone())),
-                            ..Default::default()
-                        }));
+                        *expr.test = quote!("$id()" as Expr, id: Expr = id.clone());
 
                         if matches!(*expr.cons, Expr::Cond(_)) || is_logical_expression(&expr.cons)
                         {
                             let (_, e) = self.transform_condition(*expr.cons.clone(), inline, true);
-                            expr.cons = Box::new(e);
+                            *expr.cons = e;
                         }
 
                         match &mut *expr.cons {
@@ -202,7 +170,7 @@ where
 
                         if matches!(*expr.alt, Expr::Cond(_)) || is_logical_expression(&expr.alt) {
                             let (_, e) = self.transform_condition(*expr.alt.clone(), inline, true);
-                            expr.alt = Box::new(e);
+                            *expr.alt = e;
                         }
 
                         match &mut *expr.alt {
@@ -264,54 +232,18 @@ where
             }
             _ => {}
         }
-        if d_test
-            && !inline
-            && let Expr::Ident(ref ident) = id
-        {
+        if d_test && !inline {
             let init_id_var = if memo_wrapper.is_empty() {
-                Expr::Arrow(ArrowExpr {
-                    span: DUMMY_SP,
-                    params: vec![],
-                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond))),
-                    ..Default::default()
-                })
+                quote!("() => $cond" as Expr, cond: Expr = cond)
             } else {
-                Expr::Call(CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Ident(memo))),
-                    args: vec![ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Arrow(ArrowExpr {
-                            span: DUMMY_SP,
-                            params: vec![],
-                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond))),
-                            ..Default::default()
-                        })),
-                    }],
-                    ..Default::default()
-                })
+                quote!(
+                    "$memo(() => $cond)" as Expr,
+                    memo = memo,
+                    cond: Expr = cond
+                )
             };
-            let stmt1 = Stmt::Decl(Decl::Var(Box::new(VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Const,
-                declare: false,
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Ident(BindingIdent {
-                        id: ident.clone(),
-                        type_ann: None,
-                    }),
-                    init: Some(Box::new(init_id_var)),
-                    definite: false,
-                }],
-                ..Default::default()
-            })));
-            let expr2 = Expr::Arrow(ArrowExpr {
-                span: DUMMY_SP,
-                params: vec![],
-                body: Box::new(BlockStmtOrExpr::Expr(Box::new(node))),
-                ..Default::default()
-            });
+            let stmt1 = quote!("const $id = $init;" as Stmt, id: Ident = id.clone().expect_ident(), init: Expr = init_id_var);
+            let expr2 = quote!("() => $node" as Expr, node: Expr = node);
             return if deep {
                 (
                     None,
@@ -344,15 +276,7 @@ where
         if deep {
             (None, node)
         } else {
-            (
-                None,
-                Expr::Arrow(ArrowExpr {
-                    span: DUMMY_SP,
-                    params: vec![],
-                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(node))),
-                    ..Default::default()
-                }),
-            )
+            (None, quote!("() => $node" as Expr, node: Expr = node))
         }
     }
 
@@ -373,39 +297,18 @@ where
         if *d_test {
             *cond = *next_path.left.clone();
             if !is_binary_expression(cond) {
-                *cond = Expr::Unary(UnaryExpr {
-                    span: DUMMY_SP,
-                    op: UnaryOp::Bang,
-                    arg: Box::new(Expr::Unary(UnaryExpr {
-                        span: DUMMY_SP,
-                        op: UnaryOp::Bang,
-                        arg: Box::new(cond.clone()),
-                    })),
-                });
+                *cond = quote!("!!$cond" as Expr, cond: Expr = cond.clone());
             }
             *id = if inline {
-                Expr::Call(CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Ident(memo.clone()))),
-                    args: vec![ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Arrow(ArrowExpr {
-                            span: DUMMY_SP,
-                            params: vec![],
-                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(cond.clone()))),
-                            ..Default::default()
-                        })),
-                    }],
-                    ..Default::default()
-                })
+                quote!(
+                    "$memo(() => $cond)" as Expr,
+                    memo = memo.clone(),
+                    cond: Expr = cond.clone()
+                )
             } else {
                 Expr::Ident(self.generate_uid_identifier("_c$"))
             };
-            next_path.left = Box::new(Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(id.clone())),
-                ..Default::default()
-            }));
+            *next_path.left = quote!("$id()" as Expr, id: Expr = id.clone());
         }
     }
 
@@ -815,13 +718,13 @@ pub fn is_static_expr(expr: &Expr) -> bool {
 
 pub fn lit_to_string(lit: &Lit) -> String {
     match lit {
-        Lit::Str(value) => value.value.to_string(),
+        Lit::Str(value) => value.value.as_atom().unwrap().to_string(),
         Lit::Bool(value) => value.value.to_string(),
         Lit::Null(_) => "null".to_string(),
         Lit::Num(value) => value.value.to_string(),
         Lit::BigInt(value) => value.value.to_string(),
         Lit::Regex(value) => value.exp.to_string(),
-        Lit::JSXText(value) => value.raw.to_string(),
+        Lit::JSXText(value) => value.value.to_string(),
     }
 }
 

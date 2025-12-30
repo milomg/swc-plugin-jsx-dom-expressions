@@ -1,8 +1,8 @@
 import { template as _$template } from "r-dom";
 import { insert as _$insert } from "r-dom";
 import { createComponent as _$createComponent } from "r-dom";
-const _tmpl$ = /*#__PURE__*/ _$template(`<span>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<span> John`), _tmpl$3 = /*#__PURE__*/ _$template(`<span>Hello John`), _tmpl$4 = /*#__PURE__*/ _$template(`<span> `), _tmpl$5 = /*#__PURE__*/ _$template(`<span> <!> <!> `), _tmpl$6 = /*#__PURE__*/ _$template(`<span> <!> `), _tmpl$7 = /*#__PURE__*/ _$template(`<span>Hello`), _tmpl$8 = /*#__PURE__*/ _$template(`<span>&nbsp;&lt;Hi&gt;&nbsp;`), _tmpl$9 = /*#__PURE__*/ _$template(`<span>Hi&lt;script>alert();&lt;/script>`), _tmpl$10 = /*#__PURE__*/ _$template(`<span>4 + 5 = 9`), _tmpl$11 = /*#__PURE__*/ _$template(`<div>
-d`), _tmpl$12 = /*#__PURE__*/ _$template(`<div>`), _tmpl$13 = /*#__PURE__*/ _$template(`<div normal="Search…" title="Search&amp;hellip;">`), _tmpl$14 = /*#__PURE__*/ _$template(`<div><div>`);
+const _tmpl$ = /*#__PURE__*/ _$template(`<span>Hello `), _tmpl$2 = /*#__PURE__*/ _$template(`<span> John`), _tmpl$3 = /*#__PURE__*/ _$template(`<span>Hello John`), _tmpl$4 = /*#__PURE__*/ _$template(`<span> `), _tmpl$5 = /*#__PURE__*/ _$template(`<span> <!> <!> `), _tmpl$6 = /*#__PURE__*/ _$template(`<span> <!> `), _tmpl$7 = /*#__PURE__*/ _$template(`<span>Hello`), _tmpl$8 = /*#__PURE__*/ _$template(`<span>&nbsp;&lt;Hi&gt;&nbsp;`), _tmpl$9 = /*#__PURE__*/ _$template(`<span>Hi&lt;script>alert();&lt;/script>`), _tmpl$10 = /*#__PURE__*/ _$template(`<span>Hello World!`), _tmpl$11 = /*#__PURE__*/ _$template(`<span>4 + 5 = 9`), _tmpl$12 = /*#__PURE__*/ _$template(`<div>
+d`), _tmpl$13 = /*#__PURE__*/ _$template(`<div>`), _tmpl$14 = /*#__PURE__*/ _$template(`<div normal="Search…" title="Search&amp;hellip;">`), _tmpl$15 = /*#__PURE__*/ _$template(`<div><div>`);
 export const trailing = _tmpl$();
 export const leading = _tmpl$2();
 /* prettier-ignore */ export const extraSpaces = _tmpl$3();
@@ -39,36 +39,32 @@ export const leadingExpr = (()=>{
 /* prettier-ignore */ export const multiLineNoTrailingSpace = _tmpl$3();
 /* prettier-ignore */ export const escape = _tmpl$8();
 /* prettier-ignore */ export const escape2 = _$createComponent(Comp, {
-    children: "\xa0<Hi>\xa0"
+    children: " <Hi> "
 });
-/* prettier-ignore */ export const escape3 = "\xa0<Hi>\xa0";
+/* prettier-ignore */ export const escape3 = " <Hi> ";
 export const injection = _tmpl$9();
 let value = "World";
-export const evaluated = (()=>{
-    const _el$25 = _tmpl$(), _el$26 = _el$25.firstChild;
-    _$insert(_el$25, value + "!", null);
-    return _el$25;
-})();
+export const evaluated = _tmpl$10();
 let number = 4 + 5;
-export const evaluatedNonString = _tmpl$10();
+export const evaluatedNonString = _tmpl$11();
 export const newLineLiteral = (()=>{
-    const _el$28 = _tmpl$11(), _el$29 = _el$28.firstChild;
-    _$insert(_el$28, s, _el$29);
-    return _el$28;
+    const _el$27 = _tmpl$12(), _el$28 = _el$27.firstChild;
+    _$insert(_el$27, s, _el$28);
+    return _el$27;
 })();
 export const trailingSpace = (()=>{
-    const _el$30 = _tmpl$12();
-    _$insert(_el$30, expr);
-    return _el$30;
+    const _el$29 = _tmpl$13();
+    _$insert(_el$29, expr);
+    return _el$29;
 })();
 export const trailingSpaceComp = _$createComponent(Comp, {
     children: expr
 });
 export const trailingSpaceFrag = expr;
 export const leadingSpaceElement = (()=>{
-    const _el$31 = _tmpl$4(), _el$32 = _el$31.firstChild;
-    _$insert(_el$31, expr, null);
-    return _el$31;
+    const _el$30 = _tmpl$4(), _el$31 = _el$30.firstChild;
+    _$insert(_el$30, expr, null);
+    return _el$30;
 })();
 export const leadingSpaceComponent = _$createComponent(Div, {
     get children () {
@@ -83,9 +79,9 @@ export const leadingSpaceFragment = [
     expr
 ];
 export const trailingSpaceElement = (()=>{
-    const _el$33 = _tmpl$4(), _el$34 = _el$33.firstChild;
-    _$insert(_el$33, expr, _el$34);
-    return _el$33;
+    const _el$32 = _tmpl$4(), _el$33 = _el$32.firstChild;
+    _$insert(_el$32, expr, _el$33);
+    return _el$32;
 })();
 export const trailingSpaceComponent = _$createComponent(Div, {
     get children () {
@@ -99,13 +95,13 @@ export const trailingSpaceFragment = [
     expr,
     " "
 ];
-export const escapeAttribute = _tmpl$13();
+export const escapeAttribute = _tmpl$14();
 export const escapeCompAttribute = _$createComponent(Div, {
     normal: "Search…",
     title: "Search&hellip;"
 });
 export const lastElementExpression = (()=>{
-    const _el$36 = _tmpl$14(), _el$37 = _el$36.firstChild;
-    _$insert(_el$36, expr, null);
-    return _el$36;
+    const _el$35 = _tmpl$15(), _el$36 = _el$35.firstChild;
+    _$insert(_el$35, expr, null);
+    return _el$35;
 })();

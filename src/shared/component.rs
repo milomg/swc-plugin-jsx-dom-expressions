@@ -6,7 +6,11 @@ use super::{
 use crate::{TransformVisitor, shared::utils::is_l_val};
 use swc_core::{
     common::{DUMMY_SP, comments::Comments},
-    ecma::{ast::*, utils::quote_ident},
+    ecma::{
+        ast::*,
+        utils::{ExprFactory, quote_ident},
+    },
+    quote,
 };
 
 impl<C> TransformVisitor<C>
@@ -57,13 +61,7 @@ where
                             {
                                 *callee_expr.clone()
                             }
-                            expr => ArrowExpr {
-                                span: DUMMY_SP,
-                                params: vec![],
-                                body: Box::new(BlockStmtOrExpr::Expr(Box::new(expr))),
-                                ..Default::default()
-                            }
-                            .into(),
+                            expr => quote!("() => $expr" as Expr, expr: Expr = expr),
                         }
                     } else {
                         *node.expr.clone()
@@ -107,7 +105,7 @@ where
                                     false
                                 };
                                 if !is_function && is_l_val(&expr) {
-                                    let ref_identifier = self.generate_uid_identifier("_ref$");
+                                    let ref_id = self.generate_uid_identifier("_ref$");
                                     running_objects.push(Prop::Method(MethodProp {
                                         key: PropName::Ident(quote_ident!("ref")),
                                         function: Box::new(Function {
@@ -129,7 +127,7 @@ where
                                                             definite: false,
                                                             span: DUMMY_SP,
                                                             name: Pat::Ident(
-                                                                ref_identifier.clone().into(),
+                                                                ref_id.clone().into(),
                                                             ),
                                                             init: Some(Box::new(expr.clone())),
                                                         }],
@@ -137,59 +135,12 @@ where
                                                     }))),
                                                     Stmt::Expr(ExprStmt {
                                                         span: DUMMY_SP,
-                                                        expr: Box::new(Expr::Cond(CondExpr {
-                                                            span: DUMMY_SP,
-                                                            test: Box::new(Expr::Bin(BinExpr {
-                                                                span: DUMMY_SP,
-                                                                op: BinaryOp::EqEqEq,
-                                                                left: Box::new(Expr::Unary(
-                                                                    UnaryExpr {
-                                                                        span: DUMMY_SP,
-                                                                        op: UnaryOp::TypeOf,
-                                                                        arg: Box::new(Expr::Ident(
-                                                                            ref_identifier.clone(),
-                                                                        )),
-                                                                    },
-                                                                )),
-                                                                right: Box::new(Expr::Lit(
-                                                                    Lit::Str("function".into()),
-                                                                )),
-                                                            })),
-                                                            cons: Box::new(Expr::Call(CallExpr {
-                                                                span: DUMMY_SP,
-                                                                callee: Callee::Expr(Box::new(
-                                                                    Expr::Ident(
-                                                                        ref_identifier.clone(),
-                                                                    ),
-                                                                )),
-                                                                args: vec![ExprOrSpread {
-                                                                    spread: None,
-                                                                    expr: Box::new(Expr::Ident(
-                                                                        quote_ident!("r$").into(),
-                                                                    )),
-                                                                }],
-                                                                ..Default::default()
-                                                            })),
-                                                            alt: Box::new(Expr::Assign(
-                                                                AssignExpr {
-                                                                    span: DUMMY_SP,
-                                                                    op: AssignOp::Assign,
-                                                                    left: AssignTarget::Simple(
-                                                                        SimpleAssignTarget::Paren(
-                                                                            ParenExpr {
-                                                                                span: DUMMY_SP,
-                                                                                expr: Box::new(
-                                                                                    expr,
-                                                                                ),
-                                                                            },
-                                                                        ),
-                                                                    ),
-                                                                    right: Box::new(Expr::Ident(
-                                                                        quote_ident!("r$").into(),
-                                                                    )),
-                                                                },
-                                                            )),
-                                                        })),
+                                                        expr: Box::new(quote!(
+                                                            "typeof $ref_id === \"function\" ? $ref_id(r$) : ($assign) = r$"
+                                                                as Expr,
+                                                            ref_id = ref_id,
+                                                            assign: Expr = expr
+                                                        )),
                                                     }),
                                                 ],
                                                 ..Default::default()
@@ -203,9 +154,9 @@ where
                                     running_objects.push(Prop::KeyValue(KeyValueProp {
                                         key: PropName::Ident(quote_ident!("ref")),
                                         value: Box::new(expr),
-                                    }))
+                                    }));
                                 } else if matches!(expr, Expr::Call(_)) {
-                                    let ref_identifier = self.generate_uid_identifier("_ref$");
+                                    let ref_id = self.generate_uid_identifier("_ref$");
                                     running_objects.push(Prop::Method(MethodProp {
                                         key: PropName::Ident(quote_ident!("ref")),
                                         function: Box::new(Function {
@@ -227,7 +178,7 @@ where
                                                             definite: false,
                                                             span: DUMMY_SP,
                                                             name: Pat::Ident(
-                                                                ref_identifier.clone().into(),
+                                                                ref_id.clone().into(),
                                                             ),
                                                             init: Some(Box::new(expr)),
                                                         }],
@@ -235,41 +186,10 @@ where
                                                     }))),
                                                     Stmt::Expr(ExprStmt {
                                                         span: DUMMY_SP,
-                                                        expr: Box::new(Expr::Bin(BinExpr {
-                                                            span: DUMMY_SP,
-                                                            op: BinaryOp::LogicalAnd,
-                                                            left: Box::new(Expr::Bin(BinExpr {
-                                                                span: DUMMY_SP,
-                                                                op: BinaryOp::EqEqEq,
-                                                                left: Box::new(Expr::Unary(
-                                                                    UnaryExpr {
-                                                                        span: DUMMY_SP,
-                                                                        op: UnaryOp::TypeOf,
-                                                                        arg: Box::new(Expr::Ident(
-                                                                            ref_identifier.clone(),
-                                                                        )),
-                                                                    },
-                                                                )),
-                                                                right: Box::new(Expr::Lit(
-                                                                    Lit::Str("function".into()),
-                                                                )),
-                                                            })),
-                                                            right: Box::new(Expr::Call(CallExpr {
-                                                                span: DUMMY_SP,
-                                                                callee: Callee::Expr(Box::new(
-                                                                    Expr::Ident(
-                                                                        ref_identifier.clone(),
-                                                                    ),
-                                                                )),
-                                                                args: vec![ExprOrSpread {
-                                                                    spread: None,
-                                                                    expr: Box::new(Expr::Ident(
-                                                                        quote_ident!("r$").into(),
-                                                                    )),
-                                                                }],
-                                                                ..Default::default()
-                                                            })),
-                                                        })),
+                                                        expr: Box::new(quote!(
+                                                            "typeof $ref_id === \"function\" && $ref_id(r$)" as Expr,
+                                                            ref_id = ref_id
+                                                        )),
                                                     }),
                                                 ],
                                                 ..Default::default()
@@ -320,13 +240,12 @@ where
                                 }));
                             }
                         }
-                        Some(JSXAttrValue::Lit(lit)) => {
-                            let lit = match lit {
-                                Lit::Str(s) => {
-                                    Lit::Str(html_escape::decode_html_entities(&s.value).into())
-                                }
-                                _ => lit,
-                            };
+                        Some(JSXAttrValue::Str(s)) => {
+                            let lit = Lit::Str(
+                                html_escape::decode_html_entities(&s.value.to_string_lossy())
+                                    .into(),
+                            );
+
                             running_objects.push(Prop::KeyValue(KeyValueProp {
                                 key: id,
                                 value: lit.into(),
@@ -454,67 +373,40 @@ where
             })];
         }
 
-        let component_args = vec![tag_id, props.remove(0)];
-
-        exprs.push(
-            CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(self.register_import_method("createComponent").into()),
-                args: component_args
-                    .into_iter()
-                    .map(|v| ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(v),
-                    })
-                    .collect(),
-                ..Default::default()
-            }
-            .into(),
+        let create_component = self.register_import_method("createComponent");
+        let component_call = quote!(
+            "$create_component($tag, $props)" as Expr,
+            create_component = create_component,
+            tag: Expr = tag_id,
+            props: Expr = props.remove(0)
         );
 
-        TemplateInstantiation {
-            exprs: if exprs.len() > 1 {
-                let ret = exprs.pop();
-                let mut stmts: Vec<Stmt> = exprs
-                    .into_iter()
-                    .map(|expr| {
-                        Stmt::Expr(ExprStmt {
-                            span: DUMMY_SP,
-                            expr: Box::new(expr),
-                        })
-                    })
-                    .collect();
-                stmts.push(Stmt::Return(ReturnStmt {
+        if exprs.is_empty() {
+            exprs.push(component_call);
+        } else {
+            let mut stmts: Vec<Stmt> = exprs.into_iter().map(|expr| expr.into_stmt()).collect();
+            stmts.push(component_call.into_return_stmt().into());
+            exprs = vec![
+                CallExpr {
                     span: DUMMY_SP,
-                    arg: ret.map(Box::new),
-                }));
-
-                vec![
-                    CallExpr {
+                    callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
                         span: DUMMY_SP,
-                        callee: Callee::Expr(
-                            ArrowExpr {
-                                span: DUMMY_SP,
-                                params: vec![],
-                                body: Box::new(
-                                    BlockStmt {
-                                        span: DUMMY_SP,
-                                        stmts,
-                                        ..Default::default()
-                                    }
-                                    .into(),
-                                ),
-                                ..Default::default()
-                            }
-                            .into(),
-                        ),
+                        params: vec![],
+                        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                            span: DUMMY_SP,
+                            stmts,
+                            ..Default::default()
+                        })),
                         ..Default::default()
-                    }
-                    .into(),
-                ]
-            } else {
-                exprs
-            },
+                    }))),
+                    ..Default::default()
+                }
+                .into(),
+            ];
+        }
+
+        TemplateInstantiation {
+            exprs,
             component: true,
             ..Default::default()
         }
@@ -601,15 +493,7 @@ where
                     },
                     _ => None,
                 }
-                .unwrap_or(
-                    ArrowExpr {
-                        span: DUMMY_SP,
-                        params: vec![],
-                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(first_children))),
-                        ..Default::default()
-                    }
-                    .into(),
-                );
+                .unwrap_or(quote!("() => $expr" as Expr, expr: Expr = first_children));
 
                 Some((expr, true))
             } else {
@@ -617,22 +501,13 @@ where
             }
         } else {
             Some((
-                ArrowExpr {
+                quote!("() => $expr" as Expr, expr: Expr = ArrayLit {
                     span: DUMMY_SP,
-                    params: vec![],
-                    body: Box::new(BlockStmtOrExpr::Expr(
-                        ArrayLit {
-                            span: DUMMY_SP,
-                            elems: transformed_children
-                                .into_iter()
-                                .map(|expr| Some(expr.into()))
-                                .collect(),
-                        }
-                        .into(),
-                    )),
-                    ..Default::default()
-                }
-                .into(),
+                    elems: transformed_children
+                        .into_iter()
+                        .map(|expr| Some(expr.into()))
+                        .collect(),
+                }.into()),
                 true,
             ))
         }
