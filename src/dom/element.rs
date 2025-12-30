@@ -10,7 +10,9 @@ use crate::{
         utils::{
             RESERVED_NAME_SPACES, can_native_spread, check_length, convert_jsx_identifier,
             escape_backticks, escape_html, filter_children, get_tag_name, is_l_val, is_static_expr,
-            lit_to_string, to_property_name, trim_whitespace, wrapped_by_text,
+            lit_to_string, make_getter_prop, make_jsx_attr_expr, make_member_assign,
+            make_var_declarator, to_property_name, trim_whitespace, unwrap_ts_expr,
+            wrapped_by_text,
         },
     },
 };
@@ -18,7 +20,11 @@ use regex::Regex;
 use swc_core::{
     atoms::wtf8::CodePoint,
     common::{DUMMY_SP, comments::Comments},
-    ecma::{ast::*, minifier::eval::EvalResult, utils::quote_ident},
+    ecma::{
+        ast::*,
+        minifier::eval::EvalResult,
+        utils::{ExprFactory, quote_ident},
+    },
     quote,
 };
 
@@ -35,10 +41,10 @@ where
 {
     pub fn transform_element_dom(
         &mut self,
-        node: &JSXElement,
+        mut node: JSXElement,
         info: &TransformInfo,
     ) -> TemplateInstantiation {
-        let tag_name = get_tag_name(node);
+        let tag_name = get_tag_name(&node);
         let wrap_svg =
             info.top_level && tag_name != "svg" && SVG_ELEMENTS.contains(&tag_name.as_str());
         let void_tag = VOID_ELEMENTS.contains(&tag_name.as_str());
@@ -57,8 +63,13 @@ where
         if !info.skip_id {
             results.id = Some(self.generate_uid_identifier("el$"));
         }
-        let mut node = node.clone();
-        self.transform_attributes(&mut node, &mut results);
+        let child =
+            self.transform_attributes(node.opening.attrs, !node.children.is_empty(), &mut results);
+        if let Some(child) = child
+            && node.children.is_empty()
+        {
+            node.children.push(child);
+        }
         if self.config.context_to_custom_elements && (tag_name == "slot" || is_custom_element) {
             self.context_to_custom_element(&mut results);
         }
@@ -69,11 +80,11 @@ where
             let to_be_closed = !info.last_element
                 || (info.to_be_closed.is_some()
                     && (!self.config.omit_nested_closing_tags
-                        || info.to_be_closed.clone().unwrap().contains(&tag_name)));
+                        || info.to_be_closed.unwrap().contains(&tag_name)));
             if to_be_closed {
                 let mut v = info
                     .to_be_closed
-                    .clone()
+                    .cloned()
                     .unwrap_or_else(|| ALWAYS_CLOSE.iter().map(|x| x.to_string()).collect());
                 v.insert(tag_name.clone());
                 if INLINE_ELEMENTS.contains(&tag_name.as_str()) {
@@ -81,9 +92,9 @@ where
                 }
                 results.to_be_closed = Some(v)
             } else {
-                results.to_be_closed.clone_from(&info.to_be_closed);
+                results.to_be_closed = info.to_be_closed.cloned();
             }
-            self.transform_children(&node, &mut results);
+            self.transform_children(node.children, &mut results);
             if to_be_closed {
                 results.template += &format!("</{tag_name}>");
             }
@@ -96,9 +107,9 @@ where
 
     pub fn set_attr(
         &mut self,
-        elem: &Ident,
+        elem: Ident,
         name: &str,
-        value: &Expr,
+        value: Expr,
         options: &AttrOptions,
     ) -> Expr {
         let parts: Vec<_> = name.splitn(3, ':').collect();
@@ -111,20 +122,20 @@ where
 
         if namespace == "style" {
             let name = Box::new(Expr::Lit(Lit::Str(name.into())));
-            match value {
+            match &value {
                 Expr::Lit(lit) => match lit {
                     Lit::Str(_) | Lit::Num(_) => {
                         let value = lit_to_string(lit);
-                        return quote!("$elem.style.setProperty($name, $value)" as Expr, elem = elem.clone(), name: Expr = *name, value: Expr = value.into());
+                        return quote!("$elem.style.setProperty($name, $value)" as Expr, elem = elem, name: Expr = *name, value: Expr = value.into());
                     }
                     Lit::Null(_) => {
-                        return quote!("$elem.style.removeProperty($name)" as Expr, elem = elem.clone(), name: Expr = *name);
+                        return quote!("$elem.style.removeProperty($name)" as Expr, elem = elem, name: Expr = *name);
                     }
                     _ => {}
                 },
                 Expr::Ident(id) => {
                     if id.sym == "undefined" {
-                        return quote!("$elem.style.removeProperty($name)" as Expr, elem = elem.clone(), name: Expr = *name);
+                        return quote!("$elem.style.removeProperty($name)" as Expr, elem = elem, name: Expr = *name);
                     }
                 }
                 _ => {}
@@ -134,22 +145,22 @@ where
                     ? $elem.style.setProperty($name, $prev_or_value)
                     : $elem.style.removeProperty($name)"
                 as Expr,
-                elem = elem.clone(),
-                name: Expr = *name.clone(),
+                elem = elem,
+                name: Expr = *name,
                 value: Expr = value.clone(),
-                prev_or_value: Expr = options.prev_id.clone().unwrap_or(value.clone())
+                prev_or_value: Expr = options.prev_id.clone().unwrap_or(value)
             );
         }
 
         if namespace == "class" {
             return quote!(
                 "$elem.classList.toggle($name, $value)" as Expr,
-                elem = elem.clone(),
+                elem = elem,
                 name: Expr = name.into(),
                 value: Expr = if options.dynamic {
-                    value.clone()
+                    value
                 } else {
-                    quote!("!!$value" as Expr, value: Expr = value.clone())
+                    quote!("!!$value" as Expr, value: Expr = value)
                 }
             );
         }
@@ -159,16 +170,16 @@ where
                 quote!(
                     "$style($elem, $value, $prev_id)" as Expr,
                     style = self.register_import_method("style"),
-                    elem = elem.clone(),
-                    value: Expr = value.clone(),
+                    elem = elem,
+                    value: Expr = value,
                     prev_id: Expr = prev_id
                 )
             } else {
                 quote!(
                     "$style($elem, $value)" as Expr,
                     style = self.register_import_method("style"),
-                    elem = elem.clone(),
-                    value: Expr = value.clone()
+                    elem = elem,
+                    value: Expr = value
                 )
             };
         }
@@ -177,8 +188,8 @@ where
             return quote!(
                 "$class_name($elem, $value)" as Expr,
                 class_name = self.register_import_method("className"),
-                elem = elem.clone(),
-                value: Expr = value.clone()
+                elem = elem,
+                value: Expr = value
             );
         }
 
@@ -187,22 +198,22 @@ where
                 quote!(
                     "$class_list($elem, $value, $prev_id)" as Expr,
                     class_list = self.register_import_method("classList"),
-                    elem = elem.clone(),
-                    value: Expr = value.clone(),
+                    elem = elem,
+                    value: Expr = value,
                     prev_id: Expr = prev_id
                 )
             } else {
                 quote!(
                     "$class_list($elem, $value)" as Expr,
                     class_list = self.register_import_method("classList"),
-                    elem = elem.clone(),
-                    value: Expr = value.clone(),
+                    elem = elem,
+                    value: Expr = value,
                 )
             };
         }
 
         if options.dynamic && name == "textContent" {
-            return quote!("$elem.data = $value" as Expr, elem = elem.clone(), value: Expr = value.clone());
+            return quote!("$elem.data = $value" as Expr, elem = elem, value: Expr = value);
         }
 
         let is_child_prop = CHILD_PROPERTIES.contains(name.as_str());
@@ -225,18 +236,16 @@ where
                     span: DUMMY_SP,
                     expr: Box::new(Expr::Member(MemberExpr {
                         span: DUMMY_SP,
-                        obj: Box::new(Expr::Ident(elem.clone())),
+                        obj: Box::new(Expr::Ident(elem)),
                         prop: MemberProp::Ident(quote_ident!(alias.unwrap_or(name))),
                     })),
                 })),
-                right: Box::new(value.clone()),
+                right: Box::new(value),
             });
         }
 
         let is_name_spaced = name.contains(':');
-        name = ALIASES
-            .get(name.as_str())
-            .map_or(name.clone(), |v| v.to_string());
+        name = ALIASES.get(name.as_str()).map_or(name, |v| v.to_string());
         if !options.is_svg {
             name = name.to_lowercase();
         }
@@ -245,18 +254,18 @@ where
             quote!(
                 "$set_attribute_ns($elem, $ns, $name, $value)" as Expr,
                 set_attribute_ns = self.register_import_method("setAttributeNS"),
-                elem = elem.clone(),
+                elem = elem,
                 ns: Expr = ns.to_string().into(),
                 name: Expr = name.into(),
-                value: Expr = value.clone()
+                value: Expr = value
             )
         } else {
             quote!(
                 "$set_attribute($elem, $name, $value)" as Expr,
                 set_attribute = self.register_import_method("setAttribute"),
-                elem = elem.clone(),
+                elem = elem,
                 name: Expr = name.into(),
-                value: Expr = value.clone()
+                value: Expr = value
             )
         }
     }
@@ -277,7 +286,7 @@ where
         if let Expr::Ident(id) = handler {
             if let Some(init) = self.binding_collector.const_var_bindings.get(&id.to_id()) {
                 if let Some(init) = init {
-                    return self.detect_resolvable_event_handler(&init.clone());
+                    return self.detect_resolvable_event_handler(init);
                 } else {
                     return false;
                 }
@@ -291,14 +300,17 @@ where
         matches!(handler, Expr::Fn(_) | Expr::Arrow(_))
     }
 
-    fn transform_attributes(&mut self, node: &mut JSXElement, results: &mut TemplateInstantiation) {
+    fn transform_attributes(
+        &mut self,
+        mut attributes: Vec<JSXAttrOrSpread>,
+        has_children: bool,
+        results: &mut TemplateInstantiation,
+    ) -> Option<JSXElementChild> {
         let elem = &results.id;
         let mut children = None;
         let mut spread_expr = Expr::Invalid(Invalid { span: DUMMY_SP });
-        let mut attributes = node.opening.attrs.clone();
         let is_svg = SVG_ELEMENTS.contains(&results.tag_name.as_str());
         let is_ce = results.tag_name.contains('-');
-        let has_children = !node.children.is_empty();
         let mut static_styles = vec![];
         let mut style_placeholder_index = None;
 
@@ -340,21 +352,12 @@ where
             props.retain(|prop| {
                 let mut handle = |name: IdentName, value: Expr| {
                     i += 1;
-                    attributes.insert(
-                        style_idx + i,
-                        JSXAttrOrSpread::JSXAttr(JSXAttr {
-                            span: DUMMY_SP,
-                            name: JSXAttrName::JSXNamespacedName(JSXNamespacedName {
-                                span,
-                                ns: quote_ident!("style"),
-                                name,
-                            }),
-                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                                span,
-                                expr: JSXExpr::Expr(Box::new(value)),
-                            })),
-                        }),
-                    );
+                    let attr_name = JSXAttrName::JSXNamespacedName(JSXNamespacedName {
+                        span,
+                        ns: quote_ident!("style"),
+                        name,
+                    });
+                    attributes.insert(style_idx + i, make_jsx_attr_expr(attr_name, value, span));
                     false
                 };
                 if let PropOrSpread::Prop(p) = prop {
@@ -430,36 +433,22 @@ where
             props.retain(|prop| {
                 let mut handle = |name: IdentName, value: Expr| {
                     i += 1;
-                    match self.evaluator.as_mut().unwrap().eval(&value) {
-                        Some(EvalResult::Lit(_)) => {
-                            attributes.insert(
-                                class_list_idx + i,
-                                JSXAttrOrSpread::JSXAttr(JSXAttr {
-                                    span: DUMMY_SP,
-                                    name: JSXAttrName::Ident(quote_ident!("class")),
-                                    value: Some(JSXAttrValue::Str(name.sym.to_string().into())),
-                                }),
-                            );
-                        }
+                    let attr = match self.evaluator.as_mut().unwrap().eval(&value) {
+                        Some(EvalResult::Lit(_)) => JSXAttrOrSpread::JSXAttr(JSXAttr {
+                            span: DUMMY_SP,
+                            name: JSXAttrName::Ident(quote_ident!("class")),
+                            value: Some(JSXAttrValue::Str(name.sym.to_string().into())),
+                        }),
                         _ => {
-                            attributes.insert(
-                                class_list_idx + i,
-                                JSXAttrOrSpread::JSXAttr(JSXAttr {
-                                    span: DUMMY_SP,
-                                    name: JSXAttrName::JSXNamespacedName(JSXNamespacedName {
-                                        span,
-                                        ns: quote_ident!("class"),
-                                        name,
-                                    }),
-                                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                                        span,
-                                        expr: JSXExpr::Expr(Box::new(value)),
-                                    })),
-                                }),
-                            );
+                            let attr_name = JSXAttrName::JSXNamespacedName(JSXNamespacedName {
+                                span,
+                                ns: quote_ident!("class"),
+                                name,
+                            });
+                            make_jsx_attr_expr(attr_name, value, span)
                         }
-                    }
-
+                    };
+                    attributes.insert(class_list_idx + i, attr);
                     false
                 };
 
@@ -499,7 +488,7 @@ where
         }
 
         // combine class properties
-        let class_attributes: Vec<_> = attributes
+        let (class_idx, class_attributes): (Vec<_>, Vec<_>) = attributes
             .iter()
             .enumerate()
             .filter(|(_, a)| {
@@ -513,11 +502,8 @@ where
                 }
                 false
             })
-            .map(|(idx, a)| (idx, a.clone()))
-            .collect();
+            .unzip();
         if class_attributes.len() > 1 {
-            let first = &class_attributes[0];
-            let mut subtract = 0;
             let mut values = vec![];
             let mut quasis = vec![TplElement {
                 span: DUMMY_SP,
@@ -525,8 +511,9 @@ where
                 cooked: None,
                 raw: "".into(),
             }];
-            for (i, (idx, attr)) in class_attributes.iter().enumerate() {
-                let is_last = i == class_attributes.len() - 1;
+            let len = class_attributes.len() - 1;
+            for (i, attr) in class_attributes.iter().enumerate() {
+                let is_last = i == len;
                 if let JSXAttrOrSpread::JSXAttr(attr) = attr
                     && let Some(ref v) = attr.value
                 {
@@ -561,11 +548,8 @@ where
                         })
                     }
                 }
-                if i > 0 {
-                    attributes.remove(*idx - subtract);
-                    subtract += 1;
-                }
             }
+
             let value = if !values.is_empty() {
                 JSXAttrValue::JSXExprContainer(JSXExprContainer {
                     span: DUMMY_SP,
@@ -576,19 +560,33 @@ where
                     }))),
                 })
             } else {
-                JSXAttrValue::Str(quasis[0].clone().raw.into())
+                let quasis0 = quasis.into_iter().next().unwrap();
+                JSXAttrValue::Str(quasis0.raw.into())
             };
-            if let JSXAttrOrSpread::JSXAttr(JSXAttr { ref name, .. }) = first.1 {
-                attributes[first.0] = JSXAttrOrSpread::JSXAttr(JSXAttr {
+            let mut class_indexes = class_idx.into_iter().peekable();
+            if let JSXAttrOrSpread::JSXAttr(JSXAttr { name, .. }) = class_attributes[0] {
+                let idx = class_indexes.next().unwrap();
+                attributes[idx] = JSXAttrOrSpread::JSXAttr(JSXAttr {
                     span: DUMMY_SP,
                     name: name.clone(),
                     value: Some(value),
                 });
             }
+            let mut i = 0;
+            attributes.retain(|_| {
+                i += 1;
+                match class_indexes.peek() {
+                    Some(idx) if *idx == i - 1 => {
+                        class_indexes.next();
+                        false
+                    }
+                    _ => true,
+                }
+            });
         }
 
-        for attribute in attributes.iter_mut() {
-            let attribute = match attribute {
+        for attribute in attributes.into_iter() {
+            let mut attribute = match attribute {
                 JSXAttrOrSpread::JSXAttr(attr) => attr,
                 JSXAttrOrSpread::SpreadElement(_) => panic!("Spread wasn't preprocessed"),
             };
@@ -620,18 +618,7 @@ where
                 };
             }
 
-            if let Some(ref mut value) = attribute.value {
-                if reserved_name_space {
-                    match &value {
-                        JSXAttrValue::Str(lit) => {
-                            *value = JSXAttrValue::Str(lit.clone());
-                        }
-                        JSXAttrValue::JSXElement(_) => todo!(),
-                        JSXAttrValue::JSXFragment(_) => todo!(),
-                        JSXAttrValue::JSXExprContainer(_) => {}
-                    }
-                }
-            } else if reserved_name_space {
+            if reserved_name_space && attribute.value.is_none() {
                 attribute.value = Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
                     span: DUMMY_SP,
                     expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Bool(true.into())))),
@@ -641,24 +628,14 @@ where
             if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
                 expr: JSXExpr::Expr(expr),
                 span,
-            })) = &mut attribute.value
+            })) = attribute.value
             {
                 if reserved_name_space
                     || !matches!(expr.as_lit(), Some(Lit::Str(_)) | Some(Lit::Num(_)))
                 {
                     if key == "ref" {
-                        loop {
-                            match **expr {
-                                Expr::TsNonNull(ref ex) => {
-                                    **expr = *ex.expr.clone();
-                                }
-                                Expr::TsAs(ref ex) => {
-                                    **expr = *ex.expr.clone();
-                                }
-                                _ => break,
-                            }
-                        }
-                        let is_function = if let Expr::Ident(ref id) = **expr {
+                        let expr = unwrap_ts_expr(*expr);
+                        let is_function = if let Expr::Ident(ref id) = expr {
                             self.binding_collector
                                 .const_var_bindings
                                 .contains_key(&id.to_id())
@@ -667,20 +644,11 @@ where
                         };
 
                         let el_ident = results.id.clone().unwrap();
-                        if !is_function && is_l_val(&*expr) {
+                        if !is_function && is_l_val(&expr) {
                             let ref_ident = self.generate_uid_identifier("_ref$");
-                            results.declarations.insert(
-                                0,
-                                VarDeclarator {
-                                    span: DUMMY_SP,
-                                    name: Pat::Ident(BindingIdent {
-                                        id: ref_ident.clone(),
-                                        type_ann: None,
-                                    }),
-                                    init: Some(expr.clone()),
-                                    definite: false,
-                                },
-                            );
+                            results
+                                .declarations
+                                .insert(0, make_var_declarator(ref_ident.clone(), expr.clone()));
 
                             let use_hook = self.register_import_method("use");
                             let assign = Expr::Assign(AssignExpr {
@@ -688,7 +656,7 @@ where
                                 op: AssignOp::Assign,
                                 left: AssignTarget::Simple(SimpleAssignTarget::Paren(ParenExpr {
                                     span: DUMMY_SP,
-                                    expr: expr.clone(),
+                                    expr: Box::new(expr),
                                 })),
                                 right: Box::new(Expr::Ident(el_ident.clone())),
                             });
@@ -699,34 +667,25 @@ where
                                         as Expr,
                                     ref_ident = ref_ident,
                                     use_hook = use_hook,
-                                    el_ident = el_ident.clone(),
+                                    el_ident = el_ident,
                                     assign: Expr = assign
                                 ),
                             );
-                        } else if is_function || matches!(**expr, Expr::Fn(_) | Expr::Arrow(_)) {
+                        } else if is_function || matches!(expr, Expr::Fn(_) | Expr::Arrow(_)) {
                             results.exprs.insert(
                                 0,
                                 quote!(
                                     "$use_hook($target, $el_ident)" as Expr,
                                     use_hook = self.register_import_method("use"),
-                                    target: Expr = *expr.clone(),
-                                    el_ident = el_ident.clone()
+                                    target: Expr = expr,
+                                    el_ident = el_ident
                                 ),
                             );
-                        } else if matches!(**expr, Expr::Call(_)) {
+                        } else if matches!(expr, Expr::Call(_)) {
                             let ref_ident = self.generate_uid_identifier("_ref$");
-                            results.declarations.insert(
-                                0,
-                                VarDeclarator {
-                                    span: DUMMY_SP,
-                                    name: Pat::Ident(BindingIdent {
-                                        id: ref_ident.clone(),
-                                        type_ann: None,
-                                    }),
-                                    init: Some(expr.clone()),
-                                    definite: false,
-                                },
-                            );
+                            results
+                                .declarations
+                                .insert(0, make_var_declarator(ref_ident.clone(), expr));
 
                             results.exprs.insert(
                                 0,
@@ -734,7 +693,7 @@ where
                                     "typeof $ref_ident === \"function\" && $use_hook($ref_ident, $el_ident)" as Expr,
                                     ref_ident = ref_ident,
                                     use_hook = self.register_import_method("use"),
-                                    el_ident = el_ident.clone()
+                                    el_ident = el_ident
                                 ),
                             );
                         }
@@ -743,31 +702,21 @@ where
                             let use_hook = self.register_import_method("use");
                             let name_id = quote_ident!(name.name.sym.to_string());
                             let el_id = results.id.clone().unwrap();
-                            let arrow = Expr::Arrow(ArrowExpr {
-                                span: DUMMY_SP,
-                                params: vec![],
-                                body: Box::new(BlockStmtOrExpr::Expr(expr.clone())),
-                                is_async: false,
-                                is_generator: false,
-                                type_params: None,
-                                return_type: None,
-                                ..Default::default()
-                            });
                             results.exprs.insert(
                                 0,
                                 quote!(
-                                    "$use_hook($name, $el_id, $arrow)" as Expr,
+                                    "$use_hook($name, $el_id, () => $arrow)" as Expr,
                                     use_hook = use_hook,
                                     name: Ident = name_id.into(),
                                     el_id = el_id,
-                                    arrow: Expr = arrow
+                                    arrow: Expr = *expr
                                 ),
                             );
                         }
                     } else if key == "children" {
                         children = Some(JSXElementChild::JSXExprContainer(JSXExprContainer {
-                            span: *span,
-                            expr: JSXExpr::Expr(expr.clone()),
+                            span,
+                            expr: JSXExpr::Expr(expr),
                         }));
                     } else if key.starts_with("on") {
                         let el_ident = results.id.clone().unwrap();
@@ -777,16 +726,16 @@ where
                             if key.starts_with("oncapture:") {
                                 results.exprs.push(quote!(
                                     "$el.addEventListener($event_name, $expr, true)" as Expr,
-                                    el = el_ident.clone(),
+                                    el = el_ident,
                                     event_name: Expr = event_name.into(),
-                                    expr: Expr = *expr.clone()
+                                    expr: Expr = *expr
                                 ));
                             } else {
                                 results.exprs.push(quote!(
                                     "$el.addEventListener($event_name, $expr)" as Expr,
-                                    el = el_ident.clone(),
+                                    el = el_ident,
                                     event_name: Expr = event_name.into(),
-                                    expr: Expr = *expr.clone()
+                                    expr: Expr = *expr
                                 ));
                             }
                         } else if self.config.delegate_events
@@ -795,75 +744,30 @@ where
                         {
                             self.events.insert(ev.clone());
                             let el_ident = results.id.clone().unwrap();
-                            let resolveable = self.detect_resolvable_event_handler(&*expr);
-                            if let Expr::Array(ref arr_lit) = **expr {
+                            let resolveable = self.detect_resolvable_event_handler(&expr);
+                            if let Expr::Array(ref arr_lit) = *expr {
                                 if arr_lit.elems.len() > 1 {
                                     results.exprs.insert(
                                         0,
-                                        Expr::Assign(AssignExpr {
-                                            span: DUMMY_SP,
-                                            op: AssignOp::Assign,
-                                            left: AssignTarget::Simple(SimpleAssignTarget::Paren(
-                                                ParenExpr {
-                                                    span: DUMMY_SP,
-                                                    expr: Box::new(Expr::Member(MemberExpr {
-                                                        span: DUMMY_SP,
-                                                        obj: Box::new(Expr::Ident(
-                                                            el_ident.clone(),
-                                                        )),
-                                                        prop: MemberProp::Ident(quote_ident!(
-                                                            format!("$${}Data", ev)
-                                                        )),
-                                                    })),
-                                                },
-                                            )),
-                                            right: arr_lit.elems[1].clone().unwrap().expr.clone(),
-                                        }),
+                                        make_member_assign(
+                                            el_ident.clone(),
+                                            &format!("$${}Data", ev),
+                                            *arr_lit.elems[1].clone().unwrap().expr,
+                                        ),
                                     );
                                 }
                                 results.exprs.insert(
                                     0,
-                                    Expr::Assign(AssignExpr {
-                                        span: DUMMY_SP,
-                                        op: AssignOp::Assign,
-                                        left: AssignTarget::Simple(SimpleAssignTarget::Paren(
-                                            ParenExpr {
-                                                span: DUMMY_SP,
-                                                expr: Box::new(Expr::Member(MemberExpr {
-                                                    span: DUMMY_SP,
-                                                    obj: Box::new(Expr::Ident(el_ident.clone())),
-                                                    prop: MemberProp::Ident(quote_ident!(format!(
-                                                        "$${}",
-                                                        ev
-                                                    ))),
-                                                })),
-                                            },
-                                        )),
-                                        right: arr_lit.elems[0].clone().unwrap().expr.clone(),
-                                    }),
+                                    make_member_assign(
+                                        el_ident.clone(),
+                                        &format!("$${}", ev),
+                                        *arr_lit.elems[0].clone().unwrap().expr,
+                                    ),
                                 )
-                            } else if matches!(**expr, Expr::Fn(_) | Expr::Arrow(_)) || resolveable
-                            {
+                            } else if matches!(*expr, Expr::Fn(_) | Expr::Arrow(_)) || resolveable {
                                 results.exprs.insert(
                                     0,
-                                    Expr::Assign(AssignExpr {
-                                        span: DUMMY_SP,
-                                        op: AssignOp::Assign,
-                                        left: AssignTarget::Simple(SimpleAssignTarget::Paren(
-                                            ParenExpr {
-                                                span: DUMMY_SP,
-                                                expr: Box::new(Expr::Member(MemberExpr {
-                                                    span: DUMMY_SP,
-                                                    obj: Box::new(Expr::Ident(el_ident.clone())),
-                                                    prop: MemberProp::Ident(quote_ident!(format!(
-                                                        "$${}",
-                                                        ev
-                                                    ))),
-                                                })),
-                                            },
-                                        )),
-                                        right: expr.clone(),
-                                    }),
+                                    make_member_assign(el_ident, &format!("$${}", ev), *expr),
                                 )
                             } else {
                                 results.exprs.insert(
@@ -872,70 +776,47 @@ where
                                         "$add_event_listener($el, $ev, $expr, true)" as Expr,
                                         add_event_listener =
                                             self.register_import_method("addEventListener"),
-                                        el = el_ident.clone(),
+                                        el = el_ident,
                                         ev: Expr = ev.into(),
-                                        expr: Expr = *expr.clone()
+                                        expr: Expr = *expr
                                     ),
                                 )
                             }
                         } else {
-                            let resolveable = self.detect_resolvable_event_handler(&*expr);
-                            let handler;
-                            if let Expr::Array(ref arr_lit) = **expr {
-                                if arr_lit.elems.len() > 1 {
-                                    handler = Expr::Arrow(ArrowExpr {
+                            let resolveable = self.detect_resolvable_event_handler(&expr);
+                            if let Expr::Array(ref arr_lit) = *expr {
+                                let handler = if arr_lit.elems.len() > 1 {
+                                    Expr::Arrow(ArrowExpr {
                                         span: DUMMY_SP,
-                                        params: vec![Pat::Ident(BindingIdent {
-                                            id: quote_ident!("e").into(),
-                                            type_ann: None,
-                                        })],
-                                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(
-                                            Expr::Call(CallExpr {
-                                                span: DUMMY_SP,
-                                                callee: Callee::Expr(
-                                                    arr_lit.elems[0].clone().unwrap().expr,
-                                                ),
-                                                args: vec![
-                                                    ExprOrSpread {
-                                                        spread: None,
-                                                        expr: arr_lit.elems[1]
-                                                            .clone()
-                                                            .unwrap()
-                                                            .expr,
-                                                    },
-                                                    ExprOrSpread {
-                                                        spread: None,
-                                                        expr: Box::new(Expr::Ident(
-                                                            quote_ident!("e").into(),
-                                                        )),
-                                                    },
-                                                ],
-                                                ..Default::default()
-                                            }),
-                                        ))),
+                                        params: vec![Pat::Ident(quote_ident!("e").into())],
+                                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(quote!(
+                                            "$myfn($data, $e)" as Expr,
+                                            myfn: Expr = *arr_lit.elems[0].clone().unwrap().expr,
+                                            data: Expr = *arr_lit.elems[1].clone().unwrap().expr,
+                                            e = quote_ident!("e").into()
+                                        )))),
                                         ..Default::default()
                                     })
                                 } else {
-                                    handler = *arr_lit.elems[0].clone().unwrap().expr;
-                                }
+                                    *arr_lit.elems[0].clone().unwrap().expr
+                                };
                                 results.exprs.insert(
                                     0,
                                     quote!(
                                         "$el.addEventListener($ev, $handler)" as Expr,
-                                        el = el_ident.clone(),
+                                        el = el_ident,
                                         ev: Expr = ev.into(),
                                         handler: Expr = handler
                                     ),
                                 );
-                            } else if matches!(**expr, Expr::Fn(_) | Expr::Arrow(_)) || resolveable
-                            {
+                            } else if matches!(*expr, Expr::Fn(_) | Expr::Arrow(_)) || resolveable {
                                 results.exprs.insert(
                                     0,
                                     quote!(
                                         "$el.addEventListener($ev, $expr)" as Expr,
-                                        el = el_ident.clone(),
+                                        el = el_ident,
                                         ev: Expr = ev.into(),
-                                        expr: Expr = *expr.clone()
+                                        expr: Expr = *expr
                                     ),
                                 );
                             } else {
@@ -945,29 +826,29 @@ where
                                         "$add_event_listener($el, $ev, $expr)" as Expr,
                                         add_event_listener =
                                             self.register_import_method("addEventListener"),
-                                        el = el_ident.clone(),
+                                        el = el_ident,
                                         ev: Expr = ev.into(),
-                                        expr: Expr = *expr.clone()
+                                        expr: Expr = *expr
                                     ),
                                 );
                             }
                         }
                     } else if !self.config.effect_wrapper.is_empty()
-                        && (self.is_dynamic(&*expr, Some(*span), true, false, true, false)
+                        && (self.is_dynamic(&expr, Some(span), true, false, true, false)
                             || ((key == "classList" || key == "style")
                                 && !(matches!(
-                                    self.evaluator.as_mut().unwrap().eval(&*expr),
+                                    self.evaluator.as_mut().unwrap().eval(&expr),
                                     Some(EvalResult::Lit(_))
-                                ) || is_static_expr(&*expr))))
+                                ) || is_static_expr(&expr))))
                     {
                         let mut next_elem = elem.clone().unwrap();
                         if key == "value" || key == "checked" {
                             let effect_wrapper_name = self.config.effect_wrapper.clone();
                             let effect_wrapper = self.register_import_method(&effect_wrapper_name);
                             let setter = self.set_attr(
-                                &elem.clone().unwrap(),
+                                elem.clone().unwrap(),
                                 &key,
-                                &*expr,
+                                *expr,
                                 &AttrOptions {
                                     is_svg,
                                     dynamic: false,
@@ -990,30 +871,28 @@ where
                                 value: " ".into(),
                                 raw: " ".into(),
                             }));
-                            results.declarations.push(VarDeclarator {
-                                span: DUMMY_SP,
-                                name: Pat::Ident(next_elem.clone().into()),
-                                init: Some(Box::new(Expr::Member(MemberExpr {
+                            results.declarations.push(make_var_declarator(
+                                next_elem.clone(),
+                                Expr::Member(MemberExpr {
                                     span: DUMMY_SP,
                                     obj: Box::new(Expr::Ident(elem.clone().unwrap())),
                                     prop: MemberProp::Ident(quote_ident!("firstChild")),
-                                }))),
-                                definite: false,
-                            });
+                                }),
+                            ));
                         }
                         results.dynamics.push(DynamicAttr {
                             elem: next_elem.clone(),
-                            key: key.clone(),
-                            value: *expr.clone(),
+                            key,
+                            value: *expr,
                             is_svg,
                             is_ce,
                             tag_name: results.tag_name.clone(),
                         });
                     } else {
                         results.exprs.push(self.set_attr(
-                            &elem.clone().unwrap(),
+                            elem.clone().unwrap(),
                             &key,
-                            &*expr,
+                            *expr,
                             &AttrOptions {
                                 is_svg,
                                 dynamic: false,
@@ -1056,9 +935,9 @@ where
                 match value {
                     Some(value) if CHILD_PROPERTIES.contains(key.as_str()) => {
                         results.exprs.push(self.set_attr(
-                            &elem.clone().unwrap(),
+                            elem.clone().unwrap(),
                             &key,
-                            &Expr::Lit(value),
+                            Expr::Lit(value),
                             &AttrOptions {
                                 is_svg,
                                 dynamic: false,
@@ -1137,13 +1016,11 @@ where
             }
         }
 
-        if !has_children && let Some(child) = children {
-            node.children.push(child);
-        }
-
         if !matches!(spread_expr, Expr::Invalid(_)) {
             results.exprs.push(spread_expr);
         }
+
+        children
     }
 
     fn context_to_custom_element(&mut self, results: &mut TemplateInstantiation) {
@@ -1164,7 +1041,7 @@ where
         let mut running_object: Vec<PropOrSpread> = vec![];
         let mut dynamic_spread = false;
         let mut first_spread = false;
-        for attribute in &attributes {
+        for attribute in attributes.into_iter() {
             if let JSXAttrOrSpread::SpreadElement(el) = attribute {
                 first_spread = true;
                 if !running_object.is_empty() {
@@ -1193,15 +1070,10 @@ where
                         }
                         _ => false,
                     } {
-                        spread_args.push(Expr::Arrow(ArrowExpr {
-                            span: DUMMY_SP,
-                            params: vec![],
-                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(*el.expr.clone()))),
-                            ..Default::default()
-                        }));
+                        spread_args.push((*el.expr).into_lazy_arrow(vec![]).into());
                     }
                 } else {
-                    spread_args.push(*el.expr.clone());
+                    spread_args.push(*el.expr);
                 }
             } else if let JSXAttrOrSpread::JSXAttr(attr) = attribute {
                 let (prop, key) = convert_jsx_identifier(&attr.name);
@@ -1242,33 +1114,20 @@ where
                                     panic!("Can't handle this");
                                 }
                             } else {
-                                expr = Box::new(*ex.clone());
+                                expr = ex.clone();
                             }
 
-                            running_object.push(PropOrSpread::Prop(Box::new(Prop::Getter(
-                                GetterProp {
-                                    span: DUMMY_SP,
-                                    key: prop,
-                                    type_ann: None,
-                                    body: Some(BlockStmt {
-                                        span: DUMMY_SP,
-                                        stmts: vec![Stmt::Return(ReturnStmt {
-                                            span: DUMMY_SP,
-                                            arg: Some(expr),
-                                        })],
-                                        ..Default::default()
-                                    }),
-                                },
-                            ))));
+                            running_object
+                                .push(PropOrSpread::Prop(Box::new(make_getter_prop(prop, *expr))));
                         }
                     } else {
                         let value =
                             if let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                                expr: JSXExpr::Expr(ref ex),
+                                expr: JSXExpr::Expr(ex),
                                 ..
                             })) = attr.value
                             {
-                                *ex.clone()
+                                *ex
                             } else if let Some(ref v) = attr.value {
                                 match v {
                                     JSXAttrValue::Str(l) => Expr::Lit(Lit::Str(l.clone())),
@@ -1291,7 +1150,7 @@ where
                         ))))
                     }
                 } else {
-                    filtered_attributes.push(attribute.clone());
+                    filtered_attributes.push(JSXAttrOrSpread::JSXAttr(attr));
                 }
             }
         }
@@ -1304,7 +1163,7 @@ where
         }
 
         let props = if spread_args.len() == 1 && !dynamic_spread {
-            spread_args[0].clone()
+            spread_args.into_iter().next().unwrap()
         } else {
             let merge_props = self.register_import_method("mergeProps");
             Expr::Call(CallExpr {
@@ -1322,33 +1181,20 @@ where
         };
 
         let spread = self.register_import_method("spread");
+        let elem_arg: Expr = info
+            .elem
+            .map(Expr::Ident)
+            .unwrap_or(Expr::Lit(Lit::Null(Null { span: DUMMY_SP })));
         (
             filtered_attributes,
             Expr::Call(CallExpr {
                 span: DUMMY_SP,
                 callee: Callee::Expr(Box::new(Expr::Ident(spread))),
                 args: vec![
-                    info.elem
-                        .map(|i| ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Ident(i)),
-                        })
-                        .unwrap_or(ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
-                        }),
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(props),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Bool(info.is_svg.into()))),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Bool(info.has_children.into()))),
-                    },
+                    elem_arg.into(),
+                    props.into(),
+                    Expr::Lit(Lit::Bool(info.is_svg.into())).into(),
+                    Expr::Lit(Lit::Bool(info.has_children.into())).into(),
                 ],
                 ..Default::default()
             }),
@@ -1360,49 +1206,63 @@ impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
-    fn transform_children(&mut self, node: &JSXElement, results: &mut TemplateInstantiation) {
+    fn transform_children(
+        &mut self,
+        children: Vec<JSXElementChild>,
+        results: &mut TemplateInstantiation,
+    ) {
         let mut temp_path = results.id.clone();
         let mut next_placeholder = None;
         let mut i = 0;
-        let filtered_children = node
-            .children
-            .iter()
-            .filter(|c| filter_children(c))
-            .collect::<Vec<&JSXElementChild>>();
+        let filtered_children = children
+            .into_iter()
+            .filter(filter_children)
+            .collect::<Vec<JSXElementChild>>();
         let last_element = self.find_last_element(&filtered_children);
-        let child_nodes = filtered_children.iter().enumerate().fold(
-            Vec::<TemplateInstantiation>::new(),
-            |mut memo, (index, child)| {
-                if let JSXElementChild::JSXFragment(_) = child {
-                    panic!(
-                        "Fragments can only be used top level in JSX. Not used under a <{}>.",
-                        results.tag_name
-                    );
-                }
-                let detect_expressions = self.detect_expressions(&filtered_children, index);
-                let transformed = self.transform_node(
-                    child,
-                    &TransformInfo {
-                        to_be_closed: results.to_be_closed.clone(),
-                        last_element: index == last_element as usize,
-                        skip_id: results.id.is_none() || !detect_expressions,
-                        ..Default::default()
-                    },
-                );
 
-                if let Some(transformed) = transformed {
-                    let i = memo.len();
-                    if transformed.text && i > 0 && memo[i - 1].text {
-                        memo[i - 1].template += &transformed.template;
-                    } else {
-                        memo.push(transformed);
+        let children_refs: Vec<&JSXElementChild> = filtered_children.iter().collect();
+        let detect_exprs: Vec<bool> = children_refs
+            .iter()
+            .enumerate()
+            .map(|(index, _)| self.detect_expressions(&children_refs, index))
+            .collect();
+        let multi = check_length(&filtered_children);
+        let child_nodes = filtered_children
+            .into_iter()
+            .enumerate()
+            .zip(detect_exprs)
+            .fold(
+                Vec::<TemplateInstantiation>::new(),
+                |mut memo, ((index, child), detect_expressions)| {
+                    if let JSXElementChild::JSXFragment(_) = child {
+                        panic!(
+                            "Fragments can only be used top level in JSX. Not used under a <{}>.",
+                            results.tag_name
+                        );
                     }
-                    memo
-                } else {
-                    memo
-                }
-            },
-        );
+                    let transformed = self.transform_node(
+                        child,
+                        &TransformInfo {
+                            to_be_closed: results.to_be_closed.as_ref(),
+                            last_element: index == last_element as usize,
+                            skip_id: results.id.is_none() || !detect_expressions,
+                            ..Default::default()
+                        },
+                    );
+
+                    if let Some(transformed) = transformed {
+                        let i = memo.len();
+                        if transformed.text && i > 0 && memo[i - 1].text {
+                            memo[i - 1].template += &transformed.template;
+                        } else {
+                            memo.push(transformed);
+                        }
+                        memo
+                    } else {
+                        memo
+                    }
+                },
+            );
 
         child_nodes.iter().enumerate().for_each(|(index, child)| {
             results.template += &child.template;
@@ -1419,12 +1279,9 @@ where
                     quote!("$temp_path.nextSibling" as Expr, temp_path = temp_path_id)
                 };
 
-                results.declarations.push(VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Ident(child.id.clone().unwrap().into()),
-                    init: Some(Box::new(init)),
-                    definite: false,
-                });
+                results
+                    .declarations
+                    .push(make_var_declarator(child.id.clone().unwrap(), init));
                 results.declarations.extend(child.declarations.clone());
                 results.exprs.extend(child.exprs.clone());
                 results.dynamics.extend(child.dynamics.clone());
@@ -1435,7 +1292,6 @@ where
                 i += 1;
             } else if !child.exprs.is_empty() {
                 let insert = self.register_import_method("insert");
-                let multi = check_length(&filtered_children);
 
                 if wrapped_by_text(&child_nodes, index) {
                     let expr_id;
@@ -1506,12 +1362,9 @@ where
         } else {
             quote!("$temp_path.nextSibling" as Expr, temp_path = temp_path_id)
         };
-        results.declarations.push(VarDeclarator {
-            span: DUMMY_SP,
-            name: Pat::Ident(expr_id.clone().into()),
-            init: Some(Box::new(init)),
-            definite: false,
-        });
+        results
+            .declarations
+            .push(make_var_declarator(expr_id.clone(), init));
         (expr_id, None)
     }
 
@@ -1588,7 +1441,7 @@ where
         false
     }
 
-    fn find_last_element(&mut self, children: &[&JSXElementChild]) -> i32 {
+    fn find_last_element(&mut self, children: &[JSXElementChild]) -> i32 {
         let mut last_element = -1i32;
         for i in (0i32..children.len() as i32).rev() {
             let child = &children[i as usize];

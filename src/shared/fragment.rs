@@ -6,9 +6,9 @@ use super::{
 pub use crate::shared::structs::TransformVisitor;
 use swc_core::{
     common::{DUMMY_SP, comments::Comments},
-    ecma::ast::{ArrayLit, Expr, JSXElementChild, JSXExpr, Lit},
+    ecma::ast::{ArrayLit, Expr, JSXElementChild, JSXExpr, JSXExprContainer, Lit},
 };
-fn do_default<C>(visitor: &mut TransformVisitor<C>, node: &JSXElementChild) -> Expr
+fn do_default<C>(visitor: &mut TransformVisitor<C>, node: JSXElementChild) -> Expr
 where
     C: Comments,
 {
@@ -21,7 +21,7 @@ where
             ..Default::default()
         },
     );
-    visitor.create_template(&mut child.unwrap(), true)
+    visitor.create_template(child.unwrap(), true)
 }
 impl<C> TransformVisitor<C>
 where
@@ -29,13 +29,13 @@ where
 {
     pub fn transform_fragment_children(
         &mut self,
-        children: &[JSXElementChild],
+        children: Vec<JSXElementChild>,
         results: &mut TemplateInstantiation,
     ) {
         let child_nodes: Vec<Expr> =
             children
-                .iter()
-                .filter(|c| filter_children(c))
+                .into_iter()
+                .filter(filter_children)
                 .fold(vec![], |mut memo, node| {
                     match node {
                         JSXElementChild::JSXText(child) => {
@@ -44,19 +44,17 @@ where
                                 memo.push(Expr::Lit(Lit::Str(value.into())))
                             }
                         }
-                        JSXElementChild::JSXExprContainer(child) => match &child.expr {
-                            JSXExpr::Expr(new_expr) if new_expr.is_lit() || new_expr.is_ident() => {
-                                memo.push(*new_expr.clone())
-                            }
-                            _ => memo.push(do_default(self, node)),
-                        },
+                        JSXElementChild::JSXExprContainer(JSXExprContainer {
+                            expr: JSXExpr::Expr(expr),
+                            ..
+                        }) if expr.is_lit() || expr.is_ident() => memo.push(*expr),
                         _ => memo.push(do_default(self, node)),
                     };
                     memo
                 });
 
         if child_nodes.len() == 1 {
-            results.exprs.push(child_nodes[0].clone())
+            results.exprs.push(child_nodes.into_iter().next().unwrap())
         } else {
             results.exprs.push(Expr::Array(ArrayLit {
                 span: DUMMY_SP,

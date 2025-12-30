@@ -26,10 +26,10 @@ where
             Expr::JSXElement(_) | Expr::JSXFragment(_) => {
                 match expr.take() {
                     Expr::JSXElement(node) => {
-                        *expr = self.transform_jsx(&JSXElementChild::JSXElement(node))
+                        *expr = self.transform_jsx(JSXElementChild::JSXElement(node))
                     }
                     Expr::JSXFragment(node) => {
-                        *expr = self.transform_jsx(&JSXElementChild::JSXFragment(node))
+                        *expr = self.transform_jsx(JSXElementChild::JSXFragment(node))
                     }
                     _ => {}
                 };

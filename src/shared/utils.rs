@@ -10,7 +10,7 @@ use swc_core::{
     ecma::{
         ast::*,
         minifier::eval::EvalResult,
-        utils::{prepend_stmt, private_ident},
+        utils::{ExprFactory, prepend_stmt, private_ident, quote_ident},
         visit::{Visit, VisitWith},
     },
     quote,
@@ -65,7 +65,9 @@ where
     }
 
     pub fn insert_imports(&mut self, module: &mut Module) {
-        let mut entries = self.imports.drain().collect::<Vec<_>>();
+        let mut entries = std::mem::take(&mut self.imports)
+            .into_iter()
+            .collect::<Vec<_>>();
         entries.sort_by(|(a, _), (b, _)| a.cmp(b));
         for (name, val) in entries {
             prepend_stmt(
@@ -96,7 +98,7 @@ where
 
     pub fn insert_events(&mut self, module: &mut Module) {
         if !self.events.is_empty() {
-            let mut elems: Vec<_> = self.events.drain().collect();
+            let mut elems: Vec<_> = std::mem::take(&mut self.events).into_iter().collect();
             elems.sort();
             let delegate_events = self.register_import_method("delegateEvents");
             module.body.push(
@@ -247,26 +249,7 @@ where
             return if deep {
                 (
                     None,
-                    Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
-                            span: DUMMY_SP,
-                            params: vec![],
-                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                                span: DUMMY_SP,
-                                stmts: vec![
-                                    stmt1,
-                                    Stmt::Return(ReturnStmt {
-                                        span: DUMMY_SP,
-                                        arg: Some(Box::new(expr2)),
-                                    }),
-                                ],
-                                ..Default::default()
-                            })),
-                            ..Default::default()
-                        }))),
-                        ..Default::default()
-                    }),
+                    make_iife(vec![stmt1, expr2.into_return_stmt().into()]),
                 )
             } else {
                 (Some(stmt1), expr2)
@@ -526,7 +509,7 @@ pub fn convert_jsx_identifier(attr_name: &JSXAttrName) -> (PropName, String) {
     }
 }
 
-pub fn check_length(children: &Vec<&JSXElementChild>) -> bool {
+pub fn check_length(children: &[JSXElementChild]) -> bool {
     let mut i = 0;
     for child in children {
         if !matches!(
@@ -741,6 +724,105 @@ pub fn is_l_val(expr: &Expr) -> bool {
             | Expr::TsTypeAssertion(_)
             | Expr::TsNonNull(_)
     )
+}
+
+pub fn unwrap_ts_expr(mut expr: Expr) -> Expr {
+    loop {
+        match expr {
+            Expr::TsNonNull(ex) => expr = *ex.expr,
+            Expr::TsAs(ex) => expr = *ex.expr,
+            Expr::TsSatisfies(ex) => expr = *ex.expr,
+            Expr::TsTypeAssertion(ex) => expr = *ex.expr,
+            _ => break,
+        }
+    }
+    expr
+}
+
+pub fn make_var_declarator(name: Ident, init: Expr) -> VarDeclarator {
+    VarDeclarator {
+        span: DUMMY_SP,
+        name: Pat::Ident(name.into()),
+        init: Some(Box::new(init)),
+        definite: false,
+    }
+}
+
+pub fn make_member_assign(obj: Ident, prop: &str, value: Expr) -> Expr {
+    Expr::Assign(AssignExpr {
+        span: DUMMY_SP,
+        op: AssignOp::Assign,
+        left: AssignTarget::Simple(SimpleAssignTarget::Paren(ParenExpr {
+            span: DUMMY_SP,
+            expr: Box::new(Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: Box::new(Expr::Ident(obj)),
+                prop: MemberProp::Ident(quote_ident!(prop)),
+            })),
+        })),
+        right: Box::new(value),
+    })
+}
+
+pub fn make_const_var_decl(name: Ident, init: Expr) -> Stmt {
+    Stmt::Decl(Decl::Var(Box::new(VarDecl {
+        span: DUMMY_SP,
+        kind: VarDeclKind::Const,
+        declare: false,
+        decls: vec![make_var_declarator(name, init)],
+        ..Default::default()
+    })))
+}
+
+pub fn make_iife(stmts: Vec<Stmt>) -> Expr {
+    CallExpr {
+        span: DUMMY_SP,
+        callee: Expr::Arrow(ArrowExpr {
+            span: DUMMY_SP,
+            params: vec![],
+            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                span: DUMMY_SP,
+                stmts,
+                ..Default::default()
+            })),
+            ..Default::default()
+        })
+        .as_callee(),
+        ..Default::default()
+    }
+    .into()
+}
+
+pub fn make_getter_prop(key: PropName, body: Expr) -> Prop {
+    Prop::Getter(GetterProp {
+        span: DUMMY_SP,
+        key,
+        type_ann: None,
+        body: Some(BlockStmt {
+            span: DUMMY_SP,
+            stmts: vec![body.into_return_stmt().into()],
+            ..Default::default()
+        }),
+    })
+}
+
+pub fn make_return_block(expr: Expr) -> BlockStmt {
+    BlockStmt {
+        span: DUMMY_SP,
+        stmts: vec![expr.into_return_stmt().into()],
+        ..Default::default()
+    }
+}
+
+pub fn make_jsx_attr_expr(name: JSXAttrName, expr: Expr, span: Span) -> JSXAttrOrSpread {
+    JSXAttrOrSpread::JSXAttr(JSXAttr {
+        span: DUMMY_SP,
+        name,
+        value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+            span,
+            expr: JSXExpr::Expr(Box::new(expr)),
+        })),
+    })
 }
 
 pub fn is_logical_op(b: &BinExpr) -> bool {

@@ -1,7 +1,10 @@
 use super::element::AttrOptions;
 use crate::{
     TransformVisitor,
-    shared::structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
+    shared::{
+        structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
+        utils::{make_iife, make_var_declarator},
+    },
 };
 use swc_core::{
     common::{DUMMY_SP, Span, comments::Comments},
@@ -16,9 +19,10 @@ impl<C> TransformVisitor<C>
 where
     C: Comments,
 {
-    pub fn create_template(&mut self, result: &mut TemplateInstantiation, wrap: bool) -> Expr {
-        if let Some(id) = result.id.clone() {
-            self.register_template(result);
+    pub fn create_template(&mut self, mut result: TemplateInstantiation, wrap: bool) -> Expr {
+        if let Some(id) = &result.id {
+            let id = id.clone();
+            self.register_template(&mut result);
             if result.exprs.is_empty()
                 && result.dynamics.is_empty()
                 && result.post_exprs.is_empty()
@@ -26,48 +30,37 @@ where
             {
                 return *result.declarations[0].init.clone().unwrap();
             } else {
-                return Expr::Call(CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Arrow(ArrowExpr {
-                        span: DUMMY_SP,
-                        params: vec![],
-                        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                            span: DUMMY_SP,
-                            stmts: [VarDecl {
-                                kind: VarDeclKind::Const,
-                                decls: result.declarations.clone(),
-                                ..Default::default()
-                            }
-                            .into()]
-                            .into_iter()
-                            .chain(result.exprs.clone().into_iter().map(|x| x.into_stmt()))
-                            .chain(
-                                self.wrap_dynamics(&mut result.dynamics)
-                                    .unwrap_or_default()
-                                    .into_iter()
-                                    .map(|x| x.into_stmt()),
-                            )
-                            .chain(result.post_exprs.clone().into_iter().map(|x| x.into_stmt()))
-                            .chain([id.into_return_stmt().into()])
-                            .collect(),
-                            ..Default::default()
-                        })),
-                        ..Default::default()
-                    }))),
+                let stmts = [VarDecl {
+                    kind: VarDeclKind::Const,
+                    decls: result.declarations,
                     ..Default::default()
-                });
+                }
+                .into()]
+                .into_iter()
+                .chain(result.exprs.into_iter().map(|x| x.into_stmt()))
+                .chain(
+                    self.wrap_dynamics(result.dynamics)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|x| x.into_stmt()),
+                )
+                .chain(result.post_exprs.into_iter().map(|x| x.into_stmt()))
+                .chain([id.into_return_stmt().into()])
+                .collect();
+                return make_iife(stmts);
             }
         }
 
+        let expr = result.exprs[0].clone();
         if wrap && result.dynamic && !self.config.memo_wrapper.is_empty() {
             return quote!(
                 "$memo_wrapper($my_fn)" as Expr,
                 memo_wrapper = self.register_import_method(&self.config.memo_wrapper.clone()),
-                my_fn: Expr = result.exprs[0].clone()
+                my_fn: Expr = expr
             );
         }
 
-        result.exprs[0].clone()
+        expr
     }
 
     pub fn append_templates(&mut self, module: &mut Module) {
@@ -81,9 +74,8 @@ where
                 span: DUMMY_SP,
                 kind: VarDeclKind::Const,
                 declare: false,
-                decls: self
-                    .templates
-                    .drain(..)
+                decls: std::mem::take(&mut self.templates)
+                    .into_iter()
                     .map(|template| {
                         let span = Span::dummy_with_cmt();
                         self.comments.add_pure_comment(span.lo);
@@ -154,7 +146,7 @@ where
         }
     }
 
-    fn wrap_dynamics(&mut self, dynamics: &mut Vec<DynamicAttr>) -> Option<Vec<Expr>> {
+    fn wrap_dynamics(&mut self, mut dynamics: Vec<DynamicAttr>) -> Option<Vec<Expr>> {
         if dynamics.is_empty() {
             return None;
         }
@@ -162,29 +154,31 @@ where
         let effect_wrapper_id = self.register_import_method(&self.config.effect_wrapper.clone());
 
         if dynamics.len() == 1 {
-            let prev_value = if dynamics[0].key == "classList" || dynamics[0].key == "style" {
+            let mut attr = dynamics.pop().unwrap();
+
+            let prev_value = if attr.key == "classList" || attr.key == "style" {
                 Some(Ident::new_no_ctxt("_$p".into(), Default::default()))
             } else {
                 None
             };
 
-            if dynamics[0].key.starts_with("class:")
-                && !matches!(dynamics[0].value, Expr::Lit(Lit::Bool(_)))
-                && !dynamics[0].value.is_unary()
+            if attr.key.starts_with("class:")
+                && !matches!(attr.value, Expr::Lit(Lit::Bool(_)))
+                && !attr.value.is_unary()
             {
-                dynamics[0].value = quote!("!!$x" as Expr, x: Expr = dynamics[0].value.clone());
+                attr.value = quote!("!!$x" as Expr, x: Expr = attr.value);
             }
 
             let my_set_attr = self.set_attr(
-                &dynamics[0].elem,
-                &dynamics[0].key,
-                &dynamics[0].value,
+                attr.elem,
+                &attr.key,
+                attr.value,
                 &AttrOptions {
-                    is_svg: dynamics[0].is_svg,
-                    is_ce: dynamics[0].is_ce,
+                    is_svg: attr.is_svg,
+                    is_ce: attr.is_ce,
                     dynamic: true,
                     prev_id: prev_value.clone().map(Expr::Ident),
-                    tag_name: dynamics[0].tag_name.clone(),
+                    tag_name: attr.tag_name.clone(),
                 },
             );
             return Some(vec![if let Some(prev_value) = prev_value {
@@ -206,23 +200,18 @@ where
         let mut identifiers = vec![];
         let prev_id = Ident::new_no_ctxt("_p$".into(), DUMMY_SP);
 
-        for dynamic in dynamics {
+        for mut attr in dynamics {
             let identifier = self.generate_uid_identifier("v$");
-            if dynamic.key.starts_with("class:")
-                && !matches!(dynamic.value, Expr::Lit(Lit::Bool(_)))
-                && !dynamic.value.is_unary()
+            if attr.key.starts_with("class:")
+                && !matches!(attr.value, Expr::Lit(Lit::Bool(_)))
+                && !attr.value.is_unary()
             {
-                dynamic.value = quote!("!!$x" as Expr, x: Expr = dynamic.value.clone());
+                attr.value = quote!("!!$x" as Expr, x: Expr = attr.value);
             }
             identifiers.push(identifier.clone());
-            decls.push(VarDeclarator {
-                span: Default::default(),
-                name: identifier.clone().into(),
-                init: Some(Box::new(dynamic.value.clone())),
-                definite: false,
-            });
+            decls.push(make_var_declarator(identifier.clone(), attr.value));
 
-            if dynamic.key == "classList" || dynamic.key == "style" {
+            if attr.key == "classList" || attr.key == "style" {
                 let prev = MemberExpr {
                     span: Default::default(),
                     obj: prev_id.clone().into(),
@@ -234,13 +223,13 @@ where
                         left: prev.clone().into(),
                         op: AssignOp::Assign,
                         right: Box::new(self.set_attr(
-                            &dynamic.elem,
-                            &dynamic.key,
-                            &Expr::Ident(identifier),
+                            attr.elem,
+                            &attr.key,
+                            Expr::Ident(identifier),
                             &AttrOptions {
-                                is_svg: dynamic.is_svg,
-                                is_ce: dynamic.is_ce,
-                                tag_name: dynamic.tag_name.clone(),
+                                is_svg: attr.is_svg,
+                                is_ce: attr.is_ce,
+                                tag_name: attr.tag_name.clone(),
                                 dynamic: true,
                                 prev_id: Some(prev.into()),
                             },
@@ -249,24 +238,24 @@ where
                     .into_stmt(),
                 );
             } else {
-                let prev = if dynamic.key.starts_with("style:") {
+                let prev = if attr.key.starts_with("style:") {
                     identifier.clone()
                 } else {
                     quote_ident!("undefined").into()
                 };
                 let obj_member = prev_id.clone().make_member(identifier.clone().into());
                 let setter = self.set_attr(
-                    &dynamic.elem,
-                    &dynamic.key,
-                    &Expr::Assign(AssignExpr {
+                    attr.elem,
+                    &attr.key,
+                    Expr::Assign(AssignExpr {
                         left: obj_member.clone().into(),
                         right: identifier.clone().into(),
                         op: AssignOp::Assign,
                         span: Default::default(),
                     }),
                     &AttrOptions {
-                        is_svg: dynamic.is_svg,
-                        is_ce: dynamic.is_ce,
+                        is_svg: attr.is_svg,
+                        is_ce: attr.is_ce,
                         tag_name: "".to_string(),
                         dynamic: true,
                         prev_id: Some(prev.into()),
