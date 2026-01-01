@@ -137,9 +137,10 @@ where
                 {
                     d_test = self.is_dynamic(&expr.test, None, true, false, true, false);
                     if d_test {
-                        cond = *expr.test.clone();
+                        cond = std::mem::replace(&mut *expr.test, Expr::Invalid(Invalid { span: DUMMY_SP }));
                         if !is_binary_expression(&cond) {
-                            cond = quote!("!!$cond" as Expr, cond: Expr = cond);
+                            let inner = std::mem::replace(&mut cond, Expr::Invalid(Invalid { span: DUMMY_SP }));
+                            cond = quote!("!!$cond" as Expr, cond: Expr = inner);
                         }
                         id = if inline {
                             quote!(
