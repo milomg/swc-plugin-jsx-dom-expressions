@@ -182,29 +182,11 @@ where
 
         match child_result {
             Some((expr, true)) => {
-                let body = match &expr {
-                    Expr::Call(CallExpr { args, .. }) => {
-                        args.first().and_then(|arg| match &*arg.expr {
-                            Expr::Fn(fun) => fun.function.body.clone(),
-                            Expr::Arrow(arrow) => Some(match *arrow.body.clone() {
-                                BlockStmtOrExpr::BlockStmt(b) => b,
-                                BlockStmtOrExpr::Expr(ex) => make_return_block(*ex),
-                            }),
-                            _ => None,
-                        })
-                    }
-                    Expr::Fn(fun) => fun.function.body.clone(),
-                    Expr::Arrow(arrow) => Some(match *arrow.body.clone() {
-                        BlockStmtOrExpr::BlockStmt(block) => block,
-                        BlockStmtOrExpr::Expr(ex) => make_return_block(*ex),
-                    }),
-                    _ => None,
-                };
                 running_objects.push(
                     GetterProp {
                         span: DUMMY_SP,
                         key: quote_ident!("children").into(),
-                        body: Some(body.unwrap_or_else(|| make_return_block(expr))),
+                        body: Some(extract_body_for_getter(expr)),
                         type_ann: None,
                     }
                     .into(),
@@ -426,5 +408,41 @@ fn get_component_identifier(node: &JSXElementName) -> Expr {
             })
         }
         JSXElementName::JSXNamespacedName(_) => panic!("Can't handle this"),
+    }
+}
+
+/// Extracts the body from a function/arrow expression for use in a getter,
+/// consuming the expression to avoid cloning.
+fn extract_body_for_getter(expr: Expr) -> BlockStmt {
+    match expr {
+        Expr::Call(mut call) => {
+            if call.args.is_empty() {
+                return make_return_block(Expr::Call(call));
+            }
+            let ExprOrSpread { spread, expr: first_expr } = call.args.remove(0);
+            match *first_expr {
+                Expr::Fn(FnExpr { function, .. }) if function.body.is_some() => {
+                    function.body.unwrap()
+                }
+                Expr::Arrow(ArrowExpr { body, .. }) => match *body {
+                    BlockStmtOrExpr::BlockStmt(b) => b,
+                    BlockStmtOrExpr::Expr(ex) => make_return_block(*ex),
+                },
+                other => {
+                    call.args.insert(0, ExprOrSpread { spread, expr: Box::new(other) });
+                    make_return_block(Expr::Call(call))
+                }
+            }
+        }
+        Expr::Fn(mut fn_expr) => fn_expr
+            .function
+            .body
+            .take()
+            .unwrap_or_else(|| make_return_block(Expr::Fn(fn_expr))),
+        Expr::Arrow(arrow) => match *arrow.body {
+            BlockStmtOrExpr::BlockStmt(b) => b,
+            BlockStmtOrExpr::Expr(ex) => make_return_block(*ex),
+        },
+        other => make_return_block(other),
     }
 }
