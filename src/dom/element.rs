@@ -1264,11 +1264,19 @@ where
                 },
             );
 
-        child_nodes.iter().enumerate().for_each(|(index, child)| {
+        // Pre-compute lookups that need the full list before we consume it
+        let wrapped_info: Vec<bool> = (0..child_nodes.len())
+            .map(|i| wrapped_by_text(&child_nodes, i))
+            .collect();
+        let next_children: Vec<Option<Ident>> = (0..child_nodes.len())
+            .map(|i| next_child(&child_nodes, i))
+            .collect();
+
+        for (index, child) in child_nodes.into_iter().enumerate() {
             results.template += &child.template;
             if child.id.is_some() {
                 if child.tag_name == "head" {
-                    return;
+                    continue;
                 }
 
                 let temp_path_id = temp_path.clone().unwrap();
@@ -1282,18 +1290,19 @@ where
                 results
                     .declarations
                     .push(make_var_declarator(child.id.clone().unwrap(), init));
-                results.declarations.extend(child.declarations.clone());
-                results.exprs.extend(child.exprs.clone());
-                results.dynamics.extend(child.dynamics.clone());
-                results.post_exprs.extend(child.post_exprs.clone());
+                results.declarations.extend(child.declarations);
+                results.exprs.extend(child.exprs);
+                results.dynamics.extend(child.dynamics);
+                results.post_exprs.extend(child.post_exprs);
                 results.has_custom_element |= child.has_custom_element;
                 temp_path.clone_from(&child.id);
                 next_placeholder = None;
                 i += 1;
             } else if !child.exprs.is_empty() {
                 let insert = self.register_import_method("insert");
+                let child_expr = child.exprs.into_iter().next().unwrap();
 
-                if wrapped_by_text(&child_nodes, index) {
+                if wrapped_info[index] {
                     let expr_id;
                     let mut content_id = None;
                     if let Some(placeholder) = next_placeholder.clone() {
@@ -1308,7 +1317,7 @@ where
                             "$insert($id, $child, $expr_id, $content_id)" as Expr,
                             insert = insert,
                             id = results.id.clone().unwrap(),
-                            child: Expr = child.exprs[0].clone(),
+                            child: Expr = child_expr,
                             expr_id = expr_id.clone(),
                             content_id: Expr = *content_id.expr
                         )
@@ -1317,34 +1326,35 @@ where
                             "$insert($id, $child, $expr_id)" as Expr,
                             insert = insert,
                             id = results.id.clone().unwrap(),
-                            child: Expr = child.exprs[0].clone(),
+                            child: Expr = child_expr,
                             expr_id = expr_id.clone()
                         )
                     });
                     temp_path = Some(expr_id);
                 } else if multi {
-                    let next_child = next_child(&child_nodes, index)
+                    let next_child_id = next_children[index]
+                        .clone()
                         .map(|x| x.into())
                         .unwrap_or(quote!("null" as Expr));
                     results.exprs.push(quote!(
                         "$insert($result_id, $child_expr, $next_child)" as Expr,
                         insert = insert,
                         result_id = results.id.clone().unwrap(),
-                        child_expr: Expr = child.exprs[0].clone(),
-                        next_child: Expr = next_child
+                        child_expr: Expr = child_expr,
+                        next_child: Expr = next_child_id
                     ));
                 } else {
                     results.exprs.push(quote!(
                         "$insert($result_id, $child_expr)" as Expr,
                         insert = insert,
                         result_id = results.id.clone().unwrap(),
-                        child_expr: Expr = child.exprs[0].clone()
+                        child_expr: Expr = child_expr
                     ));
                 }
             } else {
                 next_placeholder = None;
             }
-        });
+        }
     }
 
     fn create_placeholder(
