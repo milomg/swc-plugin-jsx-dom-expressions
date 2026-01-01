@@ -155,8 +155,8 @@ where
 
                         if matches!(*expr.cons, Expr::Cond(_)) || is_logical_expression(&expr.cons)
                         {
-                            let (_, e) = self.transform_condition(*expr.cons.clone(), inline, true);
-                            *expr.cons = e;
+                            let cons = std::mem::replace(&mut *expr.cons, Expr::Invalid(Invalid { span: DUMMY_SP }));
+                            *expr.cons = self.transform_condition(cons, inline, true).1;
                         }
 
                         match &mut *expr.cons {
@@ -164,15 +164,15 @@ where
                                 if (matches!(**ex, Expr::Cond(_))
                                     || is_logical_expression(&*ex)) =>
                             {
-                                let (_, e) = self.transform_condition(*ex.clone(), inline, true);
-                                **ex = e;
+                                let inner = std::mem::replace(&mut **ex, Expr::Invalid(Invalid { span: DUMMY_SP }));
+                                **ex = self.transform_condition(inner, inline, true).1;
                             }
                             _ => {}
                         }
 
                         if matches!(*expr.alt, Expr::Cond(_)) || is_logical_expression(&expr.alt) {
-                            let (_, e) = self.transform_condition(*expr.alt.clone(), inline, true);
-                            *expr.alt = e;
+                            let alt = std::mem::replace(&mut *expr.alt, Expr::Invalid(Invalid { span: DUMMY_SP }));
+                            *expr.alt = self.transform_condition(alt, inline, true).1;
                         }
 
                         match &mut *expr.alt {
@@ -180,8 +180,8 @@ where
                                 if (matches!(**ex, Expr::Cond(_))
                                     || is_logical_expression(&*ex)) =>
                             {
-                                let (_, e) = self.transform_condition(*ex.clone(), inline, true);
-                                **ex = e;
+                                let inner = std::mem::replace(&mut **ex, Expr::Invalid(Invalid { span: DUMMY_SP }));
+                                **ex = self.transform_condition(inner, inline, true).1;
                             }
                             _ => {}
                         }
