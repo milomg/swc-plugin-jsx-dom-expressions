@@ -16,7 +16,6 @@ use crate::{
         },
     },
 };
-use regex::Regex;
 use swc_core::{
     atoms::wtf8::CodePoint,
     common::{DUMMY_SP, comments::Comments},
@@ -971,14 +970,8 @@ where
                             if let Some(value) = value {
                                 let mut text = lit_to_string(&value);
                                 text = trim_whitespace(&text);
-                                text = Regex::new(r"; ")
-                                    .unwrap()
-                                    .replace_all(&text, ";")
-                                    .to_string();
-                                text = Regex::new(r": ")
-                                    .unwrap()
-                                    .replace_all(&text, ":")
-                                    .to_string();
+                                text = text.replace("; ", ";");
+                                text = text.replace(": ", ":");
                                 static_styles.push(text);
                                 if style_placeholder_index.is_none() {
                                     style_placeholder_index = Some(results.template.len());

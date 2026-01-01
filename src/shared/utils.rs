@@ -36,6 +36,15 @@ pub static RESERVED_NAME_SPACES: Lazy<HashSet<&str>> =
 static NON_SPREAD_NAME_SPACES: Lazy<HashSet<&str>> =
     Lazy::new(|| HashSet::from(["class", "style", "use", "prop", "attr"]));
 
+// Static regex patterns - compiled once, reused across calls
+static NEWLINE_WHITESPACE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[\r\n]\s*$").unwrap());
+static ALL_WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*$").unwrap());
+static ALL_SPACES_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^ *$").unwrap());
+static START_WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*").unwrap());
+static MULTI_WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
+static BACKTICK_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"`").unwrap());
+
 pub fn is_component(tag_name: &str) -> bool {
     let first_char = tag_name.chars().next().unwrap();
     let first_char_lower = first_char.to_lowercase().to_string();
@@ -496,10 +505,7 @@ where
 
 pub fn filter_children(c: &JSXElementChild) -> bool {
     match c {
-        JSXElementChild::JSXText(t) => {
-            let regex = Regex::new(r"^[\r\n]\s*$").unwrap();
-            !regex.is_match(&t.raw)
-        }
+        JSXElementChild::JSXText(t) => !NEWLINE_WHITESPACE_REGEX.is_match(&t.raw),
         JSXElementChild::JSXExprContainer(JSXExprContainer {
             expr: JSXExpr::JSXEmptyExpr(_),
             ..
@@ -542,9 +548,7 @@ pub fn check_length(children: &[JSXElementChild]) -> bool {
             })
         ) {
             if let JSXElementChild::JSXText(t) = child {
-                if !Regex::new(r"^\s*$").unwrap().is_match(&t.raw)
-                    || Regex::new(r"^ *$").unwrap().is_match(&t.raw)
-                {
+                if !ALL_WHITESPACE_REGEX.is_match(&t.raw) || ALL_SPACES_REGEX.is_match(&t.raw) {
                     i += 1;
                 }
             } else {
@@ -558,26 +562,21 @@ pub fn check_length(children: &[JSXElementChild]) -> bool {
 pub fn trim_whitespace(text: &str) -> String {
     let mut text = text.replace('\r', "");
     if text.contains('\n') {
-        let start_space_regex = Regex::new(r"^\s*").unwrap();
-        let space_regex = Regex::new(r"^\s*$").unwrap();
         text = text
             .split('\n')
             .enumerate()
             .map(|(i, t)| {
                 if i > 0 {
-                    start_space_regex.replace_all(t, "").to_string()
+                    START_WHITESPACE_REGEX.replace_all(t, "").to_string()
                 } else {
                     String::from(t)
                 }
             })
-            .filter(|s| !space_regex.is_match(s))
+            .filter(|s| !ALL_WHITESPACE_REGEX.is_match(s))
             .reduce(|cur, nxt| format!("{cur} {nxt}"))
             .unwrap_or("".to_owned());
     }
-    Regex::new(r"\s+")
-        .unwrap()
-        .replace_all(&text, " ")
-        .to_string()
+    MULTI_WHITESPACE_REGEX.replace_all(&text, " ").to_string()
 }
 
 pub fn to_property_name(name: &str) -> String {
@@ -619,10 +618,7 @@ pub fn wrapped_by_text(list: &[TemplateInstantiation], start_index: usize) -> bo
 }
 
 pub fn escape_backticks(value: &str) -> String {
-    Regex::new(r"`")
-        .unwrap()
-        .replace_all(value, r"\`")
-        .to_string()
+    BACKTICK_REGEX.replace_all(value, r"\`").to_string()
 }
 
 pub fn escape_html(s: &str, attr: bool) -> String {
