@@ -1,7 +1,7 @@
 use super::{
     structs::TemplateInstantiation,
     transform::TransformInfo,
-    utils::{filter_children, jsx_text_to_str},
+    utils::{filter_children, jsx_text_to_str, IntoFirst},
 };
 pub use crate::shared::structs::TransformVisitor;
 use swc_core::{
@@ -54,7 +54,7 @@ where
                 });
 
         if child_nodes.len() == 1 {
-            results.exprs.push(child_nodes.into_iter().next().unwrap())
+            results.exprs.push(child_nodes.into_first())
         } else {
             results.exprs.push(Expr::Array(ArrayLit {
                 span: DUMMY_SP,

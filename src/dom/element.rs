@@ -8,11 +8,11 @@ use crate::{
         structs::{DynamicAttr, ProcessSpreadsInfo, TemplateInstantiation},
         transform::{TransformInfo, is_component},
         utils::{
-            RESERVED_NAME_SPACES, can_native_spread, check_length, convert_jsx_identifier,
-            escape_backticks, escape_html, filter_children, get_tag_name, is_l_val, is_static_expr,
-            lit_to_string, make_getter_prop, make_jsx_attr_expr, make_member_assign,
-            make_var_declarator, to_property_name, trim_whitespace, unwrap_ts_expr,
-            wrapped_by_text,
+            IntoFirst, RESERVED_NAME_SPACES, can_native_spread, check_length,
+            convert_jsx_identifier, escape_backticks, escape_html, filter_children, get_tag_name,
+            is_l_val, is_static_expr, lit_to_string, make_getter_prop, make_jsx_attr_expr,
+            make_member_assign, make_var_declarator, to_property_name, trim_whitespace,
+            unwrap_ts_expr, wrapped_by_text,
         },
     },
 };
@@ -560,7 +560,7 @@ where
                     }))),
                 })
             } else {
-                let quasis0 = quasis.into_iter().next().unwrap();
+                let quasis0 = quasis.into_first();
                 JSXAttrValue::Str(quasis0.raw.into())
             };
             let mut class_indexes = class_idx.into_iter().peekable();
@@ -1163,7 +1163,7 @@ where
         }
 
         let props = if spread_args.len() == 1 && !dynamic_spread {
-            spread_args.into_iter().next().unwrap()
+            spread_args.into_first()
         } else {
             let merge_props = self.register_import_method("mergeProps");
             Expr::Call(CallExpr {
@@ -1300,7 +1300,7 @@ where
                 i += 1;
             } else if !child.exprs.is_empty() {
                 let insert = self.register_import_method("insert");
-                let child_expr = child.exprs.into_iter().next().unwrap();
+                let child_expr = child.exprs.into_first();
 
                 if wrapped_info[index] {
                     let expr_id;

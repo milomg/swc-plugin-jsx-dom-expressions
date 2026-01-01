@@ -3,7 +3,7 @@ use crate::{
     TransformVisitor,
     shared::{
         structs::{DynamicAttr, TemplateConstruction, TemplateInstantiation},
-        utils::{make_iife, make_var_declarator},
+        utils::{make_iife, make_var_declarator, IntoFirst},
     },
 };
 use swc_core::{
@@ -28,7 +28,7 @@ where
                 && result.post_exprs.is_empty()
                 && result.declarations.len() == 1
             {
-                return *result.declarations.into_iter().next().unwrap().init.unwrap();
+                return *result.declarations.into_first().init.unwrap();
             } else {
                 let stmts = [VarDecl {
                     kind: VarDeclKind::Const,
@@ -52,7 +52,7 @@ where
         }
 
         let dynamic = result.dynamic;
-        let expr = result.exprs.into_iter().next().unwrap();
+        let expr = result.exprs.into_first();
         if wrap && dynamic && !self.config.memo_wrapper.is_empty() {
             return quote!(
                 "$memo_wrapper($my_fn)" as Expr,

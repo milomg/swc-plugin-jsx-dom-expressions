@@ -1,4 +1,17 @@
 {
   "editor.tabCompletion": "on",
-  "diffEditor.codeLens": true
+  "diffEditor.codeLens": true,
+  "search.useIgnoreFiles": false,
+  "search.exclude": {
+    "**/^target": true,
+    "**/target": true,
+    "**/.DS_Store": true,
+    "target": true
+  },
+  "files.exclude": {
+    "**/^target": true,
+    "**/target": true,
+    "**/.DS_Store": true,
+    "target": true
+  }
 }
