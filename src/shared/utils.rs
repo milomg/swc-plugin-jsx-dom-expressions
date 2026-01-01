@@ -4,6 +4,20 @@ use convert_case::{Case, Converter};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashSet;
+
+/// Helper trait to extract the first element from a collection, consuming it.
+pub trait IntoFirst<T> {
+    fn into_first(self) -> T;
+}
+
+impl<T> IntoFirst<T> for Vec<T> {
+    fn into_first(self) -> T {
+        self.into_iter()
+            .next()
+            .expect("into_first called on empty Vec")
+    }
+}
+
 use swc_core::{
     atoms::Atom,
     common::{BytePos, DUMMY_SP, Span, comments::Comments, iter::IdentifyLast},

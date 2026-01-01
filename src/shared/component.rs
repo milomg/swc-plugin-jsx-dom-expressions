@@ -3,7 +3,7 @@ use super::{
     transform::TransformInfo,
     utils::{
         convert_jsx_identifier, filter_children, jsx_text_to_str, make_const_var_decl,
-        make_getter_prop, make_iife, make_return_block, unwrap_ts_expr,
+        make_getter_prop, make_iife, make_return_block, unwrap_ts_expr, IntoFirst,
     },
 };
 use crate::{TransformVisitor, shared::utils::is_l_val};
@@ -343,7 +343,7 @@ where
                 });
 
         if transformed_children.len() == 1 {
-            let first_children = transformed_children.into_iter().next().unwrap();
+            let first_children = transformed_children.into_first();
 
             if first_path_node && !first_path_node_matches {
                 let expr = match first_children {
