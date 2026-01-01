@@ -282,19 +282,13 @@ where
     C: Comments,
 {
     fn detect_resolvable_event_handler(&self, handler: &Expr) -> bool {
-        if let Expr::Ident(id) = handler {
+        if let Some(id) = handler.as_ident() {
             if let Some(init) = self.binding_collector.const_var_bindings.get(&id.to_id()) {
-                if let Some(init) = init {
-                    return self.detect_resolvable_event_handler(init);
-                } else {
-                    return false;
-                }
-            } else {
-                return self
-                    .binding_collector
-                    .function_bindings
-                    .contains(&id.to_id());
+                return init
+                    .as_ref()
+                    .is_some_and(|init| self.detect_resolvable_event_handler(init));
             }
+            return self.binding_collector.function_bindings.contains(&id.to_id());
         }
         matches!(handler, Expr::Fn(_) | Expr::Arrow(_))
     }
@@ -634,13 +628,9 @@ where
                 {
                     if key == "ref" {
                         let expr = unwrap_ts_expr(*expr);
-                        let is_function = if let Expr::Ident(ref id) = expr {
-                            self.binding_collector
-                                .const_var_bindings
-                                .contains_key(&id.to_id())
-                        } else {
-                            false
-                        };
+                        let is_function = expr
+                            .as_ident()
+                            .is_some_and(|id| self.binding_collector.const_var_bindings.contains_key(&id.to_id()));
 
                         let el_ident = results.id.clone().unwrap();
                         if !is_function && is_l_val(&expr) {

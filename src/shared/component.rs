@@ -85,13 +85,9 @@ where
                         })) => {
                             if key == "ref" {
                                 let expr = unwrap_ts_expr(*expr);
-                                let is_function = if let Expr::Ident(ref id) = expr {
-                                    self.binding_collector
-                                        .const_var_bindings
-                                        .contains_key(&id.to_id())
-                                } else {
-                                    false
-                                };
+                                let is_function = expr
+                                    .as_ident()
+                                    .is_some_and(|id| self.binding_collector.const_var_bindings.contains_key(&id.to_id()));
                                 if !is_function && is_l_val(&expr) {
                                     let ref_id = self.generate_uid_identifier("_ref$");
                                     let check = quote!(
