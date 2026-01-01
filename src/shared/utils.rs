@@ -203,8 +203,14 @@ where
                         break;
                     }
 
-                    if let Expr::Paren(ParenExpr { expr, .. }) = &*next_path.left {
-                        *next_path.left = *expr.clone();
+                    if matches!(*next_path.left, Expr::Paren(_)) {
+                        let Expr::Paren(ParenExpr { expr, .. }) = std::mem::replace(
+                            &mut *next_path.left,
+                            Expr::Invalid(Invalid { span: DUMMY_SP }),
+                        ) else {
+                            unreachable!()
+                        };
+                        *next_path.left = *expr;
                     }
                     if let Expr::Bin(ref mut left) = *next_path.left {
                         if !is_logical_op(left) {
@@ -275,12 +281,13 @@ where
         if next_path.op == BinaryOp::LogicalAnd
             && self.is_dynamic(&next_path.right, None, false, true, true, false)
         {
-            *d_test = self.is_dynamic(&next_path.left.clone(), None, true, false, true, false);
+            *d_test = self.is_dynamic(&next_path.left, None, true, false, true, false);
         }
         if *d_test {
-            *cond = *next_path.left.clone();
+            *cond = std::mem::replace(&mut *next_path.left, Expr::Invalid(Invalid { span: DUMMY_SP }));
             if !is_binary_expression(cond) {
-                *cond = quote!("!!$cond" as Expr, cond: Expr = cond.clone());
+                let inner = std::mem::replace(cond, Expr::Invalid(Invalid { span: DUMMY_SP }));
+                *cond = quote!("!!$cond" as Expr, cond: Expr = inner);
             }
             *id = if inline {
                 quote!(
