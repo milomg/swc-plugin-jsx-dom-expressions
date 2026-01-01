@@ -12,7 +12,7 @@ use crate::{
             convert_jsx_identifier, escape_backticks, escape_html, filter_children, get_tag_name,
             is_l_val, is_static_expr, lit_to_string, make_getter_prop, make_jsx_attr_expr,
             make_member_assign, make_var_declarator, to_property_name, trim_whitespace,
-            unwrap_ts_expr, wrapped_by_text,
+            unwrap_ts_expr,
         },
     },
 };
@@ -1245,13 +1245,53 @@ where
                 },
             );
 
-        // Pre-compute lookups that need the full list before we consume it
-        let wrapped_info: Vec<bool> = (0..child_nodes.len())
-            .map(|i| wrapped_by_text(&child_nodes, i))
-            .collect();
-        let next_children: Vec<Option<Ident>> = (0..child_nodes.len())
-            .map(|i| next_child(&child_nodes, i))
-            .collect();
+        // Pre-compute lookups in O(n) using single-pass algorithms
+        // (replaces O(n²) per-element lookups)
+        let n = child_nodes.len();
+
+        // next_children: backward pass to find first id after each index
+        let next_children: Vec<Option<Ident>> = {
+            let mut result = vec![None; n];
+            let mut next_id: Option<&Ident> = None;
+            for i in (0..n).rev() {
+                result[i] = next_id.cloned();
+                if let Some(ref id) = child_nodes[i].id {
+                    next_id = Some(id);
+                }
+            }
+            result
+        };
+
+        // wrapped_info: true if text exists both before and after (with no id breaking the chain)
+        let wrapped_info: Vec<bool> = {
+            let mut result = vec![false; n];
+
+            // Backward pass: has_text_at_or_after[i] = text reachable from i without hitting id
+            let mut has_text_at_or_after = vec![false; n];
+            let mut seen_text = false;
+            for i in (0..n).rev() {
+                if child_nodes[i].id.is_some() {
+                    seen_text = false;
+                }
+                if child_nodes[i].text {
+                    seen_text = true;
+                }
+                has_text_at_or_after[i] = seen_text;
+            }
+
+            // Forward pass: combine with has_text_before
+            seen_text = false;
+            for i in 0..n {
+                result[i] = seen_text && has_text_at_or_after[i];
+                if child_nodes[i].id.is_some() {
+                    seen_text = false;
+                }
+                if child_nodes[i].text {
+                    seen_text = true;
+                }
+            }
+            result
+        };
 
         for (index, child) in child_nodes.into_iter().enumerate() {
             results.template += &child.template;
@@ -1451,16 +1491,5 @@ where
             }
         }
         last_element
-    }
-}
-
-fn next_child(child_nodes: &Vec<TemplateInstantiation>, index: usize) -> Option<Ident> {
-    if index + 1 < child_nodes.len() {
-        child_nodes[index + 1]
-            .id
-            .clone()
-            .or_else(|| next_child(child_nodes, index + 1))
-    } else {
-        None
     }
 }

@@ -1,4 +1,3 @@
-use super::structs::TemplateInstantiation;
 use crate::TransformVisitor;
 use convert_case::{Case, Converter};
 use once_cell::sync::Lazy;
@@ -582,39 +581,6 @@ pub fn trim_whitespace(text: &str) -> String {
 pub fn to_property_name(name: &str) -> String {
     let conv = Converter::new().from_case(Case::Kebab).to_case(Case::Camel);
     conv.convert(name.to_lowercase())
-}
-
-pub fn wrapped_by_text(list: &[TemplateInstantiation], start_index: usize) -> bool {
-    let mut index = start_index;
-    let mut wrapped = false;
-    while index > 0 {
-        index -= 1;
-        let node = &list[index];
-        if node.text {
-            wrapped = true;
-            break;
-        }
-
-        if node.id.is_some() {
-            return false;
-        }
-    }
-    if !wrapped {
-        return false;
-    }
-    index = start_index;
-    while index < list.len() {
-        let node = &list[index];
-        if node.text {
-            return true;
-        }
-        if node.id.is_some() {
-            return false;
-        }
-        index += 1;
-    }
-
-    false
 }
 
 pub fn escape_backticks(value: &str) -> String {
