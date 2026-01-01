@@ -28,7 +28,7 @@ where
                 && result.post_exprs.is_empty()
                 && result.declarations.len() == 1
             {
-                return *result.declarations[0].init.clone().unwrap();
+                return *result.declarations.into_iter().next().unwrap().init.unwrap();
             } else {
                 let stmts = [VarDecl {
                     kind: VarDeclKind::Const,
@@ -51,8 +51,9 @@ where
             }
         }
 
-        let expr = result.exprs[0].clone();
-        if wrap && result.dynamic && !self.config.memo_wrapper.is_empty() {
+        let dynamic = result.dynamic;
+        let expr = result.exprs.into_iter().next().unwrap();
+        if wrap && dynamic && !self.config.memo_wrapper.is_empty() {
             return quote!(
                 "$memo_wrapper($my_fn)" as Expr,
                 memo_wrapper = self.register_import_method(&self.config.memo_wrapper.clone()),
