@@ -334,7 +334,7 @@ where
             }) => match **expr {
                 Expr::Lit(ref lit) => Some(lit_to_string(lit)),
                 Expr::Seq(_) => None,
-                _ => match self.evaluator.as_mut().unwrap().eval(expr) {
+                _ => match self.eval(expr) {
                     Some(EvalResult::Lit(lit)) => Some(lit_to_string(&lit)),
                     _ => None,
                 },

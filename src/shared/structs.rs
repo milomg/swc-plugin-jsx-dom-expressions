@@ -6,7 +6,7 @@ use std::{
 };
 use swc_core::{
     common::comments::Comments,
-    ecma::{ast::*, minifier::eval::Evaluator, utils::private_ident},
+    ecma::{ast::*, minifier::eval::{EvalResult, Evaluator}, utils::private_ident},
 };
 
 pub struct TemplateConstruction {
@@ -91,6 +91,15 @@ where
             self.uid_identifier_map.insert(name.clone(), 1);
             private_ident!(name)
         }
+    }
+
+    /// Evaluate an expression using the evaluator.
+    /// Panics if called before visit_mut_module sets up the evaluator.
+    pub fn eval(&mut self, expr: &Expr) -> Option<EvalResult> {
+        self.evaluator
+            .as_mut()
+            .expect("evaluator not initialized")
+            .eval(expr)
     }
 }
 

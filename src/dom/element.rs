@@ -426,7 +426,7 @@ where
             props.retain(|prop| {
                 let mut handle = |name: IdentName, value: Expr| {
                     i += 1;
-                    let attr = match self.evaluator.as_mut().unwrap().eval(&value) {
+                    let attr = match self.eval(&value) {
                         Some(EvalResult::Lit(_)) => JSXAttrOrSpread::JSXAttr(JSXAttr {
                             span: DUMMY_SP,
                             name: JSXAttrName::Ident(quote_ident!("class")),
@@ -600,7 +600,7 @@ where
                     ..
                 })) = attribute.value
             {
-                match self.evaluator.as_mut().unwrap().eval(expr) {
+                match self.eval(expr) {
                     Some(EvalResult::Lit(Lit::Str(lit))) => {
                         attribute.value = Some(JSXAttrValue::Str(lit))
                     }
@@ -825,10 +825,8 @@ where
                     } else if !self.config.effect_wrapper.is_empty()
                         && (self.is_dynamic(&expr, Some(span), true, false, true, false)
                             || ((key == "classList" || key == "style")
-                                && !(matches!(
-                                    self.evaluator.as_mut().unwrap().eval(&expr),
-                                    Some(EvalResult::Lit(_))
-                                ) || is_static_expr(&expr))))
+                                && !(matches!(self.eval(&expr), Some(EvalResult::Lit(_)))
+                                    || is_static_expr(&expr))))
                     {
                         let mut next_elem = elem.clone().unwrap();
                         if key == "value" || key == "checked" {
